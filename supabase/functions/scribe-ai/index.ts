@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { askClaudeThenLovable, CLAUDE_MODEL, CLAUDE_MODEL_IDS, claudeModelOptions, claudeText } from "../_shared/claude.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,13 +96,46 @@ ${lines.join('\n')}\n`;
   return blocks;
 }
 
-// Validated model map — only real Anthropic model IDs
-const VALID_MODELS: Record<string, string> = {
-  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
-  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6',
-};
-const FALLBACK_MODEL_ID = 'claude-sonnet-4-5-20250929';
+// Validated model map — only real Anthropic model IDs; retired ids move forward (CL-047, _shared/claude.ts)
+const VALID_MODELS: Record<string, string> = CLAUDE_MODEL_IDS;
+const FALLBACK_MODEL_ID = CLAUDE_MODEL;
+// Lovable AI model that writes the prose when Claude can't (no key, an error, or no text)
+const LOVABLE_PROSE_MODEL = 'google/gemini-2.5-pro';
+
+/** Lovable AI writes the prose when Claude can't. Same reply shape as the Claude path. */
+async function lovableProse(
+  systemPrompt: string,
+  userMessage: string,
+  maxTokens: number,
+  startTime: number,
+  textCharsSent: number,
+  reason: string,
+): Promise<Response> {
+  console.warn(`[scribe-ai] ${reason}; using Lovable AI (${LOVABLE_PROSE_MODEL})`);
+  const r = await askClaudeThenLovable({
+    claudeKey: null,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+    maxTokens,
+    fallbackModel: LOVABLE_PROSE_MODEL,
+    tag: "[scribe-ai]",
+    timeoutMs: ANTHROPIC_TIMEOUT_MS,
+  });
+  const elapsed = Date.now() - startTime;
+  if (!r.ok) {
+    return new Response(JSON.stringify({
+      error: r.status === 429 ? "AI rate limit hit. Wait a moment and try again."
+        : r.status === 402 ? "AI credits exhausted. Please add credits to continue."
+        : `AI processing failed (status ${r.status})`,
+      code: r.status === 429 ? "rate_limited" : "upstream_error",
+    }), { status: r.status === 429 ? 429 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+  return new Response(JSON.stringify({
+    text: r.text,
+    usage: { input_tokens: 0, output_tokens: 0 },
+    meta: { elapsed_ms: elapsed, model_used: LOVABLE_PROSE_MODEL, model_fallback: true, max_tokens: maxTokens, text_chars_sent: textCharsSent },
+  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
 
 /** Dynamic max_tokens: capped at 4096 for reliable sub-120s completion.
  *  Claude Sonnet generates ~50-80 tok/s; 4096 tokens ≈ 50-80s. */
@@ -185,12 +219,7 @@ serve(async (req) => {
       ? user_api_key.trim()
       : Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!useOpenAI && !ANTHROPIC_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "No API key available. Add your key in Settings → API Keys, or configure the backend secret.", code: "no_api_key" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // No Anthropic key at all: Lovable AI writes the prose (below, before the Anthropic path).
 
     const intensityLabel = ["subtle", "mild", "moderate", "strong", "dramatic"][
       Math.max(0, Math.min(4, (intensity || 3) - 1))
@@ -346,6 +375,10 @@ ${contextBlocks}`;
     }
 
     // ── Anthropic path ──
+    if (!ANTHROPIC_API_KEY) {
+      return await lovableProse(systemPrompt, userMessage, maxTokens, startTime, slicedText.length, "No Anthropic key");
+    }
+
     // Abort controller for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
@@ -366,6 +399,7 @@ ${contextBlocks}`;
           messages: [
             { role: "user", content: userMessage },
           ],
+          ...claudeModelOptions(resolvedModel),
         }),
         signal: controller.signal,
       });
@@ -395,7 +429,8 @@ ${contextBlocks}`;
       const errText = await response.text();
       console.error(`[scribe-ai] Anthropic error: ${response.status} (${elapsed}ms)`, errText);
 
-      if (response.status === 401) {
+      // A player's own key that Claude rejects is reported; any other failure falls back to Lovable AI.
+      if (response.status === 401 && hasUserKey) {
         return new Response(
           JSON.stringify({
             error: "Invalid Anthropic API key. Please re-save your key in Settings → API Keys.",
@@ -404,36 +439,14 @@ ${contextBlocks}`;
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({
-            error: "Anthropic rate limit hit. Wait a moment and try again.",
-            code: "rate_limited",
-          }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 529) {
-        return new Response(
-          JSON.stringify({
-            error: "Anthropic API is temporarily overloaded. Please try again in a few minutes.",
-            code: "api_overloaded",
-          }),
-          { status: 529, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          error: `AI processing failed (status ${response.status})`,
-          code: "upstream_error",
-          upstream_status: response.status,
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return await lovableProse(systemPrompt, userMessage, maxTokens, startTime, slicedText.length, `Anthropic ${response.status}`);
     }
 
     const result = await response.json();
-    const outputText = result.content?.[0]?.text || "";
+    const outputText = claudeText(result);
+    if (!outputText.trim()) {
+      return await lovableProse(systemPrompt, userMessage, maxTokens, startTime, slicedText.length, "Claude gave no text");
+    }
     const usage = result.usage ?? {};
 
     console.log(`[scribe-ai] Success: ${elapsed}ms, in=${usage.input_tokens || '?'}, out=${usage.output_tokens || '?'}`);
