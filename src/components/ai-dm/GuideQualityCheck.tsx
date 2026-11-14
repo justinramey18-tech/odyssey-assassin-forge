@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, ChevronDown, ChevronUp, Loader2, CheckCircle2, Wand2, X, Undo2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DM_MODELS } from '@/lib/dm-models';
+import { DM_MODELS, CLAUDE_EVERYWHERE_MODEL_ID } from '@/lib/dm-models';
 import { loadApiKey, isClaudeEverywhereEnabled } from '@/lib/api-keys';
 import { getAuthToken } from '@/lib/auth-token';
 import { useToast } from '@/hooks/use-toast';
@@ -84,7 +84,7 @@ const fixKey = (issueId: string, index: number) => `${issueId}::${index}`;
 export function GuideQualityCheck({ guides, onUpdate }: GuideQualityCheckProps) {
   const [expanded, setExpanded] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() =>
-    isClaudeEverywhereEnabled() ? 'anthropic/claude-sonnet-4-5' : 'google/gemini-3-flash-preview'
+    isClaudeEverywhereEnabled() ? CLAUDE_EVERYWHERE_MODEL_ID : 'google/gemini-3-flash-preview'
   );
   const [isChecking, setIsChecking] = useState(false);
   const [hasRun, setHasRun] = useState(false);

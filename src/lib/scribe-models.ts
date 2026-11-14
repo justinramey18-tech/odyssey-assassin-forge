@@ -4,8 +4,7 @@
  */
 
 import { isClaudeEverywhereEnabled, isGPTEverywhereEnabled } from '@/lib/api-keys';
-
-const CLAUDE_EVERYWHERE_MODEL_ID = 'anthropic/claude-sonnet-4-5';
+import { CLAUDE_EVERYWHERE_MODEL_ID, upgradeModelId } from '@/lib/dm-models';
 const GPT_EVERYWHERE_MODEL_ID = 'openai-direct/gpt-5';
 
 export interface ScribeModel {
@@ -21,9 +20,9 @@ export const SCRIBE_MODELS: ScribeModel[] = [
   { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'lovable', description: 'Faster, slightly less nuanced' },
   { id: 'openai/gpt-5', label: 'GPT-5', provider: 'lovable', description: 'High accuracy, slower' },
   { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', provider: 'lovable', description: 'Good balance of cost/quality' },
-  { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', provider: 'anthropic', description: 'Excellent narrative (own key)' },
-  { id: 'anthropic/claude-sonnet-4-5', label: 'Claude 4.5 Sonnet', provider: 'anthropic', description: 'Strong creative writing (own key)' },
-  { id: 'anthropic/claude-sonnet-4-6', label: 'Claude 4.6 Sonnet', provider: 'anthropic', description: 'Best creative writing (own key)' },
+  { id: 'anthropic/claude-opus-5-5', label: 'Claude Opus 5.5', provider: 'anthropic', description: 'Richest creative writing (own key)' },
+  { id: 'anthropic/claude-sonnet-5-5', label: 'Claude Sonnet 5.5', provider: 'anthropic', description: 'Strong creative writing (own key)' },
+  { id: 'anthropic/claude-haiku-5-5', label: 'Claude Haiku 5.5', provider: 'anthropic', description: 'Fast and very cheap (own key)' },
   { id: 'openai-direct/gpt-5', label: 'GPT-5 (own key)', provider: 'openai-direct', description: 'Full GPT-5 via your OpenAI key' },
   { id: 'openai-direct/gpt-4o', label: 'GPT-4o (own key)', provider: 'openai-direct', description: 'Fast multimodal (own key)' },
   { id: 'openai-direct/gpt-4o-mini', label: 'GPT-4o Mini (own key)', provider: 'openai-direct', description: 'Cheapest & fastest (own key)' },
@@ -46,7 +45,8 @@ const EXPLICIT_KEY = 'dnd-scribe-ai-model-explicit';
 export function loadScribeModel(): string {
   try {
     const isExplicit = localStorage.getItem(EXPLICIT_KEY) === 'true';
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? upgradeModelId(raw) : raw;
     if (isExplicit && saved && SCRIBE_MODELS.some(m => m.id === saved)) {
       return saved;
     }
@@ -54,7 +54,8 @@ export function loadScribeModel(): string {
   if (isClaudeEverywhereEnabled()) return CLAUDE_EVERYWHERE_MODEL_ID;
   if (isGPTEverywhereEnabled()) return GPT_EVERYWHERE_MODEL_ID;
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? upgradeModelId(raw) : raw;
     if (saved && SCRIBE_MODELS.some(m => m.id === saved)) return saved;
   } catch { /* ignore */ }
   return DEFAULT_SCRIBE_MODEL;

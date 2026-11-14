@@ -349,7 +349,7 @@ export function ScribeDrawer({
               </div>
               {aiUsage && (
                 <p className="text-[10px] text-muted-foreground/60 font-mono text-right">
-                  {formatUsage(aiUsage, 'anthropic/claude-sonnet-4-5')}
+                  {formatUsage(aiUsage, 'anthropic/claude-sonnet-5-5')}
                 </p>
               )}
             </div>
