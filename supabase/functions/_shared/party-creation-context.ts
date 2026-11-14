@@ -5,9 +5,12 @@
 // this module. Spoiler filtering here is best-effort, not a guarantee.
 
 // deno-lint-ignore-file no-explicit-any
+import { askClaudeThenLovable, CLAUDE_MODEL } from "./claude.ts";
+
 type Db = any;
 
-const EXTRACTION_MODEL = "claude-sonnet-4-5-20250929"; // same model the creator already uses
+const EXTRACTION_MODEL = CLAUDE_MODEL; // Claude Sonnet 5.5; a Lovable AI model answers if Claude can't (CL-047)
+const EXTRACTION_FALLBACK_MODEL = "google/gemini-2.5-flash";
 const MAX_SOURCE_CHARS = 120_000;
 const MAX_STR = 1200;
 const MAX_LIST = 8;
@@ -187,7 +190,6 @@ const ID = /^[a-z][a-z0-9_-]{1,39}$/;
 
 async function extract(sources: Source[], campaignType: string) {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!key) throw new Error("Creation AI is not configured");
   let budget = MAX_SOURCE_CHARS;
   const blocks: string[] = [];
   for (const s of sources) {
@@ -197,21 +199,16 @@ async function extract(sources: Source[], campaignType: string) {
     if (clean.trim()) blocks.push(`[SOURCE ${s.id} | ${s.kind} | ${s.title.slice(0, 120)}]\n${clean}\n[END SOURCE]`);
   }
   if (!blocks.length) return null;
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: EXTRACTION_MODEL, max_tokens: 4000, temperature: 0.2, system: EXTRACT_SYSTEM,
-      tools: [EXTRACT_TOOL], tool_choice: { type: "tool", name: "player_brief" },
-      messages: [{ role: "user", content: `Campaign type: ${campaignType}\n\n${blocks.join("\n\n")}` }],
-    }),
-    signal: AbortSignal.timeout(90_000),
+  const result = await askClaudeThenLovable({
+    claudeKey: key, model: EXTRACTION_MODEL, fallbackModel: EXTRACTION_FALLBACK_MODEL,
+    system: EXTRACT_SYSTEM, maxTokens: 4000,
+    tools: [EXTRACT_TOOL], toolName: "player_brief",
+    messages: [{ role: "user", content: `Campaign type: ${campaignType}\n\n${blocks.join("\n\n")}` }],
+    timeoutMs: 90_000, tag: "[party-creation-context]",
   });
-  if (!res.ok) throw new Error(`Extraction failed (${res.status})`);
-  const j = await res.json();
-  const out = (j.content || []).find((c: any) => c.type === "tool_use")?.input;
-  if (!out || typeof out !== "object") throw new Error("Extraction returned no brief");
-  return out;
+  if (!result.ok) throw new Error(`Extraction failed (${result.status})`);
+  if (!result.toolInput) throw new Error("Extraction returned no brief");
+  return result.toolInput as any;
 }
 
 function shape(raw: any, ids: Set<string>, roster: PublicRosterEntry[], campaignType: string, whereLabel: string) {
