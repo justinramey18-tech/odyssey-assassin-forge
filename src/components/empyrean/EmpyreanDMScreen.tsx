@@ -1636,16 +1636,7 @@ ${oocLines}`;
                 <div className="flex items-center gap-1">
                   <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
                   <button
-                    onClick={() => {
-                      setBurnoutLevel(Math.max(0, burnoutLevel - 1));
-                      // Reset death save state and restore full HP for testing
-                      setShowDeathSaves(false);
-                      const maxHP = characterContext?.maxHP ?? 10;
-                      const currentHP = autoSyncCallbacks?.getCurrentHP() ?? 0;
-                      if (currentHP < maxHP) {
-                        autoSyncCallbacks?.onHPChange(maxHP - currentHP, 'healing');
-                      }
-                    }}
+                    onClick={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
                     disabled={burnoutLevel <= 0}
                     className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-[10px] font-mono flex items-center justify-center transition-colors"
                     style={{ touchAction: 'manipulation' }}
@@ -1765,15 +1756,7 @@ ${oocLines}`;
           <div className="flex items-center gap-1.5">
             <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
             <button
-              onClick={() => {
-                setBurnoutLevel(Math.max(0, burnoutLevel - 1));
-                setShowDeathSaves(false);
-                const maxHP = characterContext?.maxHP ?? 10;
-                const currentHP = autoSyncCallbacks?.getCurrentHP() ?? 0;
-                if (currentHP < maxHP) {
-                  autoSyncCallbacks?.onHPChange(maxHP - currentHP, 'healing');
-                }
-              }}
+              onClick={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
               disabled={burnoutLevel <= 0}
               className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-xs font-mono flex items-center justify-center transition-colors"
               style={{ touchAction: 'manipulation' }}
