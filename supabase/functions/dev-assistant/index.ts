@@ -1,17 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { askClaudeThenLovable, CLAUDE_MODEL_IDS } from "../_shared/claude.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const ANTHROPIC_MODELS: Record<string, string> = {
-  "anthropic/claude-sonnet-4": "claude-sonnet-4-20250514",
-  "anthropic/claude-sonnet-4-5": "claude-sonnet-4-5-20250929",
-  "anthropic/claude-sonnet-4-6": "claude-sonnet-4-6",
-  "anthropic/claude-opus-4-6": "claude-opus-4-6",
-  "anthropic/claude-haiku-4-5": "claude-haiku-4-5-20251001",
-};
+// App model ids -> Claude ids; retired ids move forward (CL-047, _shared/claude.ts).
+const ANTHROPIC_MODELS: Record<string, string> = CLAUDE_MODEL_IDS;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -22,11 +18,7 @@ serve(async (req) => {
     const { messages, codebaseIndex, fileContents, customInstructions, phase, user_api_key, model } = await req.json();
 
     const apiKey = user_api_key || Deno.env.get("ANTHROPIC_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "No API key configured. Add your Anthropic key in Settings." }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // No Anthropic key: a Lovable AI model answers instead.
 
     const resolvedModel = ANTHROPIC_MODELS[model] || "claude-opus-4-6";
     const instructionsSuffix = customInstructions ? "\n\n--- Custom Instructions ---\n" + customInstructions : "";
@@ -91,42 +83,35 @@ This wrapper format is required so the app can detect and render it with a copy 
       maxTokens = 8192;
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: resolvedModel,
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: apiMessages,
-      }),
+    // Claude first; if it errors or gives no text, a Lovable AI model answers (CL-047).
+    const ai = await askClaudeThenLovable({
+      claudeKey: apiKey,
+      playerKey: !!user_api_key,
+      model: resolvedModel,
+      fallbackModel: "google/gemini-2.5-pro",
+      system: systemPrompt,
+      messages: apiMessages as any,
+      maxTokens,
+      tag: "[dev-assistant]",
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
-
-      if (response.status === 401) {
+    if (!ai.ok) {
+      if (ai.status === 401) {
         return new Response(JSON.stringify({ error: "Invalid API key. Check Settings > Game Master > API Keys." }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 429) {
+      if (ai.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited. Wait a moment and try again." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: `Anthropic API error: ${response.status}` }), {
+      return new Response(JSON.stringify({ error: `AI error: ${ai.status}` }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await response.json();
-    const textContent = data.content?.find((b: any) => b.type === "text")?.text || "";
+    const textContent = ai.text;
 
     if (phase === "identify") {
       let filePaths: string[] = [];

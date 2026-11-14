@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { askClaudeThenLovable, CLAUDE_MODEL_IDS } from "../_shared/claude.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,12 +33,8 @@ const XAI_MODELS: Record<string, string> = {
   'xai-direct/grok-3-mini': 'grok-3-mini',
   'xai-direct/grok-2-latest': 'grok-2-latest',
 };
-const ANTHROPIC_MODELS: Record<string, string> = {
-  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
-  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-5-20250929',
-  'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20250929',
-};
+// App model ids -> Claude ids; retired ids move forward (CL-047, _shared/claude.ts).
+const ANTHROPIC_MODELS: Record<string, string> = CLAUDE_MODEL_IDS;
 
 const PILL_TOOL = {
   type: "function" as const,
@@ -327,37 +324,28 @@ This tone instruction OVERRIDES the general rule about varying the flavour of th
     let parsed: { pills?: any[] } = {};
     try {
       if (route === 'anthropic') {
-        const anthropicResp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": String(user_api_key).trim(),
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: resolvedModel,
-            max_tokens: 2048,
-            system: systemPrompt,
-            messages: [{ role: "user", content: "Generate the 4 masterwork pills now via the tool." }],
-            tools: [{
-              name: PILL_TOOL.function.name,
-              description: PILL_TOOL.function.description,
-              input_schema: PILL_TOOL.function.parameters,
-            }],
-            tool_choice: { type: "tool", name: PILL_TOOL.function.name },
-          }),
+        // Claude is offered the tool (Sonnet 5.5 rejects a forced tool). If Claude errors or answers
+        // without the tool, the Lovable default model is asked with the tool forced (CL-047).
+        const ai = await askClaudeThenLovable({
+          claudeKey: String(user_api_key).trim(),
+          playerKey: true,
+          model: resolvedModel,
+          fallbackModel: DEFAULT_MODEL,
+          system: systemPrompt,
+          messages: [{ role: "user", content: "Generate the 4 masterwork pills now via the tool." }],
+          maxTokens: 4096,
+          tools: [{
+            name: PILL_TOOL.function.name,
+            description: PILL_TOOL.function.description,
+            input_schema: PILL_TOOL.function.parameters as Record<string, unknown>,
+          }],
+          toolName: PILL_TOOL.function.name,
+          tag: "[masterwork]",
         });
-        if (!anthropicResp.ok) {
-          const t = await anthropicResp.text();
-          console.error("[masterwork] Anthropic error", anthropicResp.status, t);
-          return new Response(JSON.stringify({ error: anthropicResp.status === 401 ? "Invalid Anthropic API key." : "Anthropic API error", detail: t }), { status: anthropicResp.status === 429 ? 429 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (!ai.ok) {
+          return new Response(JSON.stringify({ error: ai.status === 401 ? "Invalid Anthropic API key." : ai.error }), { status: ai.status === 429 ? 429 : ai.status === 401 ? 401 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        const aData = await anthropicResp.json();
-        const toolUse = aData.content?.find((b: any) => b.type === "tool_use");
-        if (!toolUse) {
-          return new Response(JSON.stringify({ error: "Claude did not return tool call" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        parsed = toolUse.input || {};
+        parsed = (ai.toolInput as { pills?: any[] }) || {};
       } else {
         // OpenAI-compatible endpoints: Lovable gateway, OpenAI direct, xAI
         const endpoint =

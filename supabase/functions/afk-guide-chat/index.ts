@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { CLAUDE_MODEL, claudeModelOptions, cleanMessages } from "../_shared/claude.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,6 @@ const corsHeaders = {
 };
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = "claude-sonnet-4-5-20250929";
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 function buildSystemPrompt(characterName: string): string {
@@ -46,10 +46,8 @@ async function streamAnthropicDirect(
   systemPrompt: string,
   messages: { role: string; content: string }[],
 ): Promise<Response> {
-  const anthropicMessages = messages.map((m) => ({
-    role: m.role === "system" ? "user" : m.role,
-    content: m.content,
-  }));
+  // Claude Sonnet 5.5 rejects a trailing assistant turn; cleanMessages also turns system turns into user turns.
+  const anthropicMessages = cleanMessages(messages as any);
 
   const response = await fetch(ANTHROPIC_URL, {
     method: "POST",
@@ -64,7 +62,7 @@ async function streamAnthropicDirect(
       system: systemPrompt,
       messages: anthropicMessages,
       stream: true,
-      temperature: 0.8,
+      ...claudeModelOptions(CLAUDE_MODEL),
     }),
   });
 
@@ -188,12 +186,6 @@ serve(async (req) => {
         if (err.status === 401) {
           return new Response(JSON.stringify({ error: "Invalid Anthropic API key." }), {
             status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (err.status === 429) {
-          return new Response(JSON.stringify({ error: "Anthropic rate limit exceeded." }), {
-            status: 429,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
