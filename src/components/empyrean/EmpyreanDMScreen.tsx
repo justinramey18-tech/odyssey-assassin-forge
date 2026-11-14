@@ -108,6 +108,11 @@ import { EmpyreanCooldownsDrawer } from '@/components/empyrean/EmpyreanCooldowns
 import { SignetManagementDrawer } from '@/components/empyrean/SignetManagementDrawer';
 import { OOCNotesSheet, type ActiveOOCNote } from '@/components/empyrean/OOCNotesSheet';
 import { Eye } from 'lucide-react';
+import { ScrollText } from 'lucide-react';
+import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
+import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
+import { buildCanonLockBlock } from '@/lib/worldStateGuard';
+import { normalizeWorldState } from '@/lib/quests';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
   loadNarrativeCooldowns,
@@ -493,6 +498,10 @@ UNBONDED RIDER RULES:
   const spotify = useSpotify();
   const { responseMode, setResponseMode } = useResponseMode();
 
+  // Quest hub bridge: the auto-sync hook is created before the game state and the quest hub,
+  // so its quest callbacks reach the hub through this ref, filled in further down.
+  const questApiRef = useRef<ReturnType<typeof useEmpyreanQuests> | null>(null);
+
   // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
@@ -505,6 +514,13 @@ UNBONDED RIDER RULES:
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
     getCurrentMarkers: useCallback(() => [], []),
     getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
+    getActiveQuests: useCallback(() => questApiRef.current?.getActiveQuests() ?? [], []),
+    onQuestUpdate: useCallback((offers: any[], progress: any[]) => {
+      questApiRef.current?.applyExtraction(offers, progress);
+    }, []),
+    onWorldStateUpdate: useCallback((changes: any[]) => {
+      questApiRef.current?.recordWorldState(changes);
+    }, []),
   });
 
   const dragonBond = useDragonBond({
@@ -512,7 +528,9 @@ UNBONDED RIDER RULES:
     characterName,
   });
 
-  const maxBurnout = isUnbonded ? 0 : 8;
+  // Signet Strain ceiling: 8, raised by Signet rank in the Quest Hub (9 at rank 3, 10 at rank 5).
+  const [questStrainCeiling, setQuestStrainCeiling] = useState(8);
+  const maxBurnout = isUnbonded ? 0 : questStrainCeiling;
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
@@ -579,6 +597,10 @@ ${oocLines}`;
       const block = buildWeatherPrompt(weather || getCachedWeather());
       if (block) prompt += '\n\n' + block;
     }
+
+    // Established outcomes (finished and failed quests, world changes) are facts the DM must not contradict.
+    const canonBlock = buildCanonLockBlock(normalizeWorldState(gameState.gameState.quest_flags));
+    if (canonBlock) prompt += '\n\n' + canonBlock;
 
     return prompt;
   }, [gameState.gameState, weather]);
@@ -794,6 +816,36 @@ ${oocLines}`;
       }
     },
   });
+
+  // ─── Quest Hub ───────────────────────────────────────────────────────────
+  const [questHubOpen, setQuestHubOpen] = useState(false);
+  const questApi = useEmpyreanQuests({
+    questFlags: gameState.gameState.quest_flags,
+    upsertQuest: gameState.upsertQuest,
+    removeQuest: gameState.removeQuest,
+    onAddXP: autoSyncCallbacks?.onAddXP,
+    onGoldChange: autoSyncCallbacks?.onGoldChange,
+    onBondReward: dragonBond.processQuestReward,
+    onStrainRelief: (amount: number) => setBurnoutLevel(prev => Math.max(0, prev - amount)),
+    sendMessage,
+    getSeekContext: () => {
+      const lastDm = [...messages].reverse().find(m => m.role === 'assistant');
+      return {
+        characterName: config?.characterName || characterName,
+        dragonName: isUnbonded ? undefined : config?.dragonName,
+        signetType: isUnbonded ? undefined : config?.signetType,
+        yearAtBasgiath: config?.yearAtBasgiath,
+        campaignSummary: (campaignSummary || '').slice(-4000),
+        latestScene: stripAllMetaTags(String(lastDm?.content ?? '')).slice(-1500),
+      };
+    },
+  });
+  useEffect(() => { questApiRef.current = questApi; });
+  useEffect(() => { setQuestStrainCeiling(questApi.strainCeiling); }, [questApi.strainCeiling]);
+  // A lower ceiling (another campaign, a reset) never leaves strain above the limit.
+  useEffect(() => {
+    if (maxBurnout > 0 && burnoutLevel > maxBurnout) setBurnoutLevel(maxBurnout);
+  }, [maxBurnout, burnoutLevel]);
 
   // Auto-update Linked Universe story digest whenever the campaign summary changes
   useEffect(() => {
@@ -1703,6 +1755,15 @@ ${oocLines}`;
             </>
           )}
           <button
+            onClick={() => setQuestHubOpen(true)}
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Quest Hub"
+            title="Quest Hub"
+          >
+            <ScrollText className="w-5 h-5 text-amber-300" />
+          </button>
+          <button
             onClick={() => setShowToolsDrawer(true)}
             className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
@@ -1796,6 +1857,15 @@ ${oocLines}`;
               </>
             )}
             <button
+              onClick={() => setQuestHubOpen(true)}
+              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Quest Hub"
+              title="Quest Hub"
+            >
+              <ScrollText className="w-5 h-5 text-amber-300" />
+            </button>
+            <button
               onClick={() => setShowToolsDrawer(true)}
               className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
               style={{ touchAction: 'manipulation' }}
@@ -1845,6 +1915,9 @@ ${oocLines}`;
           </div>
         </div>
       )}
+
+      {/* Quest Hub: the active quest's next step; tap to open the hub */}
+      <QuestObjectiveStrip quest={questApi.current} onOpen={() => setQuestHubOpen(true)} />
 
       {/* Messages */}
       <div className={cn(
@@ -2504,6 +2577,9 @@ ${oocLines}`;
           chatMessages={messages.slice(-20).map(m => ({ role: m.role, content: m.content }))}
         />
       )}
+
+      {/* Quest Hub Overlay */}
+      <EmpyreanQuestHub open={questHubOpen} onClose={() => setQuestHubOpen(false)} api={questApi} />
 
       {/* World State Overlay */}
       {showWorldState && (
