@@ -170,6 +170,24 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     });
   }, []);
 
+  /**
+   * Quest hub rewards (Dragon & Bond quests): bond and trust from a finished quest,
+   * or a small trust loss from a failed one. A loss here is not a rupture, so it
+   * doesn't shrink future trust gains the way an insult in the bond chat does.
+   */
+  const processQuestReward = useCallback((bondDelta: number, trustDelta: number, reason: string) => {
+    if (!bondDelta && !trustDelta) return;
+    setBondState(prev => {
+      let state = bondDelta > 0 ? addBond(prev, bondDelta) : prev;
+      if (trustDelta > 0) state = addTrust(state, trustDelta);
+      else if (trustDelta < 0) state = { ...state, trust: Math.max(0, Math.round(state.trust + trustDelta)) };
+      saveBondState(state);
+      return state;
+    });
+    if (bondDelta) onBondChangeRef.current?.(bondDelta, reason);
+    if (trustDelta) onTrustChangeRef.current?.(trustDelta, reason);
+  }, []);
+
   const addNarrativeMemory = useCallback((text: string) => {
     setBondState(prev => {
       const state = addMemory(prev, text, 'campaign');
@@ -184,6 +202,7 @@ export function useDragonBond({ dragonName, characterName, onTrustChange, onBond
     processBondStrain,
     processBondGrowth,
     processCombatBond,
+    processQuestReward,
     addDragonMessage,
     addNarrativeMemory,
     markChatOpened,
