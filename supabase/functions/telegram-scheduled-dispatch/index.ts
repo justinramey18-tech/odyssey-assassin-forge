@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { askClaudeThenLovable, CLAUDE_MODEL_IDS } from '../_shared/claude.ts';
 
 const LOVABLE_MODELS = new Set([
   'google/gemini-3-pro-preview', 'google/gemini-2.5-pro', 'google/gemini-2.5-flash',
@@ -6,12 +7,8 @@ const LOVABLE_MODELS = new Set([
   'openai/gpt-5', 'openai/gpt-5-mini', 'openai/gpt-5-nano', 'openai/gpt-5.2',
 ]);
 
-const ANTHROPIC_MODELS: Record<string, string> = {
-  'anthropic/claude-sonnet-4': 'claude-sonnet-4-20250514',
-  'anthropic/claude-sonnet-4-5': 'claude-sonnet-4-5-20250929',
-  'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6',
-  'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20251001',
-};
+// App model ids -> Claude ids; retired ids move forward to Claude Sonnet 5.5 (CL-047, _shared/claude.ts).
+const ANTHROPIC_MODELS: Record<string, string> = CLAUDE_MODEL_IDS;
 
 const OPENAI_DIRECT_MODELS: Record<string, string> = {
   'openai-direct/gpt-5': 'gpt-5',
@@ -247,32 +244,18 @@ Deno.serve(async (req) => {
         const selectedModel = job.ai_model || 'google/gemini-2.5-flash-lite';
 
         if (ANTHROPIC_MODELS[selectedModel]) {
-          // Anthropic direct
-          const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
-          if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not configured for Anthropic model');
-
-          const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'x-api-key': anthropicKey,
-              'anthropic-version': '2023-06-01',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: ANTHROPIC_MODELS[selectedModel],
-              max_tokens: 2000,
-              system: systemPrompt,
-              messages: [{ role: 'user', content: userMessage }],
-            }),
+          // Claude first; if Claude has no key, errors or gives no text, Lovable AI answers (CL-047)
+          const ai = await askClaudeThenLovable({
+            claudeKey: Deno.env.get('ANTHROPIC_API_KEY'),
+            model: ANTHROPIC_MODELS[selectedModel],
+            fallbackModel: 'google/gemini-2.5-flash',
+            system: systemPrompt,
+            messages: [{ role: 'user', content: userMessage }],
+            maxTokens: 2000,
+            tag: '[telegram-scheduled-dispatch]',
           });
-
-          if (!aiResponse.ok) {
-            const errText = await aiResponse.text();
-            throw new Error(`Anthropic error [${aiResponse.status}]: ${errText}`);
-          }
-
-          const aiData = await aiResponse.json();
-          finalMessage = aiData.content?.[0]?.text || 'No response generated.';
+          if (!ai.ok) throw new Error(`AI error [${ai.status}]: ${ai.error}`);
+          finalMessage = ai.text || 'No response generated.';
 
         } else if (OPENAI_DIRECT_MODELS[selectedModel]) {
           // OpenAI direct — fetch user's key

@@ -1,14 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { CLAUDE_MODEL, claudeModelOptions } from '../_shared/claude.ts';
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/telegram';
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
 const FALLBACK_MODEL = 'google/gemini-3.1-pro-preview';
 const MAX_RUNTIME_MS = 55_000;
 const MIN_REMAINING_MS = 5_000;
 
-// ── Deadpool AI helper: Claude Sonnet 4.5 primary, Gemini 3.1 Pro fallback ──
+// ── Deadpool AI helper: Claude Sonnet 5.5 primary, Gemini 3.1 Pro fallback (CL-047) ──
 
 async function callDeadpoolAI(
   systemPrompt: string,
@@ -18,7 +18,7 @@ async function callDeadpoolAI(
 ): Promise<string> {
   const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
 
-  // Try Claude Sonnet 4.5 first
+  // Try Claude Sonnet 5.5 first
   if (anthropicKey) {
     try {
       const res = await fetch(ANTHROPIC_URL, {
@@ -33,14 +33,14 @@ async function callDeadpoolAI(
           max_tokens: maxTokens,
           system: systemPrompt,
           messages: [{ role: 'user', content: userContent }],
-          temperature: 0.8,
+          ...claudeModelOptions(CLAUDE_MODEL),
         }),
       });
       if (res.ok) {
         const data = await res.json();
         const textBlock = data.content?.find((b: any) => b.type === 'text');
         if (textBlock?.text) {
-          console.log('[callDeadpoolAI] Claude Sonnet 4.5 ✓');
+          console.log('[callDeadpoolAI] Claude Sonnet 5.5 ✓');
           return textBlock.text;
         }
       } else {
