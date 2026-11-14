@@ -1,10 +1,11 @@
 /**
  * Shared Anthropic API helper for edge functions.
- * Provides non-streaming and streaming calls + tool calling support.
+ * Used when a player turns on Claude Everywhere and sends their own Anthropic key.
+ * Claude Sonnet 5.5 answers first; if it can't (an error, a busy signal, or no result), a Lovable AI
+ * model answers instead (CL-047, rules in ./claude.ts). A rejected player key is reported, never hidden.
  */
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = "claude-sonnet-4-5-20250929";
+import { askClaudeThenLovable, streamClaudeThenLovable, toAnthropicTools } from "./claude.ts";
 
 interface AnthropicMessage {
   role: string;
@@ -26,101 +27,68 @@ export function convertToolsToAnthropic(openaiTools: any[]): AnthropicToolDef[] 
   }));
 }
 
-/** Non-streaming call to Anthropic. Returns the text content or tool_use result. */
+/** Non-streaming call. Returns the text content or the tool call's arguments. */
 export async function callAnthropicNonStreaming(opts: {
   userApiKey: string;
   systemPrompt: string;
   messages: AnthropicMessage[];
   maxTokens?: number;
-  temperature?: number;
+  temperature?: number; // ignored: Claude Sonnet 5.5 rejects temperature
   tools?: any[]; // OpenAI-format tools
-  toolChoice?: string; // tool name to force
+  toolChoice?: string; // tool name the answer must call
+  fallbackModel?: string; // Lovable AI model if Claude can't answer
 }): Promise<{ text?: string; toolArguments?: any; error?: string; status?: number }> {
-  const { userApiKey, systemPrompt, messages, maxTokens = 4096, temperature = 0.7, tools, toolChoice } = opts;
+  const { userApiKey, systemPrompt, messages, maxTokens = 4096, tools, toolChoice, fallbackModel } = opts;
+  const hasTools = Array.isArray(tools) && tools.length > 0;
 
-  const body: Record<string, unknown> = {
-    model: CLAUDE_MODEL,
-    max_tokens: maxTokens,
+  const result = await askClaudeThenLovable({
+    claudeKey: userApiKey,
+    playerKey: true,
     system: systemPrompt,
-    messages: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, content: m.content })),
-    temperature,
-  };
-
-  if (tools && tools.length > 0) {
-    body.tools = convertToolsToAnthropic(tools);
-    if (toolChoice) {
-      body.tool_choice = { type: "tool", name: toolChoice };
-    }
-  }
-
-  const response = await fetch(ANTHROPIC_URL, {
-    method: "POST",
-    headers: {
-      "x-api-key": userApiKey,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+    messages,
+    maxTokens,
+    tools: hasTools ? toAnthropicTools(tools) : undefined,
+    toolName: hasTools ? toolChoice : undefined,
+    fallbackModel,
+    tag: "[anthropic-helper]",
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Anthropic API error:", response.status, errorText);
-    if (response.status === 429) return { error: "Anthropic rate limit exceeded. Please wait and try again.", status: 429 };
-    if (response.status === 401) return { error: "Invalid Anthropic API key. Please update your key in Settings.", status: 401 };
-    return { error: "Anthropic API error", status: 500 };
-  }
-
-  const data = await response.json();
-
-  // Check for tool_use blocks
-  const toolUseBlock = data.content?.find((b: any) => b.type === "tool_use");
-  if (toolUseBlock) {
-    return { toolArguments: toolUseBlock.input };
-  }
-
-  // Return text content
-  const textBlock = data.content?.find((b: any) => b.type === "text");
-  return { text: textBlock?.text || "" };
+  if (!result.ok) return { error: result.error, status: result.status };
+  if (result.toolInput) return { toolArguments: result.toolInput };
+  return { text: result.text || "" };
 }
 
-/** Streaming call to Anthropic. Returns an OpenAI-compatible SSE Response. */
+/** Streaming call. Returns an OpenAI-compatible SSE Response. */
 export async function callAnthropicStreaming(opts: {
   userApiKey: string;
   systemPrompt: string;
   messages: AnthropicMessage[];
   maxTokens?: number;
-  temperature?: number;
+  temperature?: number; // ignored: Claude Sonnet 5.5 rejects temperature
+  fallbackModel?: string; // Lovable AI model if Claude can't answer
 }): Promise<Response> {
-  const { userApiKey, systemPrompt, messages, maxTokens = 4096, temperature = 0.7 } = opts;
+  const { userApiKey, systemPrompt, messages, maxTokens = 4096, fallbackModel } = opts;
 
-  const response = await fetch(ANTHROPIC_URL, {
-    method: "POST",
-    headers: {
-      "x-api-key": userApiKey,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, content: m.content })),
-      stream: true,
-      temperature,
-    }),
+  const opened = await streamClaudeThenLovable({
+    claudeKey: userApiKey,
+    playerKey: true,
+    system: systemPrompt,
+    messages,
+    maxTokens,
+    fallbackModel,
+    tag: "[anthropic-helper]",
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Anthropic streaming error:", response.status, errorText);
-    if (response.status === 429) throw { status: 429, message: "Anthropic rate limit exceeded." };
-    if (response.status === 401) throw { status: 401, message: "Invalid Anthropic API key." };
-    throw { status: 500, message: "Anthropic API error" };
+  if (opened.kind === "error") throw { status: opened.status, message: opened.error };
+  // The Lovable AI stream is already OpenAI-compatible.
+  if (opened.kind === "lovable") {
+    return new Response(opened.response.body, { headers: { "Content-Type": "text/event-stream" } });
   }
+  const response = opened.response;
 
   // Transform Anthropic SSE → OpenAI-compatible SSE
-  const reader = response.body!.getReader();
+  const reader = response.body?.getReader();
+  if (!reader) throw { status: 502, message: "AI service error" };
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
 
