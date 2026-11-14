@@ -5,6 +5,9 @@
 // Every request built here leaves those out. When Claude can't answer (no key, an error, a busy
 // signal, or no result), the request goes to a Lovable AI model instead.
 
+// Type-only declaration for client-side tests importing this server module.
+declare const Deno: { env: { get(key: string): string | undefined } };
+
 export const CLAUDE_MODEL = "claude-sonnet-5-5";
 export const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 export const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
