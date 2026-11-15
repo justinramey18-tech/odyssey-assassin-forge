@@ -750,6 +750,107 @@ export type Database = {
         }
         Relationships: []
       }
+      empyrean_dragon_events: {
+        Row: {
+          bond_after: number
+          bond_delta: number
+          created_at: string
+          dragon_id: string
+          id: string
+          reason: string | null
+          source: string
+          trust_after: number
+          trust_delta: number
+          user_id: string
+          wounds_after: number
+          wounds_delta: number
+        }
+        Insert: {
+          bond_after: number
+          bond_delta?: number
+          created_at?: string
+          dragon_id: string
+          id?: string
+          reason?: string | null
+          source: string
+          trust_after: number
+          trust_delta?: number
+          user_id?: string
+          wounds_after: number
+          wounds_delta?: number
+        }
+        Update: {
+          bond_after?: number
+          bond_delta?: number
+          created_at?: string
+          dragon_id?: string
+          id?: string
+          reason?: string | null
+          source?: string
+          trust_after?: number
+          trust_delta?: number
+          user_id?: string
+          wounds_after?: number
+          wounds_delta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empyrean_dragon_events_dragon_id_fkey"
+            columns: ["dragon_id"]
+            isOneToOne: false
+            referencedRelation: "empyrean_dragons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empyrean_dragons: {
+        Row: {
+          bond: number
+          created_at: string
+          dragon_name: string
+          id: string
+          mood: string
+          rider_key: string
+          rider_name: string | null
+          state: Json
+          trust: number
+          updated_at: string
+          user_id: string
+          version: number
+          wounds: number
+        }
+        Insert: {
+          bond?: number
+          created_at?: string
+          dragon_name: string
+          id?: string
+          mood?: string
+          rider_key: string
+          rider_name?: string | null
+          state?: Json
+          trust?: number
+          updated_at?: string
+          user_id?: string
+          version?: number
+          wounds?: number
+        }
+        Update: {
+          bond?: number
+          created_at?: string
+          dragon_name?: string
+          id?: string
+          mood?: string
+          rider_key?: string
+          rider_name?: string | null
+          state?: Json
+          trust?: number
+          updated_at?: string
+          user_id?: string
+          version?: number
+          wounds?: number
+        }
+        Relationships: []
+      }
       gm_guide_presets: {
         Row: {
           created_at: string
@@ -3407,6 +3508,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_dragon_change: {
+        Args: {
+          p_bond: number
+          p_bond_delta: number
+          p_dragon_id: string
+          p_expected_version: number
+          p_mood: string
+          p_reason: string
+          p_source: string
+          p_state: Json
+          p_trust: number
+          p_trust_delta: number
+          p_wounds: number
+          p_wounds_delta: number
+        }
+        Returns: Json
+      }
       arm_private_travel_launch: {
         Args: {
           _event_id: string

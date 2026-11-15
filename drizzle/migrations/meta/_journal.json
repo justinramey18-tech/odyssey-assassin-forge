@@ -295,6 +295,13 @@
       "when": 1792354074708,
       "tag": "0041_npc_allies_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794764080015,
+      "tag": "0042_empyrean_dragons",
+      "breakpoints": true
     }
   ]
 }
