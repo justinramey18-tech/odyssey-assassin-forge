@@ -13,6 +13,7 @@ import {
   saveEmpyreanDMConfig,
 } from '@/lib/empyreanDMPersona';
 import {
+  EMPYREAN_CANON_GUIDE_IDS,
   EMPYREAN_LORE_GUIDES,
   EMPYREAN_META_GUIDES,
   EMPYREAN_SESSION_GUIDES,
@@ -58,10 +59,8 @@ const FOCUS_OPTIONS: { value: CampaignFocus; label: string; emoji: string; desc:
   { value: 'balanced', label: 'Balanced', emoji: '⚖️', desc: 'Mix all elements in shifting proportions' },
 ];
 
-// Default lore selections (first 4)
-const DEFAULT_LORE_IDS = new Set(
-  EMPYREAN_LORE_GUIDES.slice(0, 4).map(g => g.id),
-);
+// Default lore selections: every canon guide (D-32)
+const DEFAULT_LORE_IDS = new Set(EMPYREAN_CANON_GUIDE_IDS);
 
 // Default meta selection
 const DEFAULT_META_IDS = new Set(

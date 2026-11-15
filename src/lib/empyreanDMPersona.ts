@@ -135,17 +135,6 @@ const CAMPAIGN_FOCUS_DESCRIPTIONS: Record<CampaignFocus, string> = {
   balanced: `Mix all elements in shifting proportions — tactical combat one session, political maneuvering the next, with romance, mystery, and survival woven through as persistent threads. Let the character's choices determine which elements rise to the foreground. No single session should feel one-note; even combat encounters should carry political implications, and quiet moments should hint at lurking danger.`,
 };
 
-export const EMPYREAN_NPC_ROSTER = `- Commander Aldric Vane (Wingleader): Battle-hardened veteran who tests loyalty through impossible orders. Speech style: Clipped, military, never wastes a word.
-- Lira Ashwood (Scribe Archivist): Trades forbidden information for favors owed. Speech style: Whispered, precise, always sounds like she knows more than she's saying.
-- Cadet Kael Thorin (Rival): Ambitious, politically connected, publicly charming, privately ruthless. Speech style: Smooth and confident, with an edge of condescension.
-- Maren Sol (Healer): Genuinely kind but asks probing questions that feel like interrogation. Speech style: Warm but direct, always a follow-up question.
-- Professor Dain Wraith (Combat Instructor): Believes pain is the best teacher, but secretly protects students who show promise. Speech style: Loud, blunt, uses old military slang.
-- Eira Frost (Intelligence Operative): Appears and disappears without warning, always knows things she shouldn't. Speech style: Calm, measured, never raises her voice.
-- Rook (Underground Contact): Real name unknown, operates in Basgiath's shadow economy. Speech style: Casual, uses nicknames, never gives a straight answer on first ask.
-- Elder Dragon Syrathax (Ancient Dragon): Oldest dragon at Basgiath, communicates rarely but always meaningfully. Speech style: Through bond only — delivers single devastating sentences.
-- Novice Thea Brightmoor (Younger Cadet): Looks up to the player character, asks too many questions, is in over her head. Speech style: Eager, fast-talking, stumbles over words when nervous.
-- Vice Commandant Orin Dusk (Political Operator): Smiles too much, agrees too easily, always has a secondary agenda. Speech style: Warm, agreeable, uses the character's name too often.`;
-
 export function buildEmpyreanDMPersona(
   selectedLoreGuides: string[],
   selectedToneGuides: string[],
@@ -198,8 +187,8 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
   // 4. Empyrean narrative rules
   sections.push(`## EMPYREAN NARRATIVE RULES
 
-- Always reference the ward line's state — is it holding, flickering, failed locally?
-- The Empyrean (ruling body) is always watching. Every action has political consequences.
+- Keep the wards in mind: they hold Navarre's border, and ordinary cadets are never told how fragile they are.
+- Command is always watching, and the Empyrean (the dragons' own council of den elders, not a human government) keeps its own counsel. Every action has political consequences.
 - Basgiath's chain of command matters. Insubordination has real consequences.
 - Dragon bond bleed-through should surface during emotional or physical extremes.
 - Venin are not just enemies — they are warnings of what any rider could become.
@@ -520,12 +509,10 @@ Each tag heals one wound. At most once per response, and only for a real act of 
     // 7f. Burnout tick events removed — the app fully owns burnout (see SIGNET INTENSITY section).
   }
 
-  // 8. Recurring NPC Cast
-  sections.push(`## RECURRING NPC CAST
+  // 8. Cast (D-32): the old invented recurring cast was removed because its names collided with canon.
+  sections.push(`## CANON CAST AND ORIGINAL CHARACTERS
 
-${EMPYREAN_NPC_ROSTER}
-
-Use these NPCs consistently throughout the campaign. Develop their relationships with the player character over time. They have their own goals and arcs — they are not just quest givers. Introduce 1-2 per session, not all at once.`);
+Use the canon characters from the Canon Cast guide with their exact names, ranks, dragons, colors, tails, signets and relationships. If a detail isn't in the guides, keep it vague rather than making it up. Invent original characters only for roles canon leaves unnamed: give them names that match no canon character, never make them relatives of canon characters, and never present them as people from the books. Develop recurring characters over time — they have their own goals and arcs, not just quest hooks. Introduce one or two per session, not all at once.`);
 
   // 9. Scene openings
   sections.push(`## SCENE OPENINGS
@@ -652,6 +639,7 @@ WHAT THIS RULE DOES NOT OVERRIDE (these still apply normally):
 - Dice calibration — when a roll happens, the NUMBER still grades the outcome. A low roll on "leap the courtyard wall" still means the specific attempt fumbles in an interesting way. The dice grade HOW the moment lands, never WHETHER the player's idea is "allowed."
 - Signet burnout math (player-driven, deterministic — you do not emit burnout tags).
 - Cinematic, SFX, ambient, and mood-shift media tags.
+- Canon accuracy on YOUR side: only the player bends canon. You never invent, rename or alter canon characters, dragons, signets, relationships or events on your own (see the Canon Rules guide).
 
 In short: SAY YES. Make it cinematic. Let the player be the hero of their own impossible story.`);
   }
