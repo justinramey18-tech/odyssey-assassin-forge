@@ -309,6 +309,13 @@
       "when": 1794764525890,
       "tag": "0043_restrict_selected_avatar_and_gear_access",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794765483998,
+      "tag": "0044_create_private_player_reset_backup",
+      "breakpoints": true
     }
   ]
 }
