@@ -22,3 +22,4 @@
 - Buff metadata is validated in spellResolve and deploy-local npc-combat rules; edits preserve fields. Temp HP enqueues separate deltas atomically through the existing acknowledged inbox, never ordinary HP.
 
 - Scene videos store private paths; replace by upload, conditional row update, then old-file cleanup. Sign per path with one retry, because URLs expire and stale replacements must not erase attachments.
+- Chat-avatar reads are owner-or-shared-party scoped (including hosts), and gear-image updates/deletes require Storage owner_id, because unrelated accounts must not read player identities or alter their files.
