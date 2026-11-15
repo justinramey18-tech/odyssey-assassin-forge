@@ -47,6 +47,7 @@ import { CharacterIdentityEditor } from './CharacterIdentityEditor';
 import { TelegramSettingsTab } from './TelegramSettingsTab';
 import { WeatherSettingsTab } from './WeatherSettingsTab';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
+import { EmpyreanAccountSettings } from './EmpyreanAccountSettings';
 interface SettingsContentProps {
   activeTab: SettingsTab;
   characterName: string;
@@ -669,6 +670,10 @@ export function SettingsContent({
               <Separator className="bg-border/30" />
               <ApiCredentials />
             </div>
+          </SettingsSection>
+
+          <SettingsSection title="Empyrean Account">
+            <EmpyreanAccountSettings />
           </SettingsSection>
 
           <SettingsSection title="Account" icon={<LogOut className="w-4 h-4 text-muted-foreground" />}>
