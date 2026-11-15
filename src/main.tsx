@@ -1,3 +1,5 @@
+// Must stay the first import: finishes a separate-Empyrean-account switch before the login loads.
+import './lib/account-space-boot';
 import { isCreationInProgress } from './lib/creation-guard';
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
