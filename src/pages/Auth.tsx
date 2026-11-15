@@ -14,6 +14,7 @@ import { unlockThistlepig } from '@/lib/thistlepig-unlock';
 import { toast } from 'sonner';
 import { oauthReturnPath } from '@/lib/oauth-return-path';
 import { hasJoinIntent, normalizePartyCode, readJoinIntent, saveJoinIntent, isValidPartyCode } from '@/lib/party-join-intent';
+import { currentSpace, EMPYREAN_AUTH_PATH } from '@/lib/account-space';
 
 const usernameSchema = z
   .string()
@@ -59,6 +60,11 @@ export default function Auth() {
 
   // Set when a brand new account is registered under the Thistlepig username.
   const [thistlepigUnlocked, setThistlepigUnlocked] = useState(false);
+
+  // The separate Empyrean account signs in on its own page.
+  useEffect(() => {
+    if (currentSpace() === 'empyrean') navigate(EMPYREAN_AUTH_PATH, { replace: true });
+  }, [navigate]);
 
   const switchView = (v: AuthView) => {
     setView(v);

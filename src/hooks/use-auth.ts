@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { SCOPED_KEYS } from '@/lib/scoped-keys';
+import { currentSpace, EMPYREAN_AUTH_PATH } from '@/lib/account-space';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -86,6 +87,8 @@ export function useAuth() {
 
     try { clearOnboardingLocal((await supabase.auth.getSession()).data.session?.user?.id); } catch { /* ignore */ }
     const { error } = await supabase.auth.signOut();
+    // Separate Empyrean account: signing out there goes to the Empyrean sign-in page.
+    if (currentSpace() === 'empyrean') window.location.replace(EMPYREAN_AUTH_PATH);
     return { error };
   }, []);
 

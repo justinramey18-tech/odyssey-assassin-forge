@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 
 const Install = lazy(() => import("./pages/Install"));
 const Auth = lazy(() => import("./pages/Auth"));
+const EmpyreanAuth = lazy(() => import("./pages/EmpyreanAuth"));
 const JoinParty = lazy(() => import("./pages/JoinParty"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const RecoverAccount = lazy(() => import("./pages/RecoverAccount"));
@@ -66,6 +67,7 @@ const App = () => {
 
                 <Route path="/install" element={<Install />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/empyrean-auth" element={<EmpyreanAuth />} />
                 <Route path="/join-party" element={<JoinParty />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/recover-account" element={<RecoverAccount />} />
