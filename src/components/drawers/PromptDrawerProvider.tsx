@@ -97,6 +97,8 @@ interface PromptDrawerContextValue {
   characterContext: CharacterContext;
   // Oracle quest extraction callback registration
   registerOracleQuestCallback: (cb: ((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null) => void;
+  /** Puts an accepted DM item into the bag (gear to the Gear tab). Used by solo Empyrean's loot review. */
+  acceptDmItem?: (name: string, quantity: number, details?: { goldValue?: number; description?: string; rarity?: string; category?: string; effect?: string; dice?: string }) => void;
 }
 
 const PromptDrawerContext = createContext<PromptDrawerContextValue | null>(null);
@@ -1026,6 +1028,7 @@ export function PromptDrawerProvider({
     characterContext: aiDMCharacterContext,
     // Oracle quest extraction callback registration
     registerOracleQuestCallback: useCallback((cb: ((quests: Array<{ key: string; status: 'active' | 'completed' | 'failed'; notes?: string }>) => void) | null) => { setOracleQuestCallback(() => cb); }, []),
+    acceptDmItem: onAcceptDmItem,
   };
 
   return (

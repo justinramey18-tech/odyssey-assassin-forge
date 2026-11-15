@@ -20,6 +20,7 @@ import {
   type SeekContext,
 } from '@/lib/empyrean-quest-hub';
 import { seekQuests } from '@/lib/empyrean-quest-seeker';
+import { addPendingDmItems } from '@/lib/pendingDmItems';
 import {
   WORLD_STATE_KEY,
   buildQuestKickoffPrompt,
@@ -103,7 +104,10 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
     for (const p of plan.payouts) {
       if (p.xp > 0) o.onAddXP?.(p.xp, `Quest: ${questTitle(p.quest)}`);
       if (p.gold > 0) o.onGoldChange?.(p.gold);
-      const parts = [p.xp ? `${p.xp} XP` : '', p.gold ? `${p.gold} gold` : '', `+${p.points} standing`].filter(Boolean);
+      // Item rewards wait in the loot review (Accept / Discard) like the DM's own awards.
+      const items = (p.quest.itemRewards ?? []).filter(it => it && typeof it.name === 'string' && it.name.trim());
+      if (items.length > 0) addPendingDmItems(items.map(it => ({ ...it, name: it.name as string })));
+      const parts = [p.xp ? `${p.xp} XP` : '', p.gold ? `${p.gold} gold` : '', items.length ? `${items.length} item${items.length === 1 ? '' : 's'} to review` : '', `+${p.points} standing`].filter(Boolean);
       toast.success(`Quest complete: ${questTitle(p.quest)}`, { description: parts.join(', ') });
     }
     for (const q of plan.failed) toast(`Quest failed: ${questTitle(q)}`, { icon: '🥀' });
