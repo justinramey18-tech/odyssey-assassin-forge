@@ -1,4 +1,10 @@
-// Empyrean Series GM Guides — 10 Lore + 10 Meta campaign modifiers
+// Empyrean Series GM Guides — lore (canon guides first, D-32) + meta campaign modifiers
+
+import { EMPYREAN_CANON_RULES_GUIDE } from '@/lib/empyreanCanon/canonRules';
+import { EMPYREAN_TIMELINE_GUIDE } from '@/lib/empyreanCanon/timeline';
+import { EMPYREAN_BASGIATH_CANON_GUIDE } from '@/lib/empyreanCanon/basgiathCanon';
+import { EMPYREAN_CAST_CANON_GUIDE } from '@/lib/empyreanCanon/castCanon';
+import { EMPYREAN_WORLD_CANON_GUIDE } from '@/lib/empyreanCanon/worldCanon';
 
 export interface EmpyreanGuide {
   id: string;
@@ -21,57 +27,25 @@ const lorNavarre: EmpyreanGuide = {
   description: 'Geography, politics, the Empyrean, and the war that shapes everything.',
   content: `# World of Navarre — Setting Overview
 
-Navarre is a militaristic kingdom on a continent scarred by centuries of conflict with the Venin — corrupted wielders who drain the land of life to fuel dark magic. The kingdom is protected by an enormous ward line powered by wardstones, maintained by dragon riders channeling power through their bonds.
+Navarre is a militaristic kingdom on a continent scarred by about 400 years of war with Poromiel, and by the Venin — corrupted wielders who drain the land of life to fuel dark magic, whose existence Navarre's leaders keep secret. The kingdom is protected by wards projected from the wardstone beneath Basgiath, lit by dragonfire.
 
 ## Geography
-Navarre occupies the eastern portion of the continent. Basgiath War College is built into Basgiath Mountain in the Morraine Province, overlooking the Vale — the region's dragon hatching grounds — and the Iakobos River. The western frontier borders territory beyond the wards where the land is drained, grey, and lifeless. To the south lies Poromiel, a kingdom that uses gryphon riders instead of dragon riders. The frontier zones along the ward line are where failures are most common and patrols are most active.
+Navarre holds the western side of the Continent, walled by mountains; its southernmost province, Tyrrendor, is closed off by the Cliffs of Dralor. Basgiath War College is built into Basgiath Mountain in Morraine Province, with the Vale (the dragons' valley and hatching grounds) behind it and the Iakobos River beneath it. To the east lies Poromiel (Krovla, Braevick and Cygnisen), whose fliers ride gryphons; beyond Poromiel are the Barrens, where the venin's drained, lifeless lands spread. Navarre's border outposts (Athebyne, Samara, Montserrat) face Poromiel, and Resson is the trading post between them.
 
 ## Political Structure
-The kingdom is governed through military hierarchy, with dragon riders occupying the highest tier of social and political power. The Commanding General holds enormous authority, and Basgiath's Commandant controls who becomes a rider and what cadets learn. Scribes control information flow, and their leadership decides what the general population knows about the war. This information control is a deliberate policy: most citizens and even many riders do not know the true state of the ward line.
+The kingdom is ruled by King Tauri in Calldyr, advised by the Senarium (the heads of the six provinces), but the military holds real power, with dragon riders at the top. The Commanding General of all Navarre (Melgren) holds enormous authority, and Basgiath's Commandant controls who becomes a rider and what cadets learn. Scribes control information flow, and their leadership decides what the general population knows about the war. This information control is a deliberate policy: most citizens and even many riders do not know the true state of the ward line.
 
 ## The War
-The conflict with the Venin is existential. Venin cross the ward line to attack settlements, drain the land, and corrupt wielders. The official position is that the wards are strong and the war is manageable. The truth — known to a rebel faction within the riders — is that the wards are failing, attacks are increasing, and Navarre is losing. This secret drives much of the political tension.
+Officially, Navarre fights Poromiel's gryphon fliers along the border. The hidden truth is the venin: dark wielders who drain the land, are pushing out of the Barrens, and are overrunning Poromiel, which has no wards. Navarre's leaders hide the venin and let Poromiel fall behind its own wards; Poromiel raids Navarre's outposts for the alloy that kills venin. A secret revolution, run by the marked children of the Tyrrish rebellion, arms Poromiel from inside Basgiath. Ordinary cadets learn none of this until after the Battle of Resson.
 
 ## The Unification
-Generations ago, warring dragon rider factions united under a single banner. The dragon dens offered their ancestral hatching grounds — including the Uaineloidsig line, which offered the Steelridge Mountain Range where Basgiath now stands — for the good of dragonkind. This unification founded Basgiath as a training institution and redirected rider power against the Venin. However, old bloodline rivalries persist beneath the surface of institutional unity.
+Over six centuries ago the Great War ended when the First Six riders defeated General Daramor and unified Navarre (year 1 AU). Dragons claimed the western lands and gryphons the central lands. The dragon dens offered their ancestral hatching grounds — the green Uaineloidsig line gave its grounds in the Steelridge mountains — so that Navarre's wards could be raised. Old bloodline rivalries persist beneath the surface of institutional unity.
 
 ## Navarre's Six Provinces
 Navarre is divided into six provinces, each of which sends candidates to Basgiath during conscription. Some volunteer, others are sentenced as punishment, and most are conscripted. The province of Tyrrendor is particularly significant — it is the homeland of the Tyrrish people and the seat of the failed rebellion led by Fen Riorson.
 
 ## Atmosphere
 The world feels militaristic, secretive, and dangerous. Beauty exists — the dragons, the mountains, the bonds between riders — but it is always shadowed by the cost of war, institutional secrecy, and the knowledge that the people protecting you may also be lying to you.`,
-};
-
-const lorBasgiath: EmpyreanGuide = {
-  id: 'empyrean-lore-basgiath',
-  name: 'Basgiath War College',
-  category: 'lore',
-  stackable: true,
-  description: 'Quadrants, wing structure, daily life, curriculum, and chain of command.',
-  content: `# Basgiath War College — Structure and Daily Life
-
-Basgiath is the only institution that trains dragon riders. Built into Basgiath Mountain in the Morraine Province, it is equal parts military academy, proving ground, and slaughterhouse. Not everyone who enters survives.
-
-## The Four Quadrants
-- **Riders Quadrant**: The elite. Located in the Citadel — the upper portion of the fortress. Students bond with dragons during Threshing and train in aerial combat, signet development, and tactical warfare. Highest mortality rate — only about a quarter of cadets survive to graduation. The only rules that apply to riders come from the Codex, the Riders Quadrant's own legal code.
-- **Scribes Quadrant**: Intelligence and record-keeping, located below ground in the Archives. Scribes study and master the past while relaying and recording the present. They provide intelligence briefings (Battle Brief) to the Riders Quadrant and control what information reaches the public. Scribes are expected to maintain composure at all times — even hugging a friend could result in punishment. Their uniforms are pale blue.
-- **Healers Quadrant**: Located at the southern end of Basgiath, connected to the Riders Quadrant by a bridge to the infirmary. Healers do NOT have magic — they rely entirely on traditional tinctures, medical training, and surgical skill. They work alongside riders who possess the Mending signet for serious cases. Healers are sworn to never harm a beating heart and are taught to do everything in their power to save human life.
-- **Infantry Quadrant**: The largest quadrant, with nearly 1,000 cadets joining in a single year. Connected at the northern turret. Infantry are trained for land battle, outdoor survival, and camp operations. They carry shortswords as standard weapons. It takes nearly a full company of Infantry to compensate for the loss of one dragon rider.
-
-## Wing and Squad Structure
-Riders are organized into Wings (led by a Wingleader) and further divided into Sections (Flame, Claw, and Tail), then into Squads (led by a Squad Leader). Wing assignments are semi-permanent and create intense loyalty bonds. Inter-wing rivalry is encouraged by leadership as a training tool. Wingleader and section leader positions are typically held by third-year students, though exceptional second-years can achieve them.
-
-## Daily Life
-Days begin before dawn. Morning physical training is followed by academic classes (Battle Brief intelligence sessions, military history, tactics, languages, signet theory), then afternoon combat training (sparring, challenge matches, flight exercises, squad tactical drills). Evenings are nominally free but often consumed by studying, squad bonding, or recovering from injuries. Meals are communal in the mess hall — a social battlefield of its own. First-year riders cannot write or receive letters from family.
-
-## The Parapet
-First-year riders must cross the parapet — a narrow, crumbling stone bridge with no railings over a lethal drop — on Conscription Day. This is the first test: those who cannot cross die. On average 15% of candidates die at the parapet before even entering the Riders Quadrant.
-
-## Threshing
-The bonding ceremony where unbonded dragons choose their riders, held on October 1st each year. Dragons are not assigned — they choose. Being rejected by every dragon means transfer to a different quadrant or death by a dragon who finds you unworthy. Threshing is terrifying, sacred, and the most important day of a rider's life.
-
-## Chain of Command
-Commanding General > Commandant > Vice Commandant > Wing Commanders > Professors > Wingleaders > Section Leaders > Squad Leaders > Cadets. Orders flow downward absolutely. Questioning the chain is insubordination. This rigid structure both protects and oppresses.`,
 };
 
 const lorDragonBonds: EmpyreanGuide = {
@@ -119,7 +93,7 @@ Dragon breeds are defined by COLOR and TAIL TYPE. These are canon — do NOT inv
 **Tails develop by choice**, not birth. A dragon selects its tail type upon maturity based on need and personality.
 
 ## Rebonding After Loss
-If a rider dies, the dragon grieves deeply but CAN bond again. Sgaeyl was bonded to Xaden Riorson's grandfather, who did not survive to graduation — she then went fifty years unbonded before choosing Xaden during his Threshing. Tairn also had at least one previous rider. Some dragons never bond again by choice, but rebonding is established and accepted. If a dragon dies, the rider almost always dies or is left permanently broken.
+If a rider dies, the dragon grieves deeply but CAN bond again. Sgaeyl was bonded to Xaden Riorson's grandfather, whose death left her unbonded for about fifty years before she chose Xaden at his Threshing in 631 AU. Tairn's previous rider was Naolin, who died at the Battle of Aretia; Tairn then stayed unbonded for years. Some dragons never bond again by choice, but rebonding is established and accepted. If a dragon dies, the rider almost always dies or is left permanently broken.
 
 ## Dragon Hierarchy and Society
 Dragons have their own governance — a clear hierarchy among the most powerful, with deference paid to elders. A dragon only answers to the eldest of their den. A dragon's lifespan is estimated around 200 years, with 100 years considered roughly middle-age. Dragons do not typically bond until they are fully grown.
@@ -173,7 +147,7 @@ Burnout is the human body physically failing to contain magical energy. It is a 
 The stronger the bond and the more powerful the dragon, the more energy the rider can safely channel. A rider with a deep bond can push further before burnout than one with a new or strained bond. At the highest bond levels the dragon actively buffers overflow — extending the rider's capacity at cost to itself.
 
 ## Second Signets
-Extraordinarily rare. Only documented in two circumstances: (1) a rider bonds a second dragon (the only known case is Violet Sorrengail, who bonded both Tairn and Andarna), or (2) a rider bonds a dragon previously bonded to a direct familial ancestor, inheriting a resonance with that lineage's power (as Xaden Riorson bonded Sgaeyl, previously bonded to his grandfather). A second signet doubles burnout risk.
+Rare, and usually secret. Known causes: (1) a rider bonds a second dragon (Violet Sorrengail, through Andarna: dream-walking); (2) a rider bonds a dragon that bonded a direct ancestor, which brings a second signet or madness (Xaden Riorson, through Sgaeyl: inntinnsic). Many marked ones also turn out to have second signets [OS]: Liam (ice), Garrick (distance-wielding), Imogen (stone). A second signet doubles burnout risk.
 
 ## Growth
 Signets strengthen with practice and emotional development. Growth is not linear — breakthroughs happen during crisis and emotional revelation, not steady training. A signet that starts as uncontrolled bursts can become precise and devastating over time.
@@ -198,19 +172,19 @@ const lorRunes: EmpyreanGuide = {
 The ward line is Navarre's primary defense against the Venin. Without it, the kingdom would be overrun. Its mechanics are among the most closely guarded secrets in the Empyrean.
 
 ## The Ward Line
-A massive magical barrier stretching across the western frontier. It prevents Venin from crossing freely and weakens dark magic within its boundaries. The ward line is not a wall — it is a field of runic energy anchored by wardstones placed at regular intervals along the frontier. Gaps exist, and they are growing.
+An invisible circular shield projected outward from Navarre's single wardstone, which sits beneath Basgiath. It stops magic-wielders, gryphons and venin at the border. The armories under the border outposts boost and extend its edge to cover weak points. Inside the wards, gryphon fliers cannot wield.
 
 ## Wardstones
-Physical stone monuments inscribed with runic patterns. Each wardstone powers a section of the ward line. They require periodic recharging — historically done by riders channeling dragon fire and signet energy into the runes. Damaged or drained wardstones create dead zones where Venin can cross freely. Repairing wardstones is dangerous work done at the frontier.
+A wardstone is a large runed pillar. It is lit by dragonfire from all seven breeds (including the hidden irids), fed by the Vale, and a black flame burns on top while it is active. Navarre has one, beneath Basgiath; Aretia secretly builds its own [IF]. If the stone is damaged the whole border falls at once, as at the Battle of Basgiath [IF]. Raising new wards was a lost art until Aretia.
 
 ## Runic Magic
-Runes are a written magic system separate from signets. Runic wards can be placed on objects, doors, walls, and people. They require knowledge and precision — a misdrawn rune does nothing or backfires. Scribes maintain the academic knowledge of runes; riders apply them in the field. Runic magic is defensive by nature: shields, barriers, alarms, traps.
+Runes are lesser magic, not a signet [IF]: strands of the wielder's power tempered (woven) into geometric patterns and set into an object, to fire at once or on a trigger. A rune does one job, and it fades quickly unless it is placed in an object. Gryphon fliers are better at runes than riders. Riders can also set simple wards on a doorway that admit only chosen people.
 
 ## The Secret
-The ward line is failing. More wardstones are draining than can be recharged. The Venin are attacking in greater numbers and with increasing coordination. Leadership knows this and has chosen to conceal it from the general population and most riders. The rebel faction within the riders believes this secrecy is suicidal and advocates for transparency and alliance with Poromiel. This disagreement drives much of the political conflict.
+Leadership hides that the venin exist, and that Poromiel, which has no wards, is being overrun. The secret revolution believes this is suicidal and arms Poromiel with alloy weapons. This disagreement drives much of the political conflict.
 
 ## Ward Failure Consequences
-When a section of the ward line fails: the land begins to drain (turning grey and lifeless), Venin can cross freely, wyverns nest in the dead zone, and nearby settlements must be evacuated or defended. A large-scale ward failure would be catastrophic — potentially ending Navarre as a nation.`,
+When the wards fail, gryphons and venin can fly straight in and every wielder inside can be drained. Venin draw power from the earth, leaving land drained and lifeless. A full ward failure would be catastrophic — potentially ending Navarre as a nation.`,
 };
 
 const lorVenin: EmpyreanGuide = {
@@ -226,17 +200,18 @@ Venin are not born — they are made. Understanding what they are and how they c
 ## What Venin Are
 Venin are wielders — people with magical ability — who have turned to drawing power from the land itself rather than channeling it through a dragon bond or natural talent. This "dark wielding" is addictive: the power is enormous but corrupts the wielder physically, mentally, and morally over time. Venin were once ordinary people who made desperate choices.
 
-## Corruption Stages
-1. **Early**: The wielder discovers they can draw power from the earth. Effects are subtle — veins darkening slightly, heightened aggression, increased magical potency. The wielder can still pass as normal.
-2. **Established**: Physical changes become visible — darkened veins, pallid skin, eyes that reflect light wrong. Personality shifts toward paranoia and cruelty. The wielder becomes dependent on drawing power.
-3. **Advanced**: The wielder is visibly inhuman. They can drain life from living things (plants, animals, people) on contact. Rational thought deteriorates. They command wyverns instinctively.
-4. **Ancient**: Rare venin who have survived centuries. Enormously powerful, strategically intelligent, and nearly impossible to kill. They retain enough humanity to be manipulative and patient.
+## Venin Ranks (canon)
+1. **Initiate**: has just channeled from the earth. Can still pass as normal.
+2. **Asim**: red around the eyes that comes and goes.
+3. **Sage**: red veins spread permanently to the temples; wears robes; makes and commands initiates. A venin can never kill their own Sage.
+4. **Maven**: a general of the venin.
+Sages and Mavens can hide what they are; venin can sense each other. The more power they draw, the more of their soul is lost and the redder their eyes. There is no known cure. Only alloy (the metal that powers the wards) kills them; alloy-hilted daggers are spent after a few strikes.
 
 ## Wyverns
-Wyverns are corrupted creatures — twisted, venomous, bat-winged predators that serve as the venin's aerial force. Unlike dragons, wyverns have no sapience; they operate on predatory instinct guided by venin telepathy. They are smaller than most dragons but faster, more numerous, and relentless. Their venom causes necrosis and is deadly in sufficient doses. Scorpiontail dragons also carry venomous barbs, which should not be confused with wyvern venom.
+Wyverns are two-legged, dragon-like beasts that venin make with runes and drive as their aerial force. They have no minds of their own and act on the will of the venin who made them; when that venin dies, its wyverns fall. They are smaller than most dragons but numerous and relentless, and they breathe fire.
 
 ## Tactics
-Venin attack in coordinated waves. They target wardstones to weaken the ward line, use wyvern swarms to overwhelm dragon patrols, and employ corruption as a weapon — turning captured riders into new venin. They are not mindless; advanced and ancient venin plan complex operations.
+Venin attack in coordinated waves. They target the wardstone and the outposts, use wyvern swarms to overwhelm dragon patrols, and employ corruption as a weapon — turning captured riders into new venin. They are not mindless; advanced and ancient venin plan complex operations.
 
 ## Moral Complexity
 The AI DM should remember: every venin was once a person. Some were desperate. Some were deceived. Some were curious wielders who went too far. The "enemy" is not a faceless horde — it is a tragedy. Encounters should occasionally remind players of this, especially when facing early-stage venin who can still speak, plead, or show fragments of who they were.`,
@@ -252,11 +227,14 @@ const lorFactions: EmpyreanGuide = {
 
 Navarre is not a united front. Beneath the surface of institutional loyalty, factions compete for control, information, and the right to decide Navarre's future.
 
-## The Empyrean Government
-The ruling council of senior riders and political leaders. They control the military, the academy, and through the scribes, the flow of information. The Empyrean's official position is that the wards are strong, the war is contained, and the system works. Dissent is treated as disloyalty.
+## The Crown and Command
+King Tauri, the Senarium (the province heads) and the military command (Commanding General Melgren, General Sorrengail at Basgiath) rule Navarre. Their official position is that the wards are strong and the war with Poromiel is contained; they hide the venin. Dissent is treated as disloyalty.
+
+## The Empyrean (the dragons' council)
+The Empyrean is NOT a human government. It is the dragons' own ruling council of den elders. Humans don't know what it decides and have no say; dragons answer to it, not to the crown.
 
 ## The Commandant's Office
-The Commandant of Basgiath wields power second only to the Empyrean council. They control who becomes a rider, what cadets learn, and which information reaches the outside world. The Commandant has their own agenda — which may or may not align with the Empyrean's.
+The Commandant of the Riders Quadrant (Colonel Panchek) answers to General Sorrengail, Commanding General of Basgiath. They control who becomes a rider, what cadets learn, and which information reaches the outside world. The Commandant has their own agenda — which may or may not align with the crown's.
 
 ## The Rebellion
 A covert faction within the riders who know the truth about the failing wards. They believe Navarre must seek allies (particularly Poromiel's gryphon riders), share intelligence openly, and fundamentally change strategy. Operating in secret, they recruit sympathetic riders, smuggle information, and prepare for the day the wards fail completely. Membership is dangerous — discovery means execution for treason.
@@ -265,7 +243,7 @@ A covert faction within the riders who know the truth about the failing wards. T
 Scribes do not just record — they decide what is recorded. The Scribe leadership actively suppresses information about ward failures, venin incursion rates, and rider casualties. This makes scribes simultaneously essential allies and potential threats. A scribe who decides to share forbidden knowledge can change the course of events.
 
 ## Inter-Kingdom Relations
-Poromiel, to the south, uses gryphon riders instead of dragon riders. Relations are tense — historical conflicts, different magical traditions, and mutual suspicion. However, the rebellion believes alliance with Poromiel is necessary for survival. Other smaller kingdoms exist with their own politics, but Navarre and Poromiel are the primary powers.
+Poromiel, to the east, uses gryphon fliers instead of dragon riders. Relations are tense — historical conflicts, different magical traditions, and mutual suspicion. However, the rebellion believes alliance with Poromiel is necessary for survival. The Isles beyond the Continent (Unnbriel, Zehyllna, Deverelli, Loysam, Hedotis) have their own politics, but Navarre and Poromiel are the primary powers.
 
 ## Wing Politics
 Within Basgiath, wings compete for rankings, resources, and recognition. Wingleaders jockey for influence. Old bloodline rivalries play out through their descendants. A rider's wing allegiance can be as defining as their national loyalty.`,
@@ -284,7 +262,7 @@ Combat in the Empyrean setting operates on multiple scales: personal duels, squa
 ## Aerial Dragon Combat
 The signature combat mode. Dragon-mounted riders fight in three dimensions — altitude, speed, and positioning matter enormously. Key elements:
 - **Formations**: Wings fly in coordinated patterns. Breaking formation exposes flanks. Maintaining it under fire requires discipline.
-- **Fire attacks**: Dragons breathe fire (or other elemental attacks depending on breed). Effective against wyverns and ground targets. Limited by dragon stamina.
+- **Fire attacks**: All dragons breathe fire. Effective against wyverns and ground targets. Limited by dragon stamina.
 - **Diving and climbing**: Altitude advantage is critical. Diving attacks trade height for speed and impact. Climbing after a dive burns dragon energy.
 - **Signet integration**: Riders use signets during flight — shields, ranged attacks, sensory enhancement. Coordination between signet and dragon fire creates devastating combinations.
 - **Dismount risk**: Being knocked from your dragon mid-flight is usually fatal. Harness quality, grip strength, and situational awareness prevent this.
@@ -308,42 +286,6 @@ For major engagements, the AI DM should:
 
 ## D&D Integration
 Standard D&D mechanics (initiative, attack rolls, saving throws, hit points) apply. Dragon attacks use breath weapon rules. Signet abilities map to spell-like effects with custom burnout mechanics replacing spell slots. Aerial combat adds contested Dexterity/Animal Handling checks for maneuvers.`,
-};
-
-const lorNPCs: EmpyreanGuide = {
-  id: 'empyrean-lore-npcs',
-  name: 'NPCs and Archetypes',
-  category: 'lore',
-  stackable: true,
-  description: 'Common NPC types, distinct voices, antagonists, and romance archetypes.',
-  content: `# NPCs and Character Archetypes
-
-The Empyrean setting is populated with specific character types. The AI DM should give each NPC a distinct voice, motivation, and function in the narrative.
-
-## Common NPC Types
-- **Wingleaders**: Competent, stressed, responsible for their riders' lives. Range from inspiring mentors to brutal taskmasters.
-- **Professors**: Each teaches a specialty (combat tactics, signet theory, history, languages). They have favorites, grudges, and secrets.
-- **Scribes**: Information brokers. Polite, knowledgeable, and potentially dangerous. They know things they shouldn't share.
-- **Healers**: Pragmatic, overworked, and blunt. They see the cost of war daily and have limited patience for bravado.
-- **Rival riders**: Competitors within the wing structure. Some rivalries are friendly; others are lethal. The best rivals have legitimate reasons for their antagonism.
-- **Commanding officers**: Senior riders who have survived years of combat. Hardened, politically aware, and often morally compromised by the secrets they keep.
-
-## Giving NPCs Distinct Voices
-Each NPC should have:
-1. A speech pattern (formal, clipped, drawling, sarcastic)
-2. A physical habit (adjusting glasses, cracking knuckles, never making eye contact)
-3. A known motivation (advancement, protection, knowledge, revenge)
-4. A secret motivation (hidden from the player until revealed)
-
-## Antagonist Design
-The best antagonists in this setting are not evil — they are people who made different choices. A Commandant who suppresses information does so because they believe panic would kill more people than secrecy. A venin who attacks was once a frightened student who made one wrong choice. Antagonists should be comprehensible, even sympathetic, while still being genuinely dangerous.
-
-## Romance Archetypes
-Romance is integral to the Empyrean tone. Common dynamics:
-- **Forbidden attraction**: Enemies, different factions, chain-of-command violations
-- **Slow burn**: Antagonism evolving into respect, then attraction, then vulnerability
-- **Protective intensity**: One party willing to burn the world for the other
-- **Secret-keeping strain**: Romance complicated by classified information or divided loyalties`,
 };
 
 const lorTone: EmpyreanGuide = {
@@ -1342,9 +1284,18 @@ A breather session focused on character development, relationship building, and 
 
 // ─── EXPORTS ────────────────────────────────────────────────────────────────
 
+/** The canon guides (D-32). New solo campaigns turn all of them on by default. */
+export const EMPYREAN_CANON_GUIDES: EmpyreanGuide[] = [
+  EMPYREAN_CANON_RULES_GUIDE, EMPYREAN_TIMELINE_GUIDE, EMPYREAN_BASGIATH_CANON_GUIDE,
+  EMPYREAN_CAST_CANON_GUIDE, EMPYREAN_WORLD_CANON_GUIDE,
+];
+
+export const EMPYREAN_CANON_GUIDE_IDS: string[] = EMPYREAN_CANON_GUIDES.map(g => g.id);
+
 export const EMPYREAN_LORE_GUIDES: EmpyreanGuide[] = [
-  lorNavarre, lorBasgiath, lorDragonBonds, lorSignets, lorRunes,
-  lorVenin, lorFactions, lorCombat, lorNPCs, lorTone,
+  ...EMPYREAN_CANON_GUIDES,
+  lorNavarre, lorDragonBonds, lorSignets, lorRunes,
+  lorVenin, lorFactions, lorCombat, lorTone,
 ];
 
 export const EMPYREAN_TONE_GUIDES: EmpyreanGuide[] = [
