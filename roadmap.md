@@ -24,6 +24,7 @@
 - [ ] Arena step 6–7: Party Arena (server storage + screens).
 - [x] Campaign Map Play View: tapping any discovered place shows a brief description card.
 - [x] Write and install private DM guides for the 12 Arabel places that have none.
+- [x] Solo Empyrean engine 3/3: add and deploy the rules function; all 25 supplied rules tests and the server check passed. Screens and sign-in remain untouched; live gameplay is not connected yet.
 
 - [x] Party signup 4/5: confirmed save + Live Table hand-off
 - [x] Party signup 5/5: join entrance + returning players

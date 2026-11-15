@@ -23,4 +23,4 @@
 
 - Scene videos store private paths; replace by upload, conditional row update, then old-file cleanup. Sign per path with one retry, because URLs expire and stale replacements must not erase attachments.
 - Chat-avatar reads are owner-or-shared-party scoped (including hosts), and gear-image updates/deletes require Storage owner_id, because unrelated accounts must not read player identities or alter their files.
-- Solo Empyrean rule state, rider mastery, map time and result inbox commit through service-only empyrean_commit; owner atlas saves use write_solo_campaign_atlas, because solo rules must remain atomic and isolated from party data.
+- Solo Empyrean actions enter through empyrean-rules with owner authentication; timer callbacks validate hashed event tokens. Rule state, rider mastery, map time and result inbox commit through service-only empyrean_commit; owner atlas saves use write_solo_campaign_atlas, because solo rules must remain atomic and isolated from party data.
