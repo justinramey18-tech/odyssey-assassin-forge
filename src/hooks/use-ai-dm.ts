@@ -1059,6 +1059,13 @@ Rules:
     );
   }, []);
 
+  // Attach a generated scene picture to one DM post (kept with the saved session).
+  const setMessageSceneImage = useCallback((messageId: string, imageUrl: string) => {
+    setMessages(prev =>
+      prev.map(m => m.id === messageId ? { ...m, sceneImageUrl: imageUrl } : m)
+    );
+  }, []);
+
   const deleteMessage = useCallback((messageId: string) => {
     setMessages(prev => {
       const idx = prev.findIndex(m => m.id === messageId);
@@ -1115,6 +1122,7 @@ Rules:
     activeCampaignId,
     setActiveCampaignId,
     editMessage,
+    setMessageSceneImage,
     deleteMessage,
     regenerateMessage,
     lastUsage,

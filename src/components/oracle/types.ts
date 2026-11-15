@@ -17,6 +17,7 @@ export interface Message {
   mode?: OracleMode;
   whispers?: Whisper[];
   senderName?: string; // NPC name when voicing an NPC, undefined for normal DM messages
+  sceneImageUrl?: string; // solo scene picture for this DM post (Empyrean "Picture" button)
 }
 
 export interface OracleModeConfig {

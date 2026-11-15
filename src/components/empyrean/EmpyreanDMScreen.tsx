@@ -110,7 +110,7 @@ import { OOCNotesSheet, type ActiveOOCNote } from '@/components/empyrean/OOCNote
 import { Eye } from 'lucide-react';
 import { ScrollText } from 'lucide-react';
 import { HeartHandshake } from 'lucide-react';
-import { Bookmark, BookmarkCheck, PackageOpen } from 'lucide-react';
+import { Bookmark, BookmarkCheck, PackageOpen, ImagePlus } from 'lucide-react';
 import { EmpyreanLootReview, usePendingDmItems } from '@/components/empyrean/EmpyreanLootReview';
 import { addPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
@@ -700,6 +700,7 @@ ${oocLines}`;
     clearMessages,
     cancelRequest,
     editMessage,
+    setMessageSceneImage,
     deleteMessage,
     regenerateMessage,
     loadCampaign,
@@ -1089,6 +1090,44 @@ ${oocLines}`;
     regenerateMessage(id);
     setActiveActionId(null);
   }, [regenerateMessage]);
+
+  // Scene picture for one DM post (server: venice-image-generate, mode solo-scene).
+  const [sceneBusyId, setSceneBusyId] = useState<string | null>(null);
+  const handlePictureScene = useCallback(async (messageId: string, content: string) => {
+    if (sceneBusyId) return;
+    const scene = stripAllMetaTags(parseWhispers(content || '').narrative).trim();
+    if (!scene) { toast.error('This post has no scene to picture.'); return; }
+    setSceneBusyId(messageId);
+    setActiveActionId(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('venice-image-generate', {
+        body: {
+          mode: 'solo-scene',
+          scene: scene.slice(0, 20000),
+          character: {
+            characterName: characterName || empyreanCharacterContext?.name || undefined,
+            race: empyreanCharacterContext?.race || undefined,
+            gender: empyreanCharacterContext?.gender || undefined,
+            className: empyreanCharacterContext?.characterClass || undefined,
+            dragonName: config?.dragonName || undefined,
+            dragonColor: config?.dragonColor || undefined,
+          },
+        },
+      });
+      if (error || !data?.imageUrl) {
+        let msg = 'Could not picture this scene. Try again shortly.';
+        try { const body = await (error as any)?.context?.json?.(); if (body?.error && typeof body.error === 'string') msg = body.error; } catch { /* keep default */ }
+        toast.error(msg);
+        return;
+      }
+      setMessageSceneImage(messageId, data.imageUrl);
+      toast.success('Scene pictured');
+    } catch {
+      toast.error('Could not picture this scene. Try again shortly.');
+    } finally {
+      setSceneBusyId(null);
+    }
+  }, [sceneBusyId, characterName, empyreanCharacterContext, config?.dragonName, config?.dragonColor, setMessageSceneImage]);
 
   // Auto-send initial message from prompt library
   useEffect(() => {
@@ -2198,6 +2237,16 @@ ${oocLines}`;
                           {copiedId === message.id ? 'Copied' : 'Copy'}
                         </button>
                         <Button variant="ghost"
+                          onClick={() => handlePictureScene(message.id, message.content)}
+                          disabled={!!sceneBusyId}
+                          style={{ touchAction: 'manipulation' }}
+                          className="px-2 py-1 min-h-[48px] rounded-lg text-xs flex items-center gap-1 bg-primary/15 hover:bg-primary/25 text-primary transition-colors disabled:opacity-50"
+                          aria-label="Picture this scene"
+                        >
+                          {sceneBusyId === message.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
+                          {message.sceneImageUrl ? 'Redo' : 'Picture'}
+                        </Button>
+                        <Button variant="ghost"
                           style={{ touchAction: 'manipulation' }}
                           onClick={() => toggleBookmark(message.id)}
                           className="px-2 py-1 min-h-[48px] rounded-lg text-xs flex items-center gap-1 bg-primary/15 hover:bg-primary/25 text-primary transition-colors"
@@ -2293,6 +2342,21 @@ ${oocLines}`;
                         </div>
                         {whisperTrayEnabled && whispers.length > 0 && (
                           <WhisperTray whispers={whispers} onAutoRoll={handleWhisperAutoRoll} onOpenRoller={handleWhisperOpenRoller} />
+                        )}
+                        {sceneBusyId === message.id && !message.sceneImageUrl && (
+                          <div className="mt-2 aspect-square w-full max-w-[320px] rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-center text-[11px] text-primary/80 gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Picturing the scene…
+                          </div>
+                        )}
+                        {message.sceneImageUrl && (
+                          <a href={message.sceneImageUrl} target="_blank" rel="noopener noreferrer" className="block mt-2">
+                            <img
+                              src={message.sceneImageUrl}
+                              alt="Scene picture"
+                              loading="lazy"
+                              className="w-full max-w-[320px] aspect-square object-cover rounded-xl border border-border/10"
+                            />
+                          </a>
                         )}
                       </>
                     );

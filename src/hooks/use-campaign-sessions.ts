@@ -96,6 +96,8 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
         role: m.role,
         content: m.content,
         timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+        // Scene pictures (solo Empyrean) travel with the saved campaign.
+        ...(m.sceneImageUrl ? { sceneImageUrl: m.sceneImageUrl } : {}),
       }));
 
       if (existingId) {
@@ -189,6 +191,8 @@ export function useCampaignSessions(mode?: 'solo' | 'solo-empyrean' | 'party') {
         role: m.role,
         content: m.content,
         timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
+        // Scene pictures (solo Empyrean) travel with the saved campaign.
+        ...(m.sceneImageUrl ? { sceneImageUrl: m.sceneImageUrl } : {}),
       }));
 
       if (existingId) {
