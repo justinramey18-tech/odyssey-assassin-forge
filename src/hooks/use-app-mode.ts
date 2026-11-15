@@ -13,6 +13,8 @@ import {
   getVisibleCategories as _getVisibleCategories,
 } from '@/lib/app-modes';
 import type { MainCategory } from '@/components/navigation/types';
+import { currentSpace, shouldEnterEmpyreanSeparately } from '@/lib/account-space';
+import { enterEmpyreanAccount } from '@/lib/account-space-switch';
 
 const MODE_KEY = 'odyssey-app-mode';
 const OVERRIDES_KEY = 'odyssey-app-mode-custom';
@@ -42,11 +44,16 @@ export function useAppMode() {
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const hasChosenMode = appMode !== null;
-  const effectiveMode: AppMode = appMode ?? 'fullAccess';
+  // The separate Empyrean account is locked to Empyrean mode.
+  const effectiveMode: AppMode = currentSpace() === 'empyrean' ? 'empyrean' : (appMode ?? 'fullAccess');
 
   // ── Setters ──────────────────────────────────────────────────────────────
 
   const setAppMode = useCallback((mode: AppMode) => {
+    // Separate Empyrean account: picking Empyrean in Odyssey switches accounts instead,
+    // and the Empyrean account can't pick another mode (Return to Odyssey does that).
+    if (mode === 'empyrean' && shouldEnterEmpyreanSeparately()) { void enterEmpyreanAccount(); return; }
+    if (mode !== 'empyrean' && currentSpace() === 'empyrean') return;
     setAppModeState(mode);
     setCustomOverridesState({});
     try {

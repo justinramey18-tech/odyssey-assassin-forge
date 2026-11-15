@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import { Sparkles, Sword, BookOpen, Users, Crown, Wand2, Feather, Flame, type LucideIcon } from 'lucide-react';
 import { AppMode, APP_MODES_ORDERED, APP_MODE_CONFIGS } from '@/lib/app-modes';
+import { currentSpace, isSeparateEmpyreanOn } from '@/lib/account-space';
+import { returnToOdyssey } from '@/lib/account-space-switch';
 
 interface ModeSelectionScreenProps {
   onSelectMode: (mode: AppMode) => void;
@@ -31,6 +33,11 @@ const cardVariants = {
 };
 
 export function ModeSelectionScreen({ onSelectMode }: ModeSelectionScreenProps) {
+  // Separate Empyrean account: that account only offers Empyrean (plus the way back);
+  // in Odyssey, the Empyrean card says it opens the other account.
+  const inEmpyreanSpace = currentSpace() === 'empyrean';
+  const separateEmpyrean = isSeparateEmpyreanOn();
+  const modes: AppMode[] = inEmpyreanSpace ? ['empyrean'] : APP_MODES_ORDERED;
   return (
     <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
       <div className="flex flex-col items-center justify-start min-h-screen px-5 py-12">
@@ -49,7 +56,7 @@ export function ModeSelectionScreen({ onSelectMode }: ModeSelectionScreenProps) 
 
         {/* Mode Cards */}
         <div className="w-full max-w-sm space-y-3">
-          {APP_MODES_ORDERED.map((mode, i) => {
+          {modes.map((mode, i) => {
             const config = APP_MODE_CONFIGS[mode];
             const Icon = ICON_MAP[config.icon] ?? Sparkles;
             const colors = COLOR_MAP[config.color] ?? COLOR_MAP.amber;
@@ -80,10 +87,22 @@ export function ModeSelectionScreen({ onSelectMode }: ModeSelectionScreenProps) 
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {config.description}
                   </p>
+                  {mode === 'empyrean' && separateEmpyrean && !inEmpyreanSpace && (
+                    <p className="text-[11px] text-amber-400/80 mt-1">Opens your separate Empyrean account.</p>
+                  )}
                 </div>
               </motion.button>
             );
           })}
+          {inEmpyreanSpace && (
+            <button
+              onClick={() => { void returnToOdyssey(); }}
+              className="w-full min-h-[48px] mt-2 rounded-xl border border-border text-sm text-muted-foreground"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Return to Odyssey
+            </button>
+          )}
         </div>
 
         {/* Footer */}

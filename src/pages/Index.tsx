@@ -68,6 +68,7 @@ const AchievementsScreen = lazy(() => import('@/components/achievements/Achievem
 const ConstellationScreen = lazy(() => import('@/components/constellation/ConstellationScreen').then(m => ({ default: m.ConstellationScreen })));
 import { HomeScreen } from '@/components/home/HomeScreen';
 import { ModeSelectionScreen } from '@/components/home/ModeSelectionScreen';
+import { currentSpace, takeSwitchError, EMPYREAN_AUTH_PATH } from '@/lib/account-space';
 import { IncomingHealOverlay } from '@/components/party/IncomingHealNotification';
 import { IncomingTradeOverlay } from '@/components/party/IncomingTradeNotification';
 const NarrativeForgeScreen = lazy(() => import('@/components/scribe/NarrativeForgeScreen').then(m => ({ default: m.NarrativeForgeScreen })));
@@ -997,9 +998,16 @@ const Index = () => {
   // ── Roster gate: redirect unauthenticated users to /roster ──
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      routerNavigate('/roster', { replace: true });
+      // The separate Empyrean account has its own sign-in page.
+      routerNavigate(currentSpace() === 'empyrean' ? EMPYREAN_AUTH_PATH : '/roster', { replace: true });
     }
   }, [authLoading, isAuthenticated, routerNavigate]);
+
+  // ── Separate Empyrean account: say so once if the last switch couldn't finish ──
+  useEffect(() => {
+    const msg = takeSwitchError();
+    if (msg) toast({ title: 'Account switch', description: msg, variant: 'destructive' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Consume roster navigation state (character selection or new character) ──
   const hasConsumedRosterState = useRef(false);
