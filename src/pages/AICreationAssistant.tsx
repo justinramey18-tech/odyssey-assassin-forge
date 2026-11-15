@@ -17,7 +17,9 @@ import aiCreationBg from '@/assets/ai-creation-bg.jpeg';
 import { BackgroundWrapper } from '@/components/ui/BackgroundWrapper';
 import { saveHomebrewContentFromBuildData } from '@/lib/ai-creation/saveHomebrew';
 import { saveEmpyreanDMConfig, saveDragonNotes } from '@/lib/empyreanDMPersona';
-import { savePendingAiCharacter } from '@/lib/creation-guard';
+import { savePendingAiCharacter, AI_CREATION_DRAFT_KEY } from '@/lib/creation-guard';
+import { shouldEnterEmpyreanSeparately } from '@/lib/account-space';
+import { enterEmpyreanAccount } from '@/lib/account-space-switch';
 import { saveBondState, DEFAULT_BOND, DEFAULT_TRUST, setIsUnbonded } from '@/lib/dragonBondState';
 
 export default function AICreationAssistant() {
@@ -144,6 +146,14 @@ export default function AICreationAssistant() {
 
   const handleApply = useCallback(() => {
     if (!buildData || isParty) return; // party sessions never write local character data
+
+    // Separate Empyrean account: an Empyrean rider is created in that account. The chat and
+    // build (the creation draft) move with the player; tapping Apply there creates the rider.
+    if (buildData.empyrean && shouldEnterEmpyreanSeparately()) {
+      toast('Opening your Empyrean account', { description: 'Tap Apply again there to create your rider.' });
+      void enterEmpyreanAccount({ carry: [AI_CREATION_DRAFT_KEY], returnTo: '/ai-create' });
+      return;
+    }
     
     // Save identity fields to scoped storage
     if (buildData.gender) {

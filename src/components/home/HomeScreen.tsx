@@ -68,6 +68,8 @@ import { ChroniclerHomeView } from './ChroniclerHomeView';
 
 import { EmpyreanDualHPBars } from '@/components/empyrean/EmpyreanDualHPBars';
 import { EmpyreanDMContainer } from '@/components/empyrean/EmpyreanDMContainer';
+import { shouldEnterEmpyreanSeparately } from '@/lib/account-space';
+import { enterEmpyreanAccount } from '@/lib/account-space-switch';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
 import { LazyStandalonePartyDMScreen as StandalonePartyDMScreen } from '@/components/ai-dm/LazyStandalonePartyDMScreen';
 import { getSoloHP, getPartyHP } from '@/lib/dragonBondState';
@@ -1048,6 +1050,8 @@ export function HomeScreen({
                   transition={{ delay: 0.5, duration: 0.4 }}
                   onClick={() => {
                     triggerHaptic('light');
+                    // Separate Empyrean account: this opens the other account instead.
+                    if (shouldEnterEmpyreanSeparately()) { void enterEmpyreanAccount(); return; }
                     const hasConfig = !!loadEmpyreanDMConfig();
                     const isInParty = !!partySync?.party?.partyId;
                     if (hasConfig || isInParty) {
@@ -1258,7 +1262,7 @@ export function HomeScreen({
                     initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
                     animate={stage >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 10 }}
                     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    onClick={() => { triggerHaptic('light'); onAppModeChange?.('empyrean'); setShowEmpyreanScreen(true); }}
+                    onClick={() => { triggerHaptic('light'); if (shouldEnterEmpyreanSeparately()) { void enterEmpyreanAccount(); return; } onAppModeChange?.('empyrean'); setShowEmpyreanScreen(true); }}
                     className="flex-1 aspect-square rounded-xl overflow-hidden border border-amber-500/30 active:scale-[0.97] transition-all duration-200"
                     style={{ touchAction: 'manipulation' }}
                     aria-label="Dragon rider campaign"
