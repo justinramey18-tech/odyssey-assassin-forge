@@ -807,7 +807,9 @@ export function StandalonePartyDMScreen({
         });
       }
 
-      autoSync.extractAndApply(m.content, characterContext)
+      // A battle post (CL-057): the fight referee already applied HP, potions and conditions,
+      // so only XP, gold, items, quests and world changes are taken from it.
+      autoSync.extractAndApply(m.content, characterContext, { fightAlreadyApplied: !!m.isBattlePost })
         .then(result => {
           if (result?.items_acquired?.length) addPendingDmItems(result.items_acquired);
         })
@@ -845,7 +847,8 @@ export function StandalonePartyDMScreen({
       return;
     }
     toast.info("Reading the DM's last response and whispers for quests…");
-    autoSync.extractAndApply(scanText, characterContext)
+    // A battle post's HP, potions and conditions were applied by the fight referee (CL-057).
+    autoSync.extractAndApply(scanText, characterContext, { fightAlreadyApplied: !!last.isBattlePost })
       .then(result => {
         if (!result?.quests_offered?.length && !result?.quest_progress?.length) {
           toast.info('No quests found in that response.', {

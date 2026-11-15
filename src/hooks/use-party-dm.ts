@@ -9,6 +9,7 @@ import type { CharacterContext, Whisper } from '@/components/oracle/types';
 import type { DmSplitState, SplitTeam } from '@/lib/party-split-types';
 import { sendReadyUpNotification } from '@/lib/party-notifications';
 import { parseWhispers } from '@/lib/whisper-parser';
+import { isBattlePostContent, markBattlePost } from '@/lib/battle-post';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 import { loadSelectedModel, DM_MODELS, DEFAULT_MODEL_ID } from '@/lib/dm-models';
 import { loadApiKey, isFeatureSkipped } from '@/lib/api-keys';
@@ -184,6 +185,8 @@ export interface PartyDmMessage {
   team?: string | null;
   whispers?: Whisper[];
   is_afk_marker?: boolean;
+  /** Set on load from the hidden marker: the DM's post for a Live NPC fight (CL-057). */
+  isBattlePost?: boolean;
 }
 
 /**
@@ -200,10 +203,11 @@ const THRESHING_AUTHORIZED_TAG_RE = /<!--THRESHING_AUTHORIZED:.+?-->/g;
 
 function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string, myDragonName?: string): PartyDmMessage {
   if (msg.role !== 'assistant') return msg;
+  const isBattlePost = isBattlePostContent(msg.content) || undefined;
   const { narrative, whispers } = parseWhispers(msg.content);
   // Strip burnout and bond strain tags from narrative
   const cleanNarrative = narrative.replace(BURNOUT_TAG_RE, '').replace(BURNOUT_TICK_TAG_RE, '').replace(BOND_STRAIN_TAG_RE, '').replace(BOND_GROWTH_TAG_RE, '').replace(DRAGON_MEMORY_TAG_RE, '').replace(DRAGON_BOND_FORMED_TAG_RE, '').replace(THRESHING_AUTHORIZED_TAG_RE, '').replace(/<[^>]*>/g, '').trim();
-  if (whispers.length === 0) return { ...msg, content: cleanNarrative };
+  if (whispers.length === 0) return { ...msg, content: cleanNarrative, isBattlePost };
 
   // Filter: keep actions + tactics (shared), and whispers targeted at this player or their dragon
   const filtered = whispers.filter(w => {
@@ -217,6 +221,7 @@ function enrichMessageWithWhispers(msg: PartyDmMessage, myCharacterName?: string
     ...msg,
     content: cleanNarrative,
     whispers: filtered.length > 0 ? filtered : undefined,
+    isBattlePost,
   };
 }
 
@@ -406,7 +411,7 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
   const [isGenerating, setIsGenerating] = useState(false);
   const PENDING_DRAFT_KEY = 'odyssey-pending-draft';
 
-  const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string } | null>(() => {
+  const [pendingDraft, setPendingDraft] = useState<{ content: string; userContent: string; userSenderName: string; isBattlePost?: boolean } | null>(() => {
     try {
       const saved = getScopedItem(PENDING_DRAFT_KEY);
       return saved ? JSON.parse(saved) : null;
@@ -2658,13 +2663,15 @@ export function usePartyDm({ partyId, isCreator, memberCount, characterName, cha
               content: assistantContent,
               userContent: combined,
               userSenderName: 'Party',
+              isBattlePost: isFight,
             });
             handoffTaken = true;
           } else {
             await insertPartyMessage({
               party_id: partyId,
               role: 'assistant',
-              content: assistantContent,
+              // A fight's post is marked so the party auto-sync doesn't apply its HP again (CL-057).
+              content: isFight ? markBattlePost(assistantContent) : assistantContent,
               sender_user_id: null,
               sender_name: 'DM',
             });
@@ -4527,11 +4534,11 @@ Rules:
       }
     }
 
-    // 2. The DM post.
+    // 2. The DM post (a fight's post is marked so the party auto-sync doesn't apply its HP again, CL-057).
     const dmRow = await insertPartyMessageHelper(partyId, {
       party_id: partyId,
       role: 'assistant',
-      content,
+      content: isFight ? markBattlePost(content) : content,
       sender_user_id: user.id,
       sender_name: 'DM',
     });
@@ -4586,12 +4593,12 @@ Rules:
       });
     }
 
-    // Insert approved assistant message
+    // Insert approved assistant message (a fight's post keeps its battle-post marker, CL-057)
     const { data: assistantData } = await (supabase.from('party_dm_messages') as any)
       .insert({
         party_id: partyId,
         role: 'assistant',
-        content: trimmed,
+        content: pendingDraft.isBattlePost ? markBattlePost(trimmed) : trimmed,
         sender_user_id: null,
         sender_name: 'DM',
       })
