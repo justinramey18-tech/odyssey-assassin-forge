@@ -110,6 +110,22 @@ import { OOCNotesSheet, type ActiveOOCNote } from '@/components/empyrean/OOCNote
 import { Eye } from 'lucide-react';
 import { ScrollText } from 'lucide-react';
 import { HeartHandshake } from 'lucide-react';
+import { Bookmark, BookmarkCheck, PackageOpen } from 'lucide-react';
+import { EmpyreanLootReview, usePendingDmItems } from '@/components/empyrean/EmpyreanLootReview';
+import { addPendingDmItems } from '@/lib/pendingDmItems';
+import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
+import { removeScopedItem } from '@/lib/scoped-storage';
+
+/** Per-character bookmark ("you left off here") for the solo Empyrean story. */
+const EMPYREAN_BOOKMARK_KEY = 'empyrean-dm-bookmark';
+function loadEmpyreanBookmark(): string | null {
+  try {
+    const raw = getScopedItem(EMPYREAN_BOOKMARK_KEY);
+    return raw ? (JSON.parse(raw).messageId ?? null) : null;
+  } catch {
+    return null;
+  }
+}
 import { DragonBondScreen } from '@/components/empyrean/DragonBondScreen';
 import { strainCeiling } from '@/lib/dragon-meters';
 import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
@@ -702,7 +718,13 @@ ${oocLines}`;
     activeCampaignIdKey: 'empyrean-active-campaign-id',
     onMessageComplete: (content: string) => {
       if (autoSync.autoSyncEnabled) {
-        autoSync.extractAndApply(content, empyreanCharacterContext);
+        // Items the DM awards wait in the loot review instead of being dropped.
+        autoSync.extractAndApply(content, empyreanCharacterContext).then(result => {
+          if (result?.items_acquired?.length) {
+            addPendingDmItems(result.items_acquired);
+            toast('Loot to review', { description: 'Tap the bag at the top to accept or discard it.', icon: '🎒' });
+          }
+        }).catch(() => {});
       }
 
 
@@ -844,6 +866,31 @@ ${oocLines}`;
       }
     },
   });
+
+  // ─── Loot review + bookmark ──────────────────────────────────────────────
+  const [lootOpen, setLootOpen] = useState(false);
+  const pendingLoot = usePendingDmItems();
+  const [bookmarkedMessageId, setBookmarkedMessageId] = useState<string | null>(() => loadEmpyreanBookmark());
+  useEffect(() => {
+    const refresh = () => setBookmarkedMessageId(loadEmpyreanBookmark());
+    window.addEventListener('odyssey-character-loaded', refresh);
+    return () => window.removeEventListener('odyssey-character-loaded', refresh);
+  }, []);
+  const toggleBookmark = useCallback((messageId: string) => {
+    if (bookmarkedMessageId === messageId) {
+      removeScopedItem(EMPYREAN_BOOKMARK_KEY);
+      setBookmarkedMessageId(null);
+      toast.success('Bookmark removed');
+    } else {
+      setScopedItem(EMPYREAN_BOOKMARK_KEY, JSON.stringify({ messageId, savedAt: new Date().toISOString() }));
+      setBookmarkedMessageId(messageId);
+      toast.success('Bookmark saved');
+    }
+  }, [bookmarkedMessageId]);
+  const jumpToBookmark = useCallback(() => {
+    if (!bookmarkedMessageId) return;
+    document.getElementById(`empyrean-msg-${bookmarkedMessageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [bookmarkedMessageId]);
 
   // ─── Quest Hub ───────────────────────────────────────────────────────────
   const [questHubOpen, setQuestHubOpen] = useState(false);
@@ -1782,6 +1829,18 @@ ${oocLines}`;
               <NarrationSpeedPopover iconSize="w-5 h-5" />
             </>
           )}
+          {pendingLoot.length > 0 && (
+            <Button variant="ghost"
+              onClick={() => setLootOpen(true)}
+              className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Loot to review"
+              title="Loot to review"
+            >
+              <PackageOpen className="w-5 h-5 text-primary" />
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">{pendingLoot.length}</span>
+            </Button>
+          )}
           <button
             onClick={() => setQuestHubOpen(true)}
             className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -1892,6 +1951,18 @@ ${oocLines}`;
                 </button>
                 <NarrationSpeedPopover iconSize="w-5 h-5" />
               </>
+            )}
+            {pendingLoot.length > 0 && (
+              <Button variant="ghost"
+                onClick={() => setLootOpen(true)}
+                className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="Loot to review"
+                title="Loot to review"
+              >
+                <PackageOpen className="w-5 h-5 text-primary" />
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">{pendingLoot.length}</span>
+              </Button>
             )}
             <button
               onClick={() => setQuestHubOpen(true)}
@@ -2045,6 +2116,17 @@ ${oocLines}`;
           </div>
         )}
 
+        {bookmarkedMessageId && messages.some(m => m.id === bookmarkedMessageId) && (
+          <div className="sticky top-0 z-10 flex justify-center mb-2">
+            <Button variant="ghost"
+              onClick={jumpToBookmark}
+              className="px-3 min-h-[48px] rounded-full text-xs flex items-center gap-1 bg-primary/15 border border-primary/30 text-primary"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <Bookmark className="w-3 h-3" /> Jump to your bookmark
+            </Button>
+          </div>
+        )}
         {messages.map((message, msgIndex) => {
           // Hide the last assistant message while slideshow is playing
           if (message.role === 'assistant' && msgIndex === messages.length - 1 && (showSlideshow || (isLoading && cinematicModeEnabled) || (isLoading && readingMode))) {
@@ -2058,12 +2140,16 @@ ${oocLines}`;
           return (
             <div
               key={message.id}
+              id={`empyrean-msg-${message.id}`}
               className={cn(
                 'mb-3 flex',
                 isUser ? 'justify-end' : 'justify-start',
               )}
             >
               <div className="max-w-[85%] group relative">
+                {message.id === bookmarkedMessageId && (
+                  <p className="text-[10px] text-primary/80 mb-1 flex items-center gap-1"><BookmarkCheck className="w-3 h-3" /> You left off here</p>
+                )}
                 {/* Action toggle */}
                 {!isEditing && !isLoading && (
                   <button
@@ -2111,6 +2197,15 @@ ${oocLines}`;
                           {copiedId === message.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                           {copiedId === message.id ? 'Copied' : 'Copy'}
                         </button>
+                        <Button variant="ghost"
+                          style={{ touchAction: 'manipulation' }}
+                          onClick={() => toggleBookmark(message.id)}
+                          className="px-2 py-1 min-h-[48px] rounded-lg text-xs flex items-center gap-1 bg-primary/15 hover:bg-primary/25 text-primary transition-colors"
+                          aria-label={message.id === bookmarkedMessageId ? 'Remove bookmark' : 'Bookmark here'}
+                        >
+                          {message.id === bookmarkedMessageId ? <BookmarkCheck className="w-3 h-3" /> : <Bookmark className="w-3 h-3" />}
+                          {message.id === bookmarkedMessageId ? 'Marked' : 'Mark'}
+                        </Button>
                         <button
                           onClick={() => handleRegenerate(message.id)}
                           className="px-2 py-1 rounded-lg text-xs flex items-center gap-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 transition-colors"
@@ -2261,7 +2356,7 @@ ${oocLines}`;
         hideDice={true}
         hideAfk={true}
         hidePrompts={true}
-        hideActions={true}
+        hideActions={false}
         hideSettings={true}
         showCharacterSheet={false}
         onCharacterSheet={() => setCharacterSheetOpen(true)}
@@ -2626,6 +2721,12 @@ ${oocLines}`;
 
       {/* Quest Hub Overlay */}
       <EmpyreanQuestHub open={questHubOpen} onClose={() => setQuestHubOpen(false)} api={questApi} />
+
+      {/* Loot review: DM awards and quest item rewards wait here */}
+      <EmpyreanLootReview open={lootOpen} onOpenChange={setLootOpen} onAccept={drawerContext?.acceptDmItem} />
+
+      {/* 3D dice for potions and other rolls from the Actions panel */}
+      <DiceRollOverlay />
 
       {/* Bond screen (D-30) */}
       <DragonBondScreen
