@@ -1,5 +1,7 @@
 // Must stay the first import: finishes a separate-Empyrean-account switch before the login loads.
 import './lib/account-space-boot';
+// Second: the one-time hard-reset fresh start (D-31) clears old game data before anything reads it.
+import './lib/fresh-start-boot';
 import { isCreationInProgress } from './lib/creation-guard';
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
