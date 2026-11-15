@@ -8,8 +8,6 @@ import { useAIDM } from '@/hooks/use-ai-dm';
 import {
   DRAGON_CHAT_KEY,
   DRAGON_CHAT_SUMMARY_KEY,
-  loadBondState,
-  saveBondState,
   buildDragonChatPrompt,
   computeMoodPressure,
   buildConstrainedMoodOptions,
@@ -18,13 +16,12 @@ import {
   getTrustDescriptor,
   addMemory,
   removeMemory,
-  addTrust,
-  reduceTrust,
   detectRiderDeclaration,
   type DragonBondState,
   type DragonMood,
 } from '@/lib/dragonBondState';
 import { computeTrustDelta, parseAITrustTag, reconcileAITrust } from '@/lib/bondTrust';
+import { commitDragonChange, loadSoloDragonState, onDragonStateChange, updateDragonState } from '@/lib/dragon-record';
 import type { CharacterContext } from '@/components/oracle/types';
 
 interface DragonBondChatProps {
@@ -82,7 +79,9 @@ export default function DragonBondChat({
   currentSituation,
   onDragonNotesChange,
 }: DragonBondChatProps) {
-  const [bondState, setBondState] = useState<DragonBondState>(() => loadBondState());
+  const [bondState, setBondState] = useState<DragonBondState>(() => loadSoloDragonState());
+  // Bond, trust and wounds live in the server record (D-30); any change elsewhere shows here too.
+  useEffect(() => onDragonStateChange(setBondState), []);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -155,7 +154,8 @@ export default function DragonBondChat({
   // Parse tags from new assistant messages
   const handleMessageComplete = useCallback(
     (content: string) => {
-      let updated = { ...bondState };
+      // Start from the latest saved state, not this screen's copy, so nothing saved elsewhere is undone.
+      let updated: DragonBondState = { ...loadSoloDragonState() };
 
       // Parse mood tag — validate against allowed transitions
       const moodMatch = content.match(/<!--DRAGON_MOOD:(\w+)-->/);
@@ -223,13 +223,8 @@ export default function DragonBondChat({
         trustBreakBroken = keywordResult.trustBreak.broken;
       }
 
-      if (trustDelta > 0) {
-        updated = addTrust(updated, trustDelta);
-      } else if (trustDelta < 0) {
-        updated = reduceTrust(updated, Math.abs(trustDelta));
-        if (trustBreakBroken) {
-          updated = { ...updated, mood: 'distant' as DragonMood };
-        }
+      if (trustDelta < 0 && trustBreakBroken) {
+        updated = { ...updated, mood: 'distant' as DragonMood };
       }
 
       const emotionalLog = [...(updated.riderEmotionalLog || []), { tag: keywordResult.emotionTag, timestamp: new Date().toISOString() }].slice(-15);
@@ -241,19 +236,22 @@ export default function DragonBondChat({
         updated = addMemory(updated, declaration, 'rider-said');
       }
 
-      setBondState(updated);
-      saveBondState(updated);
+      // Trust goes through the dragon record: a loss of 5+ opens a wound, open wounds cut gains (D-30).
+      const reason = trustDelta > 0
+        ? 'Talking with your dragon'
+        : trustBreakBroken ? 'A hurtful word in the bond chat' : 'A cold word in the bond chat';
+      const result = commitDragonChange({ trust: trustDelta }, 'chat', reason, () => updated);
+      setBondState(result.state);
+      if (result.woundOpened) {
+        toast(`A wound in the bond: ${reason}`, { icon: '🩸', description: `${dragonName} won't trust as easily until you make amends.` });
+      }
     },
-    [bondState, dragonName],
+    [dragonName],
   );
 
 
   const handleDeleteMemory = useCallback((memoryId: string) => {
-    setBondState(prev => {
-      const updated = removeMemory(prev, memoryId);
-      saveBondState(updated);
-      return updated;
-    });
+    setBondState(updateDragonState(s => removeMemory(s, memoryId)));
     toast('Memory removed', { duration: 2000 });
   }, []);
 
@@ -264,11 +262,7 @@ export default function DragonBondChat({
       toast.error('Memory limit reached (30/30)', { duration: 2000 });
       return;
     }
-    setBondState(prev => {
-      const updated = addMemory(prev, text, newMemorySource);
-      saveBondState(updated);
-      return updated;
-    });
+    setBondState(updateDragonState(s => addMemory(s, text, newMemorySource)));
     setNewMemoryText('');
     toast('Memory added', { duration: 2000 });
   }, [newMemoryText, newMemorySource, bondState.memories.length]);
@@ -295,7 +289,7 @@ export default function DragonBondChat({
   const opinionFiredRef = useRef(false);
   useEffect(() => {
     if (open) {
-      setBondState(loadBondState());
+      setBondState(loadSoloDragonState());
       opinionFiredRef.current = false;
       setDragonOpening(null);
     }
@@ -617,11 +611,7 @@ export default function DragonBondChat({
                   <div className="flex items-center gap-1 mr-1">
                     <button
                       onClick={() => {
-                        setBondState(prev => {
-                          const updated = { ...prev, memories: [] };
-                          saveBondState(updated);
-                          return updated;
-                        });
+                        setBondState(updateDragonState(s => ({ ...s, memories: [] })));
                         setConfirmClearMemories(false);
                         toast('All memories cleared', { duration: 2000 });
                       }}
