@@ -8,6 +8,7 @@
 // The AI writes the scene. The app checks that every spoken line made it in word for
 // word, and falls back to a plain script (no AI) when any line is missing.
 // Pure functions only (no network, no React) so they can be unit tested.
+import { stripBattlePostMarker } from '@/lib/battle-post';
 
 /** sender_name of a scene row in party_dm_messages. It is never 'DM', so auto-sync never reads it. */
 export const STORY_SCENE_SENDER = 'Scene';
@@ -234,7 +235,8 @@ export function storyHistory<T extends StoryRow & { content: string }>(rows: T[]
   const out: Array<{ role: string; content: string }> = [];
   rows.forEach((m, i) => {
     if (!isStorySceneRow(m)) {
-      out.push({ role: m.role, content: m.content });
+      // The battle-post marker (CL-057) is for the app, not the DM: keep it out of the history.
+      out.push({ role: m.role, content: stripBattlePostMarker(m.content) });
       return;
     }
     const coversOldRows = i > 0 && covered.has(rows[i - 1].id);

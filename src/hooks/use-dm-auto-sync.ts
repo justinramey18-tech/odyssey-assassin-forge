@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { CharacterContext } from '@/components/oracle/types';
 import { getAuthToken } from '@/lib/auth-token';
 import { Quest, RawQuestOffer } from '@/lib/quests';
+import { stripBattlePostMarker, withoutFightResults } from '@/lib/battle-post';
 
 
 const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm-extract`;
@@ -94,8 +95,13 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
 
   const extractAndApply = useCallback(async (
     assistantMessage: string,
-    characterContext: CharacterContext
+    characterContext: CharacterContext,
+    options?: {
+      /** A battle post (CL-057): the fight referee already applied HP, potions and conditions. */
+      fightAlreadyApplied?: boolean;
+    }
   ) => {
+    assistantMessage = stripBattlePostMarker(assistantMessage);
     if (assistantMessage.length < 20) return null;
 
     const cb = callbacksRef.current;
@@ -147,7 +153,9 @@ export function useDmAutoSync(callbacks: AutoSyncCallbacks) {
         return null;
       }
 
-      const result: ExtractionResult = await response.json();
+      const extracted: ExtractionResult = await response.json();
+      // Battle posts: skip what the referee already applied; keep XP, gold, items, quests, world changes.
+      const result: ExtractionResult = options?.fightAlreadyApplied ? withoutFightResults(extracted) : extracted;
       setLastExtraction(result);
 
       // Apply HP — absolute takes priority over deltas.
