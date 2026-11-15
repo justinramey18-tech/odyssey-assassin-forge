@@ -109,6 +109,9 @@ import { SignetManagementDrawer } from '@/components/empyrean/SignetManagementDr
 import { OOCNotesSheet, type ActiveOOCNote } from '@/components/empyrean/OOCNotesSheet';
 import { Eye } from 'lucide-react';
 import { ScrollText } from 'lucide-react';
+import { HeartHandshake } from 'lucide-react';
+import { DragonBondScreen } from '@/components/empyrean/DragonBondScreen';
+import { strainCeiling } from '@/lib/dragon-meters';
 import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
@@ -227,6 +230,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BOND_STRAIN:.+?-->/g, '')
     .replace(/<!--DRAGON_MEMORY:.+?-->/g, '')
     .replace(/<!--BOND_GROWTH:.+?-->/g, '')
+    .replace(/<!--BOND_AMENDS:.+?-->/g, '')
     .replace(/<!--DRAGON_BOND_FORMED-->/g, '')
     .replace(/<!--THRESHING_AUTHORIZED:.+?-->/g, '')
     .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
@@ -528,9 +532,23 @@ UNBONDED RIDER RULES:
     characterName,
   });
 
-  // Signet Strain ceiling: 8, raised by Signet rank in the Quest Hub (9 at rank 3, 10 at rank 5).
+  // Signet Strain ceiling: 8, raised by Signet rank in the Quest Hub (9 at rank 3, 10 at rank 5)
+  // and by the bond (Strong +1, Deep +2, Legendary +3), never above 12 (D-30).
   const [questStrainCeiling, setQuestStrainCeiling] = useState(8);
-  const maxBurnout = isUnbonded ? 0 : questStrainCeiling;
+  const maxBurnout = isUnbonded ? 0 : strainCeiling(dragonBond.bondState.bond, questStrainCeiling);
+
+  // Pushing Signet Strain up to the limit costs bond (D-30). Only a rise counts: a lower
+  // limit that clamps strain down is not the rider's doing.
+  const prevBurnoutForBondRef = useRef(burnoutLevel);
+  useEffect(() => {
+    const prev = prevBurnoutForBondRef.current;
+    prevBurnoutForBondRef.current = burnoutLevel;
+    if (!isUnbonded && maxBurnout > 0 && burnoutLevel > prev && prev < maxBurnout && burnoutLevel >= maxBurnout) {
+      dragonBond.processRecklessStrain();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [burnoutLevel]);
+  const [bondScreenOpen, setBondScreenOpen] = useState(false);
 
   const dmPersonaPrompt = useMemo(() => {
     if (!config) return undefined;
@@ -554,6 +572,7 @@ UNBONDED RIDER RULES:
       bs.memories.map(m => m.text),
       isUnbonded,
       true, // isSoloRuleOfCool — solo DM always says yes, no canon gatekeeping
+      bs.wounds ?? 0, // open trust wounds: teaches the DM the amends tag (D-30)
     );
     if (threshingAuthorized && isUnbonded) {
       persona += `\n\n## THRESHING CEREMONY — NARRATE NOW
@@ -707,6 +726,15 @@ ${oocLines}`;
         dragonBond.processBondGrowth(bondGrowthMatch[1]);
         toast('Bond deepens: ' + bondGrowthMatch[1], { icon: '🐉' });
       }
+
+      // Amends heal one trust wound (D-30); the hook shows the toast.
+      const amendsMatch = content.match(/<!--BOND_AMENDS:(.+?)-->/);
+      if (amendsMatch) {
+        dragonBond.processAmends(amendsMatch[1]);
+      }
+
+      // Every story reply is time spent together (resets the neglect clock).
+      dragonBond.touchContact();
 
 
 
@@ -1763,6 +1791,15 @@ ${oocLines}`;
           >
             <ScrollText className="w-5 h-5 text-amber-300" />
           </button>
+          <Button variant="ghost"
+            onClick={() => setBondScreenOpen(true)}
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Bond"
+            title="Bond"
+          >
+            <HeartHandshake className="w-5 h-5 text-primary" />
+          </Button>
           <button
             onClick={() => setShowToolsDrawer(true)}
             className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -1865,6 +1902,15 @@ ${oocLines}`;
             >
               <ScrollText className="w-5 h-5 text-amber-300" />
             </button>
+            <Button variant="ghost"
+              onClick={() => setBondScreenOpen(true)}
+              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Bond"
+              title="Bond"
+            >
+              <HeartHandshake className="w-5 h-5 text-primary" />
+            </Button>
             <button
               onClick={() => setShowToolsDrawer(true)}
               className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
@@ -2580,6 +2626,16 @@ ${oocLines}`;
 
       {/* Quest Hub Overlay */}
       <EmpyreanQuestHub open={questHubOpen} onClose={() => setQuestHubOpen(false)} api={questApi} />
+
+      {/* Bond screen (D-30) */}
+      <DragonBondScreen
+        open={bondScreenOpen}
+        onClose={() => setBondScreenOpen(false)}
+        dragonName={config?.dragonName || ''}
+        bondState={dragonBond.bondState}
+        questStrainCeiling={questStrainCeiling}
+        isUnbonded={isUnbonded}
+      />
 
       {/* World State Overlay */}
       {showWorldState && (

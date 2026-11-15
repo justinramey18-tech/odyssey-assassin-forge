@@ -164,6 +164,8 @@ export function buildEmpyreanDMPersona(
   dragonMemories?: string[],
   isUnbonded: boolean = false,
   isSoloRuleOfCool: boolean = false,
+  /** Open trust wounds in the bond (solo dragon record, D-30). 0 leaves the amends section out. */
+  bondWounds: number = 0,
 ): string {
   const sections: string[] = [];
 
@@ -500,6 +502,20 @@ When a significant event occurs that a dragon would permanently remember — a m
 <!--DRAGON_MEMORY:brief fact in present tense-->
 
 Use sparingly, maximum once per session. Only for genuinely memorable moments, not routine events.`);
+
+    // 7e2. Bond wounds and amends (solo dragon record, D-30)
+    if (bondWounds > 0) {
+      const wounds = Math.min(3, Math.round(bondWounds));
+      sections.push(`## BOND WOUNDS AND AMENDS
+
+The bond between ${characterName} and ${dragonName || 'their dragon'} carries ${wounds} open wound${wounds === 1 ? '' : 's'} from past breaks of trust. The dragon has not forgotten them: let them show in its wariness, its silences, and how quickly it bristles.
+
+When the rider genuinely makes amends in the story (owning the hurt, an apology the dragon believes, a real sacrifice for the dragon, or a kept promise that answers the old hurt), emit:
+
+<!--BOND_AMENDS:brief reason-->
+
+Each tag heals one wound. At most once per response, and only for a real act of repair, never for routine kindness.`);
+    }
 
     // 7f. Burnout tick events removed — the app fully owns burnout (see SIGNET INTENSITY section).
   }
