@@ -750,6 +750,47 @@ export type Database = {
         }
         Relationships: []
       }
+      empyrean_campaign_state: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          rider_key: string
+          state: Json
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          rider_key?: string
+          state?: Json
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          rider_key?: string
+          state?: Json
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empyrean_campaign_state_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empyrean_dragon_events: {
         Row: {
           bond_after: number
@@ -850,6 +891,89 @@ export type Database = {
           wounds?: number
         }
         Relationships: []
+      }
+      empyrean_riders: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          rider_key: string
+          signet_xp: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          rider_key: string
+          signet_xp?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          rider_key?: string
+          signet_xp?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      empyrean_rule_events: {
+        Row: {
+          applied_at: string | null
+          campaign_id: string
+          created_at: string
+          gold: number
+          hp: number
+          id: string
+          idem_key: string
+          kind: string
+          payload: Json
+          reason: string | null
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          applied_at?: string | null
+          campaign_id: string
+          created_at?: string
+          gold?: number
+          hp?: number
+          id?: string
+          idem_key: string
+          kind: string
+          payload?: Json
+          reason?: string | null
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          applied_at?: string | null
+          campaign_id?: string
+          created_at?: string
+          gold?: number
+          hp?: number
+          id?: string
+          idem_key?: string
+          kind?: string
+          payload?: Json
+          reason?: string | null
+          user_id?: string
+          xp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empyrean_rule_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gm_guide_presets: {
         Row: {
@@ -3139,6 +3263,162 @@ export type Database = {
         }
         Relationships: []
       }
+      solo_campaign_maps: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          state_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          state_data: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          state_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solo_campaign_maps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solo_location_guides: {
+        Row: {
+          campaign_id: string
+          content: string
+          created_at: string
+          enabled: boolean
+          id: string
+          location_id: string | null
+          map_id: string
+          name: string
+          scope: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          content: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          location_id?: string | null
+          map_id: string
+          name: string
+          scope: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          campaign_id?: string
+          content?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          location_id?: string | null
+          map_id?: string
+          name?: string
+          scope?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solo_location_guides_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solo_travel_events: {
+        Row: {
+          attempt_count: number
+          campaign_id: string
+          created_at: string
+          destination_location_id: string | null
+          dm_context: string | null
+          dm_model: string | null
+          event_type: string | null
+          fire_token_hash: string | null
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          premise: string | null
+          scheduled_at: string | null
+          status: string
+          target_fraction: number | null
+          tranche_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          campaign_id: string
+          created_at?: string
+          destination_location_id?: string | null
+          dm_context?: string | null
+          dm_model?: string | null
+          event_type?: string | null
+          fire_token_hash?: string | null
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          premise?: string | null
+          scheduled_at?: string | null
+          status: string
+          target_fraction?: number | null
+          tranche_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          campaign_id?: string
+          created_at?: string
+          destination_location_id?: string | null
+          dm_context?: string | null
+          dm_model?: string | null
+          event_type?: string | null
+          fire_token_hash?: string | null
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          premise?: string | null
+          scheduled_at?: string | null
+          status?: string
+          target_fraction?: number | null
+          tranche_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solo_travel_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -3598,6 +3878,20 @@ export type Database = {
         Returns: boolean
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
+      empyrean_commit: {
+        Args: {
+          _advance_minutes?: number
+          _campaign_id: string
+          _events?: Json
+          _expected_version: number
+          _rider_key: string
+          _set_minute?: number
+          _signet_xp_delta?: number
+          _state: Json
+          _user_id: string
+        }
+        Returns: Json
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -3736,6 +4030,19 @@ export type Database = {
           _envelope: Json
           _expected_updated_at: string
           _party_id: string
+        }
+        Returns: {
+          id: string
+          server_time: string
+          state_data: Json
+          updated_at: string
+        }[]
+      }
+      write_solo_campaign_atlas: {
+        Args: {
+          _campaign_id: string
+          _envelope: Json
+          _expected_updated_at: string
         }
         Returns: {
           id: string
