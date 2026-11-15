@@ -316,6 +316,13 @@
       "when": 1794765483998,
       "tag": "0044_create_private_player_reset_backup",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1794781468324,
+      "tag": "0045_harden_selected_security_findings",
+      "breakpoints": true
     }
   ]
 }
