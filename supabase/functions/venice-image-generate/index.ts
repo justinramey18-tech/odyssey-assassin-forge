@@ -1,8 +1,10 @@
 // venice-image-generate: signed-in image generation through Venice (key stays on the server).
 // POST { mode: 'player-portrait'|'npc-portrait'|'dm-scene', prompt, partyId, npcId?, messageId? }
+// POST { mode: 'solo-scene', scene, character? }  (solo campaigns: any signed-in user, daily cap)
 // -> { imageUrl, finalPrompt, path }
 // player-portrait: seated member (or host) for their own portrait. npc/dm-scene: host or co-host.
-// Stored in the public party-chat-images bucket under generated/<partyId>/<mode folder>/.
+// Stored in the public party-chat-images bucket under generated/<partyId>/<mode folder>/,
+// or generated/solo/<userId>/solo-scenes/ for solo scenes.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
@@ -12,15 +14,29 @@ const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 const uuid = z.string().uuid();
+const short = z.string().max(400).optional();
 const Body = z.object({
-  mode: z.enum(['player-portrait', 'npc-portrait', 'dm-scene']),
+  mode: z.enum(['player-portrait', 'npc-portrait', 'dm-scene', 'solo-scene']),
   prompt: z.string().min(1).max(4000).optional(),
-  partyId: uuid,
+  partyId: uuid.optional(),
   npcId: uuid.optional(),
   messageId: uuid.optional(),
+  // solo-scene only: the DM narration to illustrate and the player's own character
+  scene: z.string().min(1).max(20000).optional(),
+  character: z.object({
+    characterName: short, race: short, gender: short, className: short, appearance: short, backstory: short,
+    dragonName: short, dragonColor: short,
+  }).optional(),
 });
 
-const FOLDERS = { 'player-portrait': 'player-portraits', 'npc-portrait': 'npc-portraits', 'dm-scene': 'dm-scenes' } as const;
+const FOLDERS = { 'player-portrait': 'player-portraits', 'npc-portrait': 'npc-portraits', 'dm-scene': 'dm-scenes', 'solo-scene': 'solo-scenes' } as const;
+/** Solo scene images per signed-in user per 24 hours (the Venice key is paid). */
+const SOLO_DAILY_CAP = 30;
+
+// Solo Fourth Wing campaigns: book characters must never get a likeness.
+const SOLO_CANON_RULE = `
+- This story is set in the world of a published novel series. Characters from the books (for example cadets, riders, professors, royals and their dragons named in the narration who are NOT the player character or the player's dragon) must never be shown with a recognizable face or likeness. Keep them out of frame, show them from behind or far away as small anonymous silhouettes, or leave them implied. The player character and the player's dragon are the focal subjects.
+- No book-cover compositions, logos or title lettering.`;
 const BUCKET = 'party-chat-images';
 const MAX_PROMPT = 1500;
 const MAX_SCENE_SOURCE = 12000;
@@ -96,43 +112,67 @@ Deno.serve(async (req) => {
   try { raw = await req.json(); } catch { return json(400, { error: 'Invalid JSON.' }); }
   const parsed = Body.safeParse(raw);
   if (!parsed.success) return json(400, { error: parsed.error.flatten().fieldErrors });
-  const { mode, prompt, partyId, npcId, messageId } = parsed.data;
+  const { mode, prompt, partyId, npcId, messageId, scene: soloScene, character } = parsed.data;
+  const isSolo = mode === 'solo-scene';
+  const soloFolder = `generated/solo/${userId}/${FOLDERS['solo-scene']}`;
 
-  // Permissions
-  const { data: party } = await db.from('parties').select('id, created_by, is_active').eq('id', partyId).maybeSingle();
-  if (!party || party.is_active === false) return json(404, { error: 'Party not found.' });
-  const isHost = party.created_by === userId;
-  let isCoHost = false;
-  if (!isHost) {
-    const { data: co } = await db.from('party_shared_state').select('state_data')
-      .eq('party_id', partyId).eq('state_type', 'co_hosts').limit(5);
-    isCoHost = (co || []).some((r: any) => Array.isArray(r?.state_data?.userIds) && r.state_data.userIds.includes(userId));
-  }
-  if (mode === 'player-portrait') {
+  if (isSolo) {
+    // Solo: signed-in only, scene text required, capped per day.
+    if (!soloScene) return json(400, { error: 'scene is required for solo scene images.' });
+    const { data: recent } = await db.storage.from(BUCKET).list(soloFolder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+    const since = Date.now() - 24 * 60 * 60 * 1000;
+    const today = (recent || []).filter((f: any) => f?.created_at && new Date(f.created_at).getTime() > since).length;
+    if (today >= SOLO_DAILY_CAP) return json(429, { error: `Daily scene image limit reached (${SOLO_DAILY_CAP}). Try again tomorrow.` });
+  } else {
+    if (!partyId) return json(400, { error: 'partyId is required.' });
+
+    // Permissions
+    const { data: party } = await db.from('parties').select('id, created_by, is_active').eq('id', partyId).maybeSingle();
+    if (!party || party.is_active === false) return json(404, { error: 'Party not found.' });
+    const isHost = party.created_by === userId;
+    let isCoHost = false;
     if (!isHost) {
-      const { data: seat } = await db.from('party_members').select('id')
-        .eq('party_id', partyId).eq('user_id', userId).limit(1).maybeSingle();
-      if (!seat) return json(403, { error: 'Only seated party members can generate their portrait.' });
+      const { data: co } = await db.from('party_shared_state').select('state_data')
+        .eq('party_id', partyId).eq('state_type', 'co_hosts').limit(5);
+      isCoHost = (co || []).some((r: any) => Array.isArray(r?.state_data?.userIds) && r.state_data.userIds.includes(userId));
     }
-  } else if (!isHost && !isCoHost) {
-    return json(403, { error: 'Only the host or a co-host can do that.' });
+    if (mode === 'player-portrait') {
+      if (!isHost) {
+        const { data: seat } = await db.from('party_members').select('id')
+          .eq('party_id', partyId).eq('user_id', userId).limit(1).maybeSingle();
+        if (!seat) return json(403, { error: 'Only seated party members can generate their portrait.' });
+      }
+    } else if (!isHost && !isCoHost) {
+      return json(403, { error: 'Only the host or a co-host can do that.' });
+    }
   }
 
   let finalPrompt = '';
-  if (mode === 'dm-scene') {
-    if (!messageId) return json(400, { error: 'messageId is required for scene images.' });
-    const { data: post } = await db.from('party_dm_messages')
-      .select('id, role, content, sender_name, is_afk_marker')
-      .eq('id', messageId).eq('party_id', partyId).maybeSingle();
-    if (!post || post.role !== 'assistant' || post.is_afk_marker || post.sender_name === STORY_SCENE_SENDER) {
-      return json(400, { error: 'Only DM story posts can be illustrated.' });
-    }
-    const scene = cleanScene(String(post.content || ''));
-    if (!scene) return json(400, { error: 'This post has no scene to illustrate.' });
+  if (mode === 'dm-scene' || isSolo) {
+    let scene = '';
+    let continuity = '';
+    if (isSolo) {
+      scene = cleanScene(String(soloScene || ''));
+      if (!scene) return json(400, { error: 'This post has no scene to illustrate.' });
+      const line = continuityLine(character);
+      const c = character || {};
+      const dragon = str(c.dragonName, 60) ? `- ${str(c.dragonName, 60)} — the player's bonded dragon${str(c.dragonColor, 60) ? `; color: ${str(c.dragonColor, 60)}` : ''}` : '';
+      continuity = [line, dragon].filter(Boolean).join('\n') || '- (no stored player details)';
+    } else {
+      if (!messageId) return json(400, { error: 'messageId is required for scene images.' });
+      const { data: post } = await db.from('party_dm_messages')
+        .select('id, role, content, sender_name, is_afk_marker')
+        .eq('id', messageId).eq('party_id', partyId).maybeSingle();
+      if (!post || post.role !== 'assistant' || post.is_afk_marker || post.sender_name === STORY_SCENE_SENDER) {
+        return json(400, { error: 'Only DM story posts can be illustrated.' });
+      }
+      scene = cleanScene(String(post.content || ''));
+      if (!scene) return json(400, { error: 'This post has no scene to illustrate.' });
 
-    const { data: roster } = await db.from('party_members').select('character_status').eq('party_id', partyId).limit(8);
-    const lines = (roster || []).map((r: any) => continuityLine(r?.character_status)).filter(Boolean);
-    const continuity = lines.length ? lines.join('\n') : '- (no stored player details)';
+      const { data: roster } = await db.from('party_members').select('character_status').eq('party_id', partyId).limit(8);
+      const lines = (roster || []).map((r: any) => continuityLine(r?.character_status)).filter(Boolean);
+      continuity = lines.length ? lines.join('\n') : '- (no stored player details)';
+    }
 
     try {
       const controller = new AbortController();
@@ -147,7 +187,7 @@ Deno.serve(async (req) => {
             max_tokens: 400,
             temperature: 0.3,
             messages: [
-              { role: 'system', content: DIRECTOR_SYSTEM },
+              { role: 'system', content: isSolo ? DIRECTOR_SYSTEM + SOLO_CANON_RULE : DIRECTOR_SYSTEM },
               { role: 'user', content: `CHARACTER CONTINUITY (player characters):\n${continuity}\n\nDM NARRATION:\n${scene}` },
             ],
             stream: false,
@@ -203,7 +243,9 @@ Deno.serve(async (req) => {
 
   const bytes = Uint8Array.from(atob(b64.replace(/^data:[^,]+,/, '')), (c) => c.charCodeAt(0));
   const owner = mode === 'player-portrait' ? userId : mode === 'npc-portrait' ? (npcId ?? 'unassigned') : (messageId ?? 'unassigned');
-  const path = `generated/${partyId}/${FOLDERS[mode]}/${owner}/${crypto.randomUUID()}.png`;
+  const path = isSolo
+    ? `${soloFolder}/${crypto.randomUUID()}.png`
+    : `generated/${partyId}/${FOLDERS[mode]}/${owner}/${crypto.randomUUID()}.png`;
   const { error: upErr } = await db.storage.from(BUCKET).upload(path, bytes, { contentType: 'image/png' });
   if (upErr) { console.error('[venice-image] upload', upErr.message); return json(500, { error: 'Could not store the image.' }); }
   const imageUrl = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
