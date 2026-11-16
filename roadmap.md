@@ -1,3 +1,4 @@
+- [x] Rider onboarding 1/5: extract shared character rules and restrict the existing Empyrean creator to party sessions; deploy only ai-creation-assistant.
 - [x] Solo Empyrean fight step 1 only: added pure referee, identical mini-games and 21 tests; 19 passed, two expected between-fight tests await step 2; no deployment or screen changes.
 - [x] Add supplied Primary, Secondary, and Ranged weapon artwork.
 - [x] Show complete live equipped-weapon details in Quick Actions without changing saved gear.

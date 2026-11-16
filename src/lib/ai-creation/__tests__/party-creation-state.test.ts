@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { validateAgainstRules, fallbackKey, sanitizeDraft } from '../party-creation-state';
 
 const build: any = { name: 'Tess', level: 3, primaryClass: 'rogue', race: 'Elf', starterAbilities: [],
@@ -22,5 +23,22 @@ describe('party creation rules', () => {
   });
   it('drops malformed messages from a stored draft', () => {
     expect(sanitizeDraft({ messages: [{ role: 'system', content: 'x' }, { role: 'user', content: 'hi' }] })!.messages).toHaveLength(1);
+  });
+});
+
+describe('Empyrean creation routing', () => {
+  const source = readFileSync('supabase/functions/ai-creation-assistant/index.ts', 'utf8');
+  const expression = source.match(/const wantsEmpyrean = ([^;]+);/)?.[1];
+  if (!expression) throw new Error('Missing Empyrean creation routing');
+  const includesEmpyrean = new Function('partyCreationSessionId', 'appMode', `return (${expression});`);
+
+  it('does not activate rider creation for solo Empyrean requests', () => {
+    expect(includesEmpyrean(undefined, 'empyrean')).toBe(false);
+  });
+  it('activates rider creation for Empyrean party sessions', () => {
+    expect(includesEmpyrean('party-session', 'empyrean')).toBe(true);
+  });
+  it('does not activate rider creation for ordinary party sessions', () => {
+    expect(includesEmpyrean('party-session', 'dnd')).toBe(false);
   });
 });
