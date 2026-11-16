@@ -19,6 +19,7 @@ import { CalendarIcon } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import type { TablesUpdate } from '@/integrations/supabase/types';
 import { useAuth } from '@/hooks/use-auth';
 import { sendTelegramNotification } from '@/lib/telegram-notify';
 
@@ -164,11 +165,12 @@ export function TelegramSettingsTab() {
   }, [user]);
 
   // Toggle notification preference for a specific link
-  const toggleNotif = useCallback(async (linkId: string, field: string, value: boolean) => {
+  const toggleNotif = useCallback(async (linkId: string, field: 'notify_ready_up' | 'notify_timer' | 'notify_combat' | 'notify_dragon', value: boolean) => {
     if (!user) return;
+    const update: TablesUpdate<'telegram_user_links'> = { [field]: value };
     const { error } = await supabase
       .from('telegram_user_links')
-      .update({ [field]: value })
+      .update(update)
       .eq('id', linkId);
 
     if (!error) {

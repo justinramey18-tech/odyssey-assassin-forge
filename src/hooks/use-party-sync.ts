@@ -1350,7 +1350,7 @@ export function usePartySync(): UsePartySyncReturn {
 
     await supabase
       .from('party_actions')
-      .update({ applied: true, status: 'accepted' } as Record<string, unknown>)
+      .update({ applied: true, status: 'accepted' })
       .eq('id', actionId);
 
     setPendingHeals(prev => prev.filter(h => h.id !== actionId));
@@ -1362,7 +1362,7 @@ export function usePartySync(): UsePartySyncReturn {
 
     await supabase
       .from('party_actions')
-      .update({ applied: false, status: 'rejected' } as Record<string, unknown>)
+      .update({ applied: false, status: 'rejected' })
       .eq('id', actionId);
 
     setPendingHeals(prev => prev.filter(h => h.id !== actionId));
@@ -1800,7 +1800,7 @@ export function usePartySync(): UsePartySyncReturn {
 
     await supabase
       .from('party_actions')
-      .update({ applied: true, status: 'accepted' } as Record<string, unknown>)
+      .update({ applied: true, status: 'accepted' })
       .eq('id', actionId);
 
     setPendingTrades(prev => prev.filter(t => t.id !== actionId));
@@ -1812,7 +1812,7 @@ export function usePartySync(): UsePartySyncReturn {
 
     await supabase
       .from('party_actions')
-      .update({ applied: false, status: 'rejected' } as Record<string, unknown>)
+      .update({ applied: false, status: 'rejected' })
       .eq('id', actionId);
 
     setPendingTrades(prev => prev.filter(t => t.id !== actionId));
