@@ -26,7 +26,7 @@ export interface EmpyreanRulesOptions {
   campaignId: string | null;
   dragonName?: string;
   bonded: boolean;
-  getSheet: () => { level?: number; maxHp?: number };
+  getSheet: () => { level?: number; maxHp?: number; riderClass?: string | null };
   getPlace: () => { name?: string; kind?: string } | undefined;
   getCurrentHP: () => number;
   onHPChange: (change: number, type: 'damage' | 'healing') => void;
@@ -178,6 +178,11 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
       return snap?.ok && snap.check ? snap.check : null;
     },
     signetUsed: (intensity: number) => { void run('signet_used', { intensity }, true); },
+    /** A Prodigy's Battle Brief: the binding line for the DM, or null (the server said why). */
+    battleBrief: async (): Promise<{ line: string; left: number } | null> => {
+      const snap = await run('battle_brief');
+      return snap?.ok && snap.brief ? snap.brief : null;
+    },
     /** true when the server took the payout (the reward arrives through the inbox). */
     questPayout: async (questKey: string, challenge: string | undefined, title: string): Promise<boolean> =>
       !!(await run('quest_payout', { questKey, challenge, title }, true))?.ok,

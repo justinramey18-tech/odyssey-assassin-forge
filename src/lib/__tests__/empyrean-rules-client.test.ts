@@ -11,6 +11,14 @@ describe('rules client', () => {
   it('charges the same strain as the server at every rank and intensity', () => {
     for (let rank = 0; rank <= 4; rank++) for (let i = 1; i <= 8; i++) expect(signetStrainCost(i, rank)).toBe(serverCost(i, rank));
   });
+  it('matches every Prodigy tier on the server and preserves ordinary costs', () => {
+    for (let tier = 0; tier <= 5; tier++) for (let rank = 0; rank <= 4; rank++) for (let intensity = 1; intensity <= 8; intensity++) {
+      expect(signetStrainCost(intensity, rank, tier)).toBe(serverCost(intensity, rank, tier));
+    }
+    expect(signetStrainCost(3, 0, 2)).toBe(2);
+    expect(signetStrainCost(5, 0, 4)).toBe(3);
+    expect(signetStrainCost(5, 0)).toBe(5);
+  });
   it('reads the risk of a check from its wording', () => {
     expect(checkRisk('Channel your signet to hold the shadow (DC 15)')).toBe('signet');
     expect(checkRisk('Dexterity (Acrobatics) to cross the Parapet')).toBe('physical');

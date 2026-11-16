@@ -28,6 +28,25 @@ describe('useEmpyreanRules', () => {
   beforeEach(() => { localStorage.clear(); mock.invoke.mockReset(); });
   afterEach(() => cleanup());
 
+  it('sends the Prodigy class and returns only an accepted Battle Brief', async () => {
+    const brief = { line: '[BATTLE BRIEF, binding: Read this moment.]', left: 1 };
+    answer(action => snap([], action === 'battle_brief' ? { brief, prodigy: { tier: 3, briefsLeft: 1 } } : {}));
+    const { result } = renderHook(() => useEmpyreanRules(options(calls(), {
+      getSheet: () => ({ level: 10, maxHp: 50, riderClass: 'prodigy' }),
+    })));
+    await waitFor(() => expect(result.current.active).toBe(true));
+    let returned: unknown;
+    await act(async () => { returned = await result.current.battleBrief(); });
+    expect(returned).toEqual(brief);
+    expect(mock.invoke).toHaveBeenLastCalledWith('empyrean-rules', { body: {
+      action: 'battle_brief', campaignId: 'camp-1', riderKey: 'local', dragonName: 'Gwyn', bonded: true,
+      sheet: { level: 10, maxHp: 50, riderClass: 'prodigy' }, place: { name: 'Basgiath', kind: 'fort' },
+    } });
+    answer(() => snap([], { ok: false, brief, error: 'No Battle Briefs left today.' }));
+    await act(async () => { returned = await result.current.battleBrief(); });
+    expect(returned).toBeNull();
+  });
+
   it('stays off when the server cannot be reached, so the app behaves as before', async () => {
     mock.invoke.mockResolvedValue({ data: null, error: { message: 'not deployed' } });
     const c = calls();

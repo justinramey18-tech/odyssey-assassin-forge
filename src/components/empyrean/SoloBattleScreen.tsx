@@ -11,6 +11,7 @@ import type * as M from '@/lib/combatMinigames';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { SoloFightApi } from '@/hooks/use-solo-fight';
 import { signetStrainCost, type FightView, type RulesContext } from '@/lib/empyrean-rules-client';
+import { prodigyRiderCooldownMs, type ProdigyTier } from '@/lib/empyreanClasses/prodigy';
 import '@/components/ai-dm/battle/battle.css';
 
 const SIGNET_LEVELS = [{ intensity: 2, label: 'focused' }, { intensity: 4, label: 'strong' }, { intensity: 6, label: 'all-out' }];
@@ -26,6 +27,7 @@ export function buildFightSheet(ctx: CharacterContext | undefined, currentHp: nu
   return {
     level: ctx?.level ?? 1, maxHp: ctx?.maxHP ?? 10, hp: Math.max(1, Math.min(ctx?.maxHP ?? 10, Math.round(currentHp) || 1)),
     ac: ctx?.defenses?.armorClass ?? 12, attackBonus: typeof bonus === 'number' ? bonus : null, weapons,
+    riderClass: ctx?.characterClass === 'prodigy' ? 'prodigy' : null,
   };
 }
 
@@ -35,6 +37,8 @@ interface Props {
   bonded: boolean;
   signetName?: string;
   masteryRank: number;
+  /** The rider's Prodigy Ascension tier (0 = not a Prodigy): cheaper channels, a shorter wait between moves. */
+  prodigy?: ProdigyTier;
   /** Strain the rider can still take before burning out. */
   strainRoom: number;
   onUseConsumableByName?: (name: string, quantity?: number) => boolean;
@@ -42,7 +46,7 @@ interface Props {
   onClosed: (view: FightView) => void;
 }
 
-export function SoloBattleScreen({ fight, characterContext, bonded, signetName, masteryRank, strainRoom, onUseConsumableByName, onClosed }: Props) {
+export function SoloBattleScreen({ fight, characterContext, bonded, signetName, masteryRank, prodigy = 0, strainRoom, onUseConsumableByName, onClosed }: Props) {
   const view = fight.fight;
   const [, setBeat] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
@@ -82,7 +86,7 @@ export function SoloBattleScreen({ fight, characterContext, bonded, signetName, 
     moves.push({ id: `w:${name}`, name, row: 'attack', side: 'enemy', sub: w?.weaponStats?.damage ? String(w.weaponStats.damage) : undefined });
   }
   if (bonded) for (const s of SIGNET_LEVELS) {
-    const cost = signetStrainCost(s.intensity, masteryRank);
+    const cost = signetStrainCost(s.intensity, masteryRank, prodigy);
     moves.push({
       id: `s:${s.intensity}`, name: `${signetName || 'Signet'} (${s.label})`, row: 'spell', side: 'enemy', level: null, school: 'signet',
       sub: `${s.intensity}d6 · ${cost} strain`, disabledReason: cost > strainRoom ? 'Too much strain' : null,
@@ -144,7 +148,7 @@ export function SoloBattleScreen({ fight, characterContext, bonded, signetName, 
           rolling={fight.busy}
           locked={ended ? 'The fight is over.' : null}
           cooldownLeft={cooldownLeft}
-          cooldownMax={8}
+          cooldownMax={prodigyRiderCooldownMs(prodigy, 8000) / 1000}
           moves={moves}
           enemyTarget={target ? asTarget(target) : null}
           enemies={standing.map(asTarget)}

@@ -75,6 +75,11 @@ describe('SoloBattleScreen', () => {
 });
 
 describe('buildFightSheet', () => {
+  it('sends the class only for an exact Prodigy identity', () => {
+    expect(buildFightSheet({ ...ctx, characterClass: 'prodigy' }, 30).riderClass).toBe('prodigy');
+    expect(buildFightSheet({ ...ctx, characterClass: 'sorcerer' }, 30).riderClass).toBeNull();
+    expect(buildFightSheet(undefined, 7).riderClass).toBeNull();
+  });
   it('never starts a fight at 0 HP or above the maximum, and falls back when the sheet is thin', () => {
     expect(buildFightSheet(ctx, 0)).toMatchObject({ level: 5, maxHp: 40, hp: 1, ac: 15, attackBonus: 7, weapons: [{ name: 'Short sword', damage: '1d6+4' }] });
     expect(buildFightSheet(ctx, 99).hp).toBe(40);

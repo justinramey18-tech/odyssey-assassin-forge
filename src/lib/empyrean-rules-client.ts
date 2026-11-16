@@ -2,10 +2,11 @@
 // plus the shape of what it answers. The server decides; the phone shows and applies.
 
 import { supabase } from '@/integrations/supabase/client';
+import { prodigyStrainDiscount, type ProdigyTier } from '@/lib/empyreanClasses/prodigy';
 
 export type RulesAction =
   | 'state' | 'ack' | 'rest' | 'pass_time' | 'check' | 'signet_used' | 'quest_payout' | 'story_reward'
-  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel';
+  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief';
 export type FightAction = 'fight_start' | 'fight_tick' | 'fight_act' | 'fight_clash' | 'fight_close';
 export type EventLevel = 'off' | 'rare' | 'normal';
 export type CheckRisk = 'physical' | 'mental' | 'signet';
@@ -32,6 +33,8 @@ export interface RulesSnapshot {
   check?: RulesCheck;
   granted?: number;
   masteryGained?: number;
+  /** The answer to battle_brief: the binding line for the DM and the briefs left today. */
+  brief?: { line: string; left: number };
   version: number;
   hasMap: boolean;
   minute: number;
@@ -55,6 +58,8 @@ export interface RulesSnapshot {
   /** A fight is running or finished and not yet closed. */
   fightOpen?: boolean;
   unlocks: Array<{ id: string; label: string; source: string; unlocked: boolean }>;
+  /** The Prodigy (D-37): its Ascension tier (0 for other riders) and Battle Briefs left today. */
+  prodigy?: { tier: number; briefsLeft: number };
   facts: string;
   inbox: RulesInboxEvent[];
 }
@@ -64,7 +69,7 @@ export interface RulesContext {
   riderKey: string;
   dragonName?: string;
   bonded: boolean;
-  sheet?: { level?: number; maxHp?: number; hp?: number; ac?: number; attackBonus?: number | null; weapons?: Array<{ name: string; damage: string }> };
+  sheet?: { level?: number; maxHp?: number; hp?: number; ac?: number; attackBonus?: number | null; weapons?: Array<{ name: string; damage: string }>; riderClass?: string | null };
   place?: { name?: string; kind?: string };
 }
 
@@ -135,9 +140,10 @@ export function parseFightOffer(content: string | null | undefined): FightOffer 
 }
 
 /** Strain a channel of this intensity costs at this Signet Mastery rank (same rule as the server's). */
-export function signetStrainCost(intensity: number, rank: number): number {
+export function signetStrainCost(intensity: number, rank: number, prodigy = 0): number {
   const i = Math.min(8, Math.max(1, Math.trunc(intensity) || 1));
-  const off = (rank >= 2 && i >= 3 ? 1 : 0) + (rank >= 4 && i >= 5 ? 1 : 0);
+  const tier = Math.min(5, Math.max(0, Math.trunc(prodigy) || 0)) as ProdigyTier;
+  const off = (rank >= 2 && i >= 3 ? 1 : 0) + (rank >= 4 && i >= 5 ? 1 : 0) + prodigyStrainDiscount(tier, i);
   return Math.max(1, i - off);
 }
 

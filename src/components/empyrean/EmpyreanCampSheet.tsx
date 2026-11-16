@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
 import type { EventLevel, PassActivity } from '@/lib/empyrean-rules-client';
+import { ASCENSION_TIERS, PRODIGY_NAME, describeTier, nextAscension, type ProdigyTier } from '@/lib/empyreanClasses/prodigy';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 const SEVERITY = ['', 'Light', 'Serious', 'Severe'];
@@ -52,11 +53,15 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonName, placeName, onOpenMap, onFight }: {
+export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonName, placeName, onOpenMap, onFight, prodigy, onBattleBrief }: {
   open: boolean; onOpenChange: (open: boolean) => void; rules: EmpyreanRulesApi; bonded: boolean;
   dragonName?: string; placeName?: string; onOpenMap?: () => void;
   /** Open the fight setup: a match on the mat, or a real fight. */
   onFight?: (mode: 'spar' | 'fight') => void;
+  /** The Prodigy (D-37): its Ascension and Battle Briefs. Null for every other rider. */
+  prodigy?: { tier: ProdigyTier; level: number; briefsLeft: number } | null;
+  /** Use a Battle Brief (the line goes into the message box). */
+  onBattleBrief?: () => void;
 }) {
   const snap = rules.snapshot;
   const [hours, setHours] = useState(2);
@@ -87,6 +92,31 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
           {!snap.hasMap && (
             <p className="text-xs text-muted-foreground">The campaign clock starts when the map is ready. Open the Map once, then come back.</p>
           )}
+
+          {prodigy && prodigy.tier > 0 && (() => {
+            const now = ASCENSION_TIERS[prodigy.tier - 1];
+            const next = nextAscension(prodigy.level);
+            return (
+              <Section icon={<Flame className="w-4 h-4 text-primary" />} title={`${PRODIGY_NAME}: ${now.name}`}>
+                <p className="text-xs italic text-muted-foreground">{now.motto}</p>
+                <ul className="space-y-1 text-xs">
+                  {describeTier(now.tier).map(line => <li key={line}>{line}</li>)}
+                </ul>
+                <p className="text-[11px] text-muted-foreground">
+                  {next ? `Next Ascension: ${next.name} at level ${next.fromLevel}.` : 'The final Ascension.'}
+                </p>
+                {onBattleBrief && (
+                  <Button variant="outline" disabled={busy || prodigy.briefsLeft <= 0} onClick={onBattleBrief} style={TOUCH}
+                    className="w-full min-h-[48px] h-auto py-2 flex-col gap-0.5">
+                    <span>Battle Brief</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {prodigy.briefsLeft > 0 ? `The DM gives you one true tactical fact. ${prodigy.briefsLeft} left today.` : 'None left today.'}
+                    </span>
+                  </Button>
+                )}
+              </Section>
+            );
+          })()}
 
           <Section icon={<BedDouble className="w-4 h-4 text-primary" />} title="Rest">
             {flying ? (

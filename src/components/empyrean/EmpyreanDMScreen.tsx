@@ -137,6 +137,7 @@ function loadEmpyreanBookmark(): string | null {
 }
 import { DragonBondScreen } from '@/components/empyrean/DragonBondScreen';
 import { strainCeiling } from '@/lib/dragon-meters';
+import { PRODIGY_STRAIN_CAP, prodigyStrainBonus, prodigyTier } from '@/lib/empyreanClasses/prodigy';
 import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
@@ -588,7 +589,11 @@ UNBONDED RIDER RULES:
   // Signet Strain ceiling: 8, raised by Signet rank in the Quest Hub (9 at rank 3, 10 at rank 5)
   // and by the bond (Strong +1, Deep +2, Legendary +3), never above 12 (D-30).
   const [questStrainCeiling, setQuestStrainCeiling] = useState(8);
-  const maxBurnout = isUnbonded ? 0 : strainCeiling(dragonBond.bondState.bond, questStrainCeiling);
+  // The Prodigy (D-37): its Ascension raises the strain limit, past the usual cap.
+  const prodigy = prodigyTier(characterContext?.characterClass, characterContext?.level);
+  const maxBurnout = isUnbonded ? 0 : prodigy
+    ? Math.min(PRODIGY_STRAIN_CAP, strainCeiling(dragonBond.bondState.bond, questStrainCeiling) + prodigyStrainBonus(prodigy))
+    : strainCeiling(dragonBond.bondState.bond, questStrainCeiling);
 
   // Pushing Signet Strain up to the limit costs bond (D-30). Only a rise counts: a lower
   // limit that clamps strain down is not the rider's doing.
@@ -1119,7 +1124,7 @@ ${oocLines}`;
     campaignId: activeCampaignId,
     dragonName: config?.dragonName,
     bonded: !isUnbonded && !!config?.dragonName,
-    getSheet: () => ({ level: characterContext?.level, maxHp: characterContext?.maxHP }),
+    getSheet: () => ({ level: characterContext?.level, maxHp: characterContext?.maxHP, riderClass: prodigy ? 'prodigy' : null }),
     getPlace: soloMap.place,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
@@ -1144,6 +1149,15 @@ ${oocLines}`;
     if (rules.snapshot.rules.eventLevel !== note.campaign.events) void rules.setEvents(note.campaign.events);
     clearLaunch();
   }, [rules.active, rules.snapshot, rules]);
+
+  // A Prodigy's Battle Brief (D-37): the server counts the uses; the binding line goes into the message box.
+  const handleBattleBrief = async () => {
+    const brief = await rules.battleBrief();
+    if (!brief) return;
+    empyreanInputRef.current?.appendText(brief.line);
+    setCampOpen(false);
+    toast('Battle Brief ready', { description: `Send your message and the DM gives you one true tactical fact. ${brief.left} left today.` });
+  };
 
   // ─── Solo fights (the server referees them in real time; see use-solo-fight) ───
   const [fightSetup, setFightSetup] = useState<'spar' | 'fight' | null>(null);
@@ -1729,7 +1743,7 @@ ${oocLines}`;
     if (armedSignetIntensity != null) {
       // Signet Mastery lowers what a channel costs (never below 1) and each use builds mastery.
       const engine = rulesRef.current;
-      const strainCost = engine?.active ? signetStrainCost(armedSignetIntensity, engine.snapshot?.mastery.rank ?? 0) : armedSignetIntensity;
+      const strainCost = engine?.active ? signetStrainCost(armedSignetIntensity, engine.snapshot?.mastery.rank ?? 0, prodigy) : armedSignetIntensity;
       if (engine?.active) engine.signetUsed(armedSignetIntensity);
       const newBurnout = Math.min(maxBurnout, burnoutLevelRef.current + strainCost);
       setBurnoutLevel(newBurnout);
@@ -3050,6 +3064,8 @@ ${oocLines}`;
         placeName={soloMap.place()?.name}
         onOpenMap={() => { setCampOpen(false); setMapOpen(true); }}
         onFight={rules.active ? setFightSetup : undefined}
+        prodigy={prodigy ? { tier: prodigy, level: characterContext?.level ?? 1, briefsLeft: rules.snapshot?.prodigy?.briefsLeft ?? 0 } : null}
+        onBattleBrief={rules.active && prodigy ? () => void handleBattleBrief() : undefined}
       />
       <SoloFightSetupSheet
         mode={fightSetup}
@@ -3068,6 +3084,7 @@ ${oocLines}`;
           bonded={!isUnbonded && !!config?.dragonName}
           signetName={config?.signetType || undefined}
           masteryRank={rules.snapshot?.mastery.rank ?? 0}
+          prodigy={prodigy}
           strainRoom={Math.max(0, maxBurnout - burnoutLevel)}
           onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
           onClosed={handleFightClosed}
