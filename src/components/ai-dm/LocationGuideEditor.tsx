@@ -25,7 +25,12 @@ export interface GuideRow {
 const keyOf = (mapId: string, scope: string, locationId: string | null) => `${mapId}|${scope}|${locationId ?? ''}`;
 
 /** Host-only, memory-only list of this party's guide rows. */
-export function usePartyLocationGuides(partyId: string | null | undefined, enabled: boolean) {
+/** Where area guides are kept: a party's table, or (solo) the solo campaign's table keyed by campaign id. */
+const guideSource = (solo?: boolean) => (solo
+  ? { table: 'solo_location_guides', key: 'campaign_id' }
+  : { table: 'party_location_guides', key: 'party_id' });
+
+export function usePartyLocationGuides(partyId: string | null | undefined, enabled: boolean, solo = false) {
   const [rows, setRows] = useState<GuideRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const scopeRef = useRef(`${partyId}|${enabled}`);
@@ -33,13 +38,14 @@ export function usePartyLocationGuides(partyId: string | null | undefined, enabl
   const reload = useCallback(async () => {
     const scope = scopeRef.current;
     if (!partyId || !enabled) { setRows([]); return; }
-    const { data, error: e } = await (supabase.from('party_location_guides') as any)
-      .select('id, map_id, scope, location_id, name, content, enabled, updated_at').eq('party_id', partyId);
+    const src = guideSource(solo);
+    const { data, error: e } = await (supabase as any).from(src.table)
+      .select('id, map_id, scope, location_id, name, content, enabled, updated_at').eq(src.key, partyId);
     if (scope !== scopeRef.current) return;
     if (e) { setError('Could not load the area guides.'); return; }
     setError(null);
     setRows((data || []) as GuideRow[]);
-  }, [partyId, enabled]);
+  }, [partyId, enabled, solo]);
   useEffect(() => { setRows([]); void reload(); }, [reload]);
   useEffect(() => {
     const f = () => { void reload(); };
@@ -72,8 +78,8 @@ export function guideStatus(atlas: CampaignAtlas | null, mapId: string, scope: '
   return isActiveMapOwn || keyOf(inner.mapId, inner.scope, inner.locationId) === k ? 'current' : 'enclosing';
 }
 
-export function LocationGuideEditor({ partyId, mapId, scope, locationId, defaultTitle, row, status, onSaved, onClose }: {
-  partyId: string; mapId: string; scope: 'map' | 'location'; locationId: string | null; defaultTitle: string;
+export function LocationGuideEditor({ partyId, mapId, scope, locationId, defaultTitle, row, status, onSaved, onClose, solo = false }: {
+  partyId: string; mapId: string; scope: 'map' | 'location'; locationId: string | null; defaultTitle: string; solo?: boolean;
   row: GuideRow | null; status: GuideStatus; onSaved: (r: GuideRow) => void; onClose: () => void;
 }) {
   const [title, setTitle] = useState(row?.name ?? defaultTitle);
@@ -90,15 +96,15 @@ export function LocationGuideEditor({ partyId, mapId, scope, locationId, default
     const name = title.trim().slice(0, 120) || defaultTitle;
     try {
       if (row) {
-        const { data, error } = await (supabase.from('party_location_guides') as any)
+        const { data, error } = await (supabase as any).from(guideSource(solo).table)
           .update({ name, content: text, enabled: on }).eq('id', row.id).eq('updated_at', row.updated_at)
           .select('id, map_id, scope, location_id, name, content, enabled, updated_at');
         if (error) throw new Error('The guide could not be saved. Your text is still here.');
         if (!data?.length) throw new Error('This guide was changed on another screen. Copy your text, close and reopen it.');
         onSaved(data[0] as GuideRow);
       } else {
-        const { data, error } = await (supabase.from('party_location_guides') as any)
-          .insert({ party_id: partyId, map_id: mapId, scope, location_id: locationId, name, content: text, enabled: on })
+        const { data, error } = await (supabase as any).from(guideSource(solo).table)
+          .insert({ [guideSource(solo).key]: partyId, map_id: mapId, scope, location_id: locationId, name, content: text, enabled: on })
           .select('id, map_id, scope, location_id, name, content, enabled, updated_at');
         if (error) throw new Error(error.code === '23505'
           ? 'Another screen already saved a guide here. Copy your text, close and reopen it.'

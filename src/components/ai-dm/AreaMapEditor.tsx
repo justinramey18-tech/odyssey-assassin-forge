@@ -21,14 +21,14 @@ const busy = (s: CampaignMapState) => !!(s.activeTravel || s.journeyPlan);
 
 type GuideTarget = { mapId: string; scope: 'map' | 'location'; locationId: string | null; title: string };
 
-export function AreaMapEditor({ map, partyId }: { map: PartyCampaignMapApi; partyId: string | null }) {
+export function AreaMapEditor({ map, partyId, solo = false }: { map: PartyCampaignMapApi; partyId: string | null; solo?: boolean }) {
   const host = map.canWrite;
   const atlas = map.atlas as CampaignAtlas | null;
   const resolved = useMemo(() => (atlas ? resolveAtlasAt(atlas, map.serverNow()) : null), [atlas, map]);
   const viewedId = map.viewedMapId as string | null;
   const viewedNode = atlas && viewedId ? getNode(atlas, viewedId) : null;
   const state: CampaignMapState | null = viewedNode ? viewedNode.state : map.rawState;
-  const guides = usePartyLocationGuides(partyId, host);
+  const guides = usePartyLocationGuides(partyId, host, solo);
   const [guideFor, setGuideFor] = useState<GuideTarget | null>(null);
   const [pinFor, setPinFor] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -79,7 +79,7 @@ export function AreaMapEditor({ map, partyId }: { map: PartyCampaignMapApi; part
   })();
 
   const guideBlock = (t: GuideTarget) => partyId && guideFor && guideFor.mapId === t.mapId && guideFor.scope === t.scope && guideFor.locationId === t.locationId ? (
-    <LocationGuideEditor key={`${t.mapId}|${t.locationId}`} partyId={partyId} mapId={t.mapId} scope={t.scope} locationId={t.locationId} defaultTitle={t.title}
+    <LocationGuideEditor key={`${t.mapId}|${t.locationId}`} partyId={partyId} solo={solo} mapId={t.mapId} scope={t.scope} locationId={t.locationId} defaultTitle={t.title}
       row={guides.find(t.mapId, t.scope, t.locationId)} status={status(t.mapId, t.scope, t.locationId)}
       onSaved={(r: GuideRow) => guides.setRows(rs => [...rs.filter(x => x.id !== r.id), r])} onClose={() => setGuideFor(null)} />
   ) : null;

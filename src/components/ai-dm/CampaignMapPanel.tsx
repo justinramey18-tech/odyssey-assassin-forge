@@ -77,9 +77,11 @@ export interface CampaignMapPanelProps {
   onInstallGuide?: (name: string, content: string, customId?: string) => Promise<boolean>;
   /** Party id for the host-only private area guides. */
   partyId?: string | null;
+  /** Solo campaign: partyId is the campaign id, area guides use the solo table, and the clock is not set by hand. */
+  solo?: boolean;
 }
 
-export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide, partyId }: CampaignMapPanelProps) {
+export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide, partyId, solo = false }: CampaignMapPanelProps) {
   const [tab, setTab] = useState<'play' | 'setup' | 'areas'>('play');
   const [packUndo, setPackUndo] = useState<MapPackUndo | null>(null);
   const [, setTick] = useState(0);
@@ -128,9 +130,9 @@ export function CampaignMapPanel({ open, onOpenChange, map, onInstallGuide, part
           {map.loading && !state ? (
             <p className="text-white/50 text-sm">Loading the map…</p>
           ) : tab === 'areas' && showAreas ? (
-            <AreaMapEditor map={map} partyId={partyId ?? null} />
+            <AreaMapEditor map={map} partyId={partyId ?? null} solo={solo} />
           ) : tab === 'setup' && host ? (
-            <HostSetup map={map} state={state} onInstallGuide={onInstallGuide} packUndo={packUndo} setPackUndo={setPackUndo} />
+            <HostSetup map={map} state={state} onInstallGuide={onInstallGuide} packUndo={packUndo} setPackUndo={setPackUndo} solo={solo} />
           ) : (
             <PlayView map={map} state={state} landscape={playLandscape} onSetup={host ? () => setTab('setup') : undefined} />
           )}
@@ -456,7 +458,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map: PartyCampaignMapApi; state: CampaignMapState | null; onInstallGuide?: CampaignMapPanelProps['onInstallGuide']; packUndo: MapPackUndo | null; setPackUndo: (u: MapPackUndo | null) => void }) {
+function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo, solo = false }: { map: PartyCampaignMapApi; state: CampaignMapState | null; onInstallGuide?: CampaignMapPanelProps['onInstallGuide']; packUndo: MapPackUndo | null; setPackUndo: (u: MapPackUndo | null) => void; solo?: boolean }) {
   const [mode, setMode] = useState<Mode>({ kind: 'none' });
   const [calMiles, setCalMiles] = useState('');
   const [busy, setBusy] = useState(false);
@@ -611,7 +613,7 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
             </SelectContent>
           </Select>
         </label>
-        <ClockEditor map={map} state={s} />
+        <ClockEditor map={map} state={s} lockClock={solo} />
       </Section>
 
       <Section title={`Places (${s.locations.length})`}>
@@ -670,7 +672,7 @@ function HostSetup({ map, state, onInstallGuide, packUndo, setPackUndo }: { map:
   );
 }
 
-function ClockEditor({ map, state }: { map: PartyCampaignMapApi; state: CampaignMapState }) {
+function ClockEditor({ map, state, lockClock = false }: { map: PartyCampaignMapApi; state: CampaignMapState; lockClock?: boolean }) {
   const day = Math.floor(state.campaignMinute / 1440) + 1;
   const inDay = Math.floor(state.campaignMinute % 1440);
   const [d, setD] = useState(String(day));
@@ -688,10 +690,14 @@ function ClockEditor({ map, state }: { map: PartyCampaignMapApi; state: Campaign
   const setRate = async (n: number) => { const r = await map.setTimeCompression(n); if (!r.ok) toast.error((r as { error: string }).error); };
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-[11px] text-white/50">Day<Input inputMode="numeric" value={d} onChange={(e) => setD(e.target.value)} onBlur={saveClock} className="min-h-[44px] mt-1" /></label>
-        <label className="text-[11px] text-white/50">Time<Input type="time" value={time} onChange={(e) => setTime(e.target.value)} onBlur={saveClock} className="min-h-[44px] mt-1" /></label>
-      </div>
+      {lockClock ? (
+        <p className="text-[11px] text-muted-foreground">In a solo campaign, time moves only through travel, rests and passing time (Camp).</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[11px] text-white/50">Day<Input inputMode="numeric" value={d} onChange={(e) => setD(e.target.value)} onBlur={saveClock} className="min-h-[44px] mt-1" /></label>
+          <label className="text-[11px] text-white/50">Time<Input type="time" value={time} onChange={(e) => setTime(e.target.value)} onBlur={saveClock} className="min-h-[44px] mt-1" /></label>
+        </div>
+      )}
       <label className="block text-[11px] text-white/50">Real time per in-world hour
         <Select value={preset} onValueChange={(v) => { const p = TIME_COMPRESSION_PRESETS.find(x => x.id === v); if (p) void setRate(p.realMinutesPerGameHour); }}>
           <SelectTrigger className="min-h-[44px] mt-1"><SelectValue /></SelectTrigger>
