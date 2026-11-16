@@ -59,6 +59,12 @@ interface Props {
   aidFor: (friendId: string) => AidOption[];
   special: SpecialButton | null;
   onChat: () => void;
+  /** The left bottom button's label. Default: TABLE CHAT. Solo fights use it for the fight log. */
+  chatLabel?: string;
+  /** The spell row's menu label. Default: CAST. Solo fights call it SIGNET. */
+  castLabel?: string;
+  /** No one to aid (a solo fight): the AID button is switched off. */
+  noAid?: boolean;
   unread: number;
 }
 
@@ -126,7 +132,7 @@ export function BattleCommandBox(p: Props) {
 
   // ---------- the text box ----------
   let prompt: string | null = null;
-  if (screen.kind === 'list') prompt = screen.row === 'attack' ? 'Pick a weapon.' : screen.row === 'spell' ? 'Pick a spell.' : 'Pick an item.';
+  if (screen.kind === 'list') prompt = screen.row === 'attack' ? 'Pick a weapon.' : screen.row === 'spell' ? (p.castLabel ? 'How hard do you channel?' : 'Pick a spell.') : 'Pick an item.';
   else if (screen.kind === 'pick') prompt = screen.multi ? `${screen.move.name.toUpperCase()}: pick up to ${AREA_MAX}.` : `${screen.move.name.toUpperCase()} on who?`;
   else if (screen.kind === 'finish') prompt = `Knock out or finish ${screen.targetName.toUpperCase()}?`;
   else if (screen.kind === 'aid') prompt = 'Aid who?';
@@ -188,13 +194,13 @@ export function BattleCommandBox(p: Props) {
         )}
         <div className="battle-text p-1.5 grid grid-cols-2 gap-1.5">
           <button type="button" disabled={busy} onClick={() => setScreen({ kind: 'list', row: 'attack' })} className={menuBtn} style={{ background: '#f6d6cc', border: '2px solid var(--b-edge)' }}>ATTACK</button>
-          <button type="button" disabled={busy} onClick={() => setScreen({ kind: 'list', row: 'spell' })} className={menuBtn} style={{ background: '#e2dcf6', border: '2px solid var(--b-edge)' }}>CAST</button>
-          <button type="button" disabled={busy} onClick={() => setScreen({ kind: 'aid' })} className={menuBtn} style={{ background: '#d6efd8', border: '2px solid var(--b-edge)' }}>AID</button>
+          <button type="button" disabled={busy} onClick={() => setScreen({ kind: 'list', row: 'spell' })} className={menuBtn} style={{ background: '#e2dcf6', border: '2px solid var(--b-edge)' }}>{p.castLabel ?? 'CAST'}</button>
+          <button type="button" disabled={busy || !!p.noAid} onClick={() => setScreen({ kind: 'aid' })} className={cn(menuBtn, p.noAid && 'opacity-40')} style={{ background: '#d6efd8', border: '2px solid var(--b-edge)' }}>AID</button>
           <button type="button" disabled={busy} onClick={() => setScreen({ kind: 'list', row: 'item' })} className={menuBtn} style={{ background: '#efe3c4', border: '2px solid var(--b-edge)' }}>BAG</button>
         </div>
         <div className="flex gap-1.5">
           <button type="button" onClick={p.onChat} className={cn(plainBtn, 'flex-1 text-white flex items-center justify-center gap-2')} style={{ background: '#3a6ea8', border: '3px solid var(--b-edge)' }}>
-            TABLE CHAT
+            {p.chatLabel ?? 'TABLE CHAT'}
             {p.unread > 0 && <span className="px-1.5 rounded text-[12px]" style={{ background: 'var(--b-gold)', color: 'var(--b-ink)' }}>{p.unread > 99 ? '99+' : p.unread}</span>}
           </button>
           {p.special && (

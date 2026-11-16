@@ -3,7 +3,7 @@
 // Everything here comes from the server snapshot (use-empyrean-rules); nothing is decided on the phone.
 
 import { useState } from 'react';
-import { BedDouble, Clock, Compass, Feather, Flame, Lock, Map as MapIcon, Minus, Plus, ShieldAlert, Sparkles, Tent, Unlock } from 'lucide-react';
+import { BedDouble, Clock, Compass, Feather, Flame, Lock, Map as MapIcon, Minus, Plus, ShieldAlert, Sparkles, Swords, Tent, Unlock } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -52,9 +52,11 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonName, placeName, onOpenMap }: {
+export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonName, placeName, onOpenMap, onFight }: {
   open: boolean; onOpenChange: (open: boolean) => void; rules: EmpyreanRulesApi; bonded: boolean;
   dragonName?: string; placeName?: string; onOpenMap?: () => void;
+  /** Open the fight setup: a match on the mat, or a real fight. */
+  onFight?: (mode: 'spar' | 'fight') => void;
 }) {
   const snap = rules.snapshot;
   const [hours, setHours] = useState(2);
@@ -120,6 +122,25 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
                 <Button variant="outline" size="icon" aria-label="More hours" disabled={hours >= 12} onClick={() => setHours(h => Math.min(12, h + 1))} style={TOUCH} className="min-w-[48px] min-h-[48px]"><Plus className="w-4 h-4" /></Button>
                 <Button disabled={busy || !snap.hasMap} onClick={() => void rules.passTime(hours, activity)} style={TOUCH} className="min-h-[48px] px-5">Go</Button>
               </div>
+            </Section>
+          )}
+
+          {onFight && !flying && (
+            <Section icon={<Swords className="w-4 h-4 text-primary" />} title="Fight">
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" disabled={busy} onClick={() => onFight('spar')} style={TOUCH} className="min-h-[56px] flex-col gap-0.5 h-auto py-2">
+                  <span>Spar on the mat</span>
+                  <span className="text-[11px] text-muted-foreground">Practice. Nobody dies.</span>
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={() => onFight('fight')} style={TOUCH} className="min-h-[56px] flex-col gap-0.5 h-auto py-2">
+                  <span>Start a fight</span>
+                  <span className="text-[11px] text-muted-foreground">For real.</span>
+                </Button>
+              </div>
+              {bonded && snap.dragonBody && snap.dragonBody.hp < snap.dragonBody.maxHp && (
+                <p className="text-[11px] text-muted-foreground">{dragon} is hurt ({snap.dragonBody.hp}/{snap.dragonBody.maxHp} HP). A long rest mends half; a hunt mends a quarter.</p>
+              )}
+              <p className="text-[11px] text-muted-foreground">When the story reaches a fight, the DM also puts a Fight button under its reply.</p>
             </Section>
           )}
 
