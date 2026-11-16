@@ -113,6 +113,10 @@ import { Eye } from 'lucide-react';
 import { ScrollText } from 'lucide-react';
 import { HeartHandshake } from 'lucide-react';
 import { Bookmark, BookmarkCheck, PackageOpen, ImagePlus } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { useSoloNpcs, type SoloNpcs } from '@/hooks/use-solo-npcs';
+import { SoloNpcRoster } from '@/components/empyrean/SoloNpcRoster';
+import type { RosterEntry } from '@/lib/solo-npcs';
 import { EmpyreanLootReview, usePendingDmItems } from '@/components/empyrean/EmpyreanLootReview';
 import { addPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
@@ -556,6 +560,8 @@ UNBONDED RIDER RULES:
   // A fight's damage is applied by the app when the fight ends. The DM reply that narrates that
   // result (the reply to a message carrying the FIGHT RESULT line) must not apply it a second time.
   const storyMessagesRef = useRef<Array<{ role: string; content?: string | null }>>([]);
+  // Solo Live NPCs (D-38); read by onMessageComplete, which is set up before the hook below.
+  const soloNpcsRef = useRef<SoloNpcs | null>(null);
   const syncRestOccurred = useCallback((type: 'short' | 'long') => {
     if (rulesRef.current?.active) toast(`The story mentions a ${type} rest`, { description: 'Open Camp (the tent) to take it, so the clock and your wounds keep up.', icon: '⛺' });
     else autoSyncCallbacks?.onRestOccurred?.(type);
@@ -764,6 +770,11 @@ ${oocLines}`;
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
     activeCampaignIdKey: 'empyrean-active-campaign-id',
     onMessageComplete: (content: string) => {
+      // Solo Live NPCs (D-38): people this post names are met, and they remember the scene.
+      {
+        const lastPlayer = [...storyMessagesRef.current].reverse().find(m => m.role === 'user');
+        soloNpcsRef.current?.onStory(content, String(lastPlayer?.content ?? '').slice(0, 1500));
+      }
       if (autoSync.autoSyncEnabled) {
         // Items the DM awards wait in the loot review instead of being dropped.
         const lastSent = [...storyMessagesRef.current].reverse().find(m => m.role === 'user');
@@ -1237,6 +1248,11 @@ ${oocLines}`;
     const result = fightResultRef.current;
     fightResultRef.current = null;
     void rules.refresh();
+    // A real fight won against a roster NPC leaves them knocked out (the player can change it on their Mind screen).
+    if (npcFight) {
+      if (view.lethal && view.outcome === 'victory') void soloNpcs.setStatus(npcFight.key, 'knocked_out');
+      setNpcFight(null);
+    }
     if (view.dragonDied) { riderDies(); return; }
     if (view.lethal && view.dragon && view.outcome === 'victory') dragonBond.processCombatBond();
     const line = typeof result?.line === 'string' && result.line
@@ -1360,6 +1376,12 @@ ${oocLines}`;
       setSceneBusyId(null);
     }
   }, [sceneBusyId, characterName, empyreanCharacterContext, config?.dragonName, config?.dragonColor, setMessageSceneImage]);
+
+  // ─── Solo Live NPCs (D-38): the canon cast and the player's own NPCs, per campaign ───
+  const soloNpcs = useSoloNpcs({ campaignId: activeCampaignId, riderName: characterName, enabled: open });
+  soloNpcsRef.current = soloNpcs;
+  const [rosterOpen, setRosterOpen] = useState(false);
+  const [npcFight, setNpcFight] = useState<{ key: string; foeKind: NonNullable<RosterEntry['fight']>['kind']; foeName: string; challenge: NonNullable<RosterEntry['fight']>['challenge'] } | null>(null);
 
   // Send the opening message (a campaign the Empyrean Guide just built, the saved opening scene,
   // or a prompt from the library) once the chat is empty. A fresh start clears an older story
@@ -1730,6 +1752,13 @@ ${oocLines}`;
     const text = empyreanInputRef.current?.getText()?.trim();
     if (!text || isLoading) return;
     setRecapDismissed(true);
+    // "@Name line" to a roster NPC: they answer in their own voice, with their mind and memories (D-38).
+    const npcHit = armedSignetIntensity == null ? soloNpcsRef.current?.mention(text) : null;
+    if (npcHit) {
+      voiceNPC(npcHit.name, npcHit.line, undefined, npcHit.voice);
+      empyreanInputRef.current?.setText('');
+      return;
+    }
     let messageToSend = text;
 
     // Inject Threshing authorization tag if authorized
@@ -2128,6 +2157,15 @@ ${oocLines}`;
               <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">{pendingLoot.length}</span>
             </Button>
           )}
+          <Button variant="ghost"
+            onClick={() => setRosterOpen(true)}
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+            style={{ touchAction: 'manipulation' }}
+            aria-label="People"
+            title="People"
+          >
+            <Users className="w-5 h-5 text-primary" />
+          </Button>
           <button
             onClick={() => setQuestHubOpen(true)}
             className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -2252,6 +2290,15 @@ ${oocLines}`;
                 <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">{pendingLoot.length}</span>
               </Button>
             )}
+            <Button variant="ghost"
+              onClick={() => setRosterOpen(true)}
+              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="People"
+              title="People"
+            >
+              <Users className="w-5 h-5 text-primary" />
+            </Button>
             <button
               onClick={() => setQuestHubOpen(true)}
               className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
@@ -3075,9 +3122,22 @@ ${oocLines}`;
         prodigy={prodigy ? { tier: prodigy, level: characterContext?.level ?? 1, briefsLeft: rules.snapshot?.prodigy?.briefsLeft ?? 0 } : null}
         onBattleBrief={rules.active && prodigy ? () => void handleBattleBrief() : undefined}
       />
+      <SoloNpcRoster
+        open={rosterOpen}
+        onOpenChange={setRosterOpen}
+        npcs={soloNpcs}
+        riderName={characterName}
+        onTalk={(name) => { empyreanInputRef.current?.setText(`@${name} `); empyreanInputRef.current?.focus(); }}
+        onFight={rules.active ? (e) => {
+          if (!e.fight) return;
+          setNpcFight({ key: e.key, foeKind: e.fight.kind, foeName: e.name, challenge: e.fight.challenge });
+          setFightSetup('fight');
+        } : undefined}
+      />
       <SoloFightSetupSheet
         mode={fightSetup}
-        onOpenChange={(next) => { if (!next) setFightSetup(null); }}
+        preset={fightSetup === 'fight' ? npcFight : null}
+        onOpenChange={(next) => { if (!next) { setFightSetup(null); setNpcFight(null); } }}
         bonded={!isUnbonded && !!config?.dragonName}
         dragonName={config?.dragonName}
         dragonBody={rules.snapshot?.dragonBody}

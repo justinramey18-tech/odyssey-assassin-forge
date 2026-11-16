@@ -3348,6 +3348,56 @@ export type Database = {
           },
         ]
       }
+      solo_npcs: {
+        Row: {
+          attitude: number
+          campaign_id: string
+          created_at: string
+          custom: Json | null
+          id: string
+          memories: Json
+          name: string
+          npc_key: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attitude?: number
+          campaign_id: string
+          created_at?: string
+          custom?: Json | null
+          id?: string
+          memories?: Json
+          name: string
+          npc_key: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          attitude?: number
+          campaign_id?: string
+          created_at?: string
+          custom?: Json | null
+          id?: string
+          memories?: Json
+          name?: string
+          npc_key?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solo_npcs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ai_dm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solo_travel_events: {
         Row: {
           attempt_count: number

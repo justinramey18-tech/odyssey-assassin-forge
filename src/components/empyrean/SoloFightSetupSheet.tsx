@@ -15,7 +15,7 @@ const CHALLENGE_HINT: Record<FightChallenge, string> = {
   easy: 'Slow and clumsy. A warm-up.', moderate: 'A fair fight.', hard: 'Fast and dangerous.', deadly: 'You may not walk away.',
 };
 
-export function SoloFightSetupSheet({ mode, onOpenChange, bonded, dragonName, dragonBody, flying, busy, onStart }: {
+export function SoloFightSetupSheet({ mode, onOpenChange, bonded, dragonName, dragonBody, flying, busy, onStart, preset }: {
   /** 'spar' = the mat (never lethal, no dragon). 'fight' = a real fight. null = closed. */
   mode: 'spar' | 'fight' | null;
   onOpenChange: (open: boolean) => void;
@@ -23,12 +23,20 @@ export function SoloFightSetupSheet({ mode, onOpenChange, bonded, dragonName, dr
   dragonBody?: { hp: number; maxHp: number } | null;
   flying: boolean; busy: boolean;
   onStart: (input: FightStart) => void;
+  /** A fight against one roster NPC (D-38): their name, kind and danger are filled in. */
+  preset?: { foeKind: FoeKind; foeName: string; challenge: FightChallenge } | null;
 }) {
   const spar = mode === 'spar';
   const [foe, setFoe] = useState<FoeKind>('cadet');
   const [count, setCount] = useState(1);
   const [challenge, setChallenge] = useState<FightChallenge>('moderate');
-  useEffect(() => { if (mode) { setFoe(mode === 'spar' ? 'cadet' : 'soldier'); setCount(1); setChallenge('moderate'); } }, [mode]);
+  useEffect(() => {
+    if (!mode) return;
+    const usable = preset && (mode !== 'spar' || MAT_FOES.includes(preset.foeKind));
+    setFoe(usable ? preset.foeKind : mode === 'spar' ? 'cadet' : 'soldier');
+    setCount(1);
+    setChallenge(preset ? preset.challenge : 'moderate');
+  }, [mode, preset]);
   const foes = FOE_OPTIONS.filter(f => !spar || MAT_FOES.includes(f.id));
   const dragon = dragonName || 'Your dragon';
   const dragonOut = bonded && !spar && !!dragonBody && dragonBody.hp <= 0;
@@ -45,23 +53,24 @@ export function SoloFightSetupSheet({ mode, onOpenChange, bonded, dragonName, dr
         </SheetHeader>
 
         <div className="mt-3 space-y-4 pb-6">
-          <div className="space-y-2">
+          {preset && <p className="text-base font-cinzel text-primary">Against {preset.foeName}</p>}
+          {!preset && <div className="space-y-2">
             <p className="text-sm font-semibold">Against</p>
             <div className="grid grid-cols-2 gap-2">
               {foes.map(f => (
                 <Button key={f.id} variant={foe === f.id ? 'default' : 'outline'} onClick={() => setFoe(f.id)} style={TOUCH} className="min-h-[48px] text-xs">{f.label}</Button>
               ))}
             </div>
-          </div>
+          </div>}
 
-          <div className="space-y-2">
+          {!preset && <div className="space-y-2">
             <p className="text-sm font-semibold">How many</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" aria-label="Fewer" disabled={count <= 1} onClick={() => setCount(c => Math.max(1, c - 1))} style={TOUCH} className="min-w-[48px] min-h-[48px]"><Minus className="w-4 h-4" /></Button>
               <span className="flex-1 text-center text-sm">{count}</span>
               <Button variant="outline" size="icon" aria-label="More" disabled={count >= (spar ? 2 : 4)} onClick={() => setCount(c => Math.min(spar ? 2 : 4, c + 1))} style={TOUCH} className="min-w-[48px] min-h-[48px]"><Plus className="w-4 h-4" /></Button>
             </div>
-          </div>
+          </div>}
 
           <div className="space-y-2">
             <p className="text-sm font-semibold">How dangerous</p>
@@ -82,7 +91,7 @@ export function SoloFightSetupSheet({ mode, onOpenChange, bonded, dragonName, dr
           {flying && <p className="text-xs text-destructive">You are mid-flight. Stop the journey on the Map first.</p>}
 
           <Button disabled={busy || flying || dragonOut} style={TOUCH} className="w-full min-h-[52px] text-base gap-2"
-            onClick={() => onStart({ foeKind: foe, count, challenge, lethal: !spar, arena: spar ? 'mat' : 'ground' })}>
+            onClick={() => onStart({ foeKind: foe, ...(preset ? { foeName: preset.foeName } : {}), count, challenge, lethal: !spar, arena: spar ? 'mat' : 'ground' })}>
             <Swords className="w-5 h-5" /> {spar ? 'Step onto the mat' : 'Fight'}
           </Button>
         </div>

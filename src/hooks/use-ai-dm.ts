@@ -553,7 +553,9 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       npcTotal: number;
       outcome: 'success' | 'failure' | 'tie';
       rollBlockText?: string;
-    }
+    },
+    /** Solo Empyrean Live NPCs (D-38): the NPC's mind, feelings and memories, added to the voicing rules. */
+    npcMind?: string,
   ) => {
     if (!playerMessage.trim() || isLoading) return;
 
@@ -623,7 +625,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_xai_key: loadApiKey('xai') || undefined,
           user_venice_key: loadApiKey('venice') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
-          npcVoicingContext: npcVoicingPrompt,
+          npcVoicingContext: npcMind ? `${npcMind}\n\n${npcVoicingPrompt}` : npcVoicingPrompt,
           npcVoicingStrict: names.length === 1 ? true : undefined,
           maxTokens: names.length === 1 ? 260 : names.length > 1 ? 500 : undefined,
           ...(() => {

@@ -35,3 +35,4 @@
 - The rider onboarding page uses the existing aiCreatedCharacter hand-off and carries its draft through optional Empyrean account switching, so creation stays on the existing save path.
 - Empyrean onboarding launches pass explicitly through Index, Home and the hub; fresh campaigns retain the launch's starting place and event choice until the solo engine opens, so existing manual entry defaults stay unchanged.
 - Solo Empyrean opening sends use a ref-backed hook with latest callbacks and a once-only clear step, because re-renders must not restart the timer or erase later chat.
+- Solo Live NPCs use campaign-owned solo_npcs rows and an isolated solo-npc helper with era-gated canon minds; existing voicing takes an optional mind block, so party NPC systems remain unchanged.

@@ -1,3 +1,10 @@
+- [x] Solo Live NPCs 1/7: created campaign NPC storage; verified RLS and four owner-only policies.
+- [x] Solo Live NPCs 2/7: added solo-npc; five tests passed and function deployed.
+- [x] Solo Live NPCs 3/7: added canon cast A; automatic app check passed.
+- [x] Solo Live NPCs 4/7: added canon cast B and era helpers; eight tests passed.
+- [x] Solo Live NPCs 5/7: added roster logic and optional voice context; sixteen tests passed.
+- [x] Solo Live NPCs 6/7: added People/Mind and named fight setup; four tests passed.
+- [x] Solo Live NPCs 7/7: connected solo screen; all 46 requested tests, server check and automatic app checks passed. Publishing requested; live gameplay not exercised by instruction.
 - [x] Prodigy 4/4: guide recommends Prodigy and phone accepts its build; supplied whole-class suite replaces earlier test coverage with guarded dragon checks. All 32 requested tests and app check passed; empyrean-onboarding redeployed. Publishing requested; live creation untested.
 - [x] Prodigy 3/4: applied all 23 exact phone replacements for class, strain, fight timing and Camp Battle Brief; all 19 requested tests passed and app check was clean. No screens opened or server changes; live gameplay untested.
 - [x] Prodigy 2/4: registered exact solo-only class and Ascension features, applied Prodigy-only d10 HP; all 48 health/class tests passed and ordinary choices remain seven. No screens opened; activation awaits step 3.
