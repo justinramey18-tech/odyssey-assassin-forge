@@ -1,3 +1,4 @@
+- [x] Prodigy 4/4: guide recommends Prodigy and phone accepts its build; supplied whole-class suite replaces earlier test coverage with guarded dragon checks. All 32 requested tests and app check passed; empyrean-onboarding redeployed. Publishing requested; live creation untested.
 - [x] Prodigy 3/4: applied all 23 exact phone replacements for class, strain, fight timing and Camp Battle Brief; all 19 requested tests passed and app check was clean. No screens opened or server changes; live gameplay untested.
 - [x] Prodigy 2/4: registered exact solo-only class and Ascension features, applied Prodigy-only d10 HP; all 48 health/class tests passed and ordinary choices remain seven. No screens opened; activation awaits step 3.
 - [x] Prodigy 1/4: applied all 28 exact solo server replacements and identical class rules; 73 tests and server checks passed; redeployed only empyrean-rules. Phone activation awaits step 3; no gameplay or saved-data testing.

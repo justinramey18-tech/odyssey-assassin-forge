@@ -20,7 +20,7 @@ export const YEAR_VALUES = ['first-year', 'second-year', 'third-year', 'graduate
 export const FOCUS_VALUES = ['combat', 'political', 'romance', 'mystery', 'survival', 'balanced'] as const;
 export const START_LOCATION_IDS = STARTER_START_IDS;
 export const EVENT_LEVELS = ['off', 'rare', 'normal'] as const;
-export const CLASS_IDS = ['rogue', 'wizard', 'sorcerer', 'warlock', 'cleric', 'druid', 'bard'] as const;
+export const CLASS_IDS = ['rogue', 'wizard', 'sorcerer', 'warlock', 'cleric', 'druid', 'bard', 'prodigy'] as const;
 export type EventSetting = typeof EVENT_LEVELS[number];
 
 export const ONBOARDING_MAX_LORE_CHARS = 115_000;

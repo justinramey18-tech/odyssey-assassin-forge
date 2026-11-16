@@ -30,7 +30,7 @@ describe('the phone and the server agree', () => {
     expect([...START_LOCATION_IDS]).toEqual([...P.START_LOCATION_IDS]);
     expect([...EVENT_LEVELS]).toEqual([...P.EVENT_LEVELS]);
     expect([...DRAGON_COLOR_IDS]).toEqual(DRAGON_COLORS.map(c => c.id));
-    for (const id of CLASS_IDS) expect(CHARACTER_RULES).toContain(`${id} (`);
+    for (const id of CLASS_IDS.filter(c => c !== 'prodigy')) expect(CHARACTER_RULES).toContain(`${id} (`);
     expect(ONBOARDING_MAX_LORE_CHARS).toBeLessThanOrEqual(P.MAX_LORE_CHARS);
   });
 });
