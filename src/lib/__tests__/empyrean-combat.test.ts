@@ -8,7 +8,8 @@ import * as M from '../../../supabase/functions/empyrean-rules/minigames';
 
 import * as PR from '../../../supabase/functions/npc-combat/rules';
 
-import { freshState, normalizeState, mendDragon, passTime, rest, buildRuleFacts, type Rand } from '../../../supabase/functions/empyrean-rules/rules';
+import * as R from '../../../supabase/functions/empyrean-rules/rules';
+import { freshState, normalizeState, passTime, rest, buildRuleFacts, type Rand } from '../../../supabase/functions/empyrean-rules/rules';
 
 
 
@@ -518,11 +519,21 @@ describe('how fights end', () => {
 
 describe('between fights', () => {
 
+  // Step 2 is deliberately not installed yet. Optional reads keep these checks runnable
+  // without declaring missing production fields or suppressing type errors.
+  type DragonBody = { name: string; hp: number; maxHp: number };
+  const futureState = (state: R.CampaignState) => state as R.CampaignState & { fight?: unknown; dragon?: DragonBody | null };
+  const mendDragon = (body: DragonBody | null | undefined, share: number): DragonBody | null | undefined => {
+    const mend: unknown = Reflect.get(R, 'mendDragon');
+    if (typeof mend !== 'function') throw new Error('Step 2 dragon recovery is not installed.');
+    return mend(body, share);
+  };
+
   it('the campaign state keeps the fight and the dragon, and mends the dragon', () => {
 
     const f = start();
 
-    const s = normalizeState(JSON.parse(JSON.stringify({ ...freshState(), fight: f, dragon: { name: 'Gwyn', hp: 20, maxHp: 108 } })));
+    const s = futureState(normalizeState(JSON.parse(JSON.stringify({ ...freshState(), fight: f, dragon: { name: 'Gwyn', hp: 20, maxHp: 108 } }))));
 
     expect(C.cleanFight(s.fight)?.id).toBe('f1');
 
@@ -536,11 +547,11 @@ describe('between fights', () => {
 
     const slept = rest(s, 21 * 60, 'long');
 
-    expect(slept.ok && slept.state.dragon?.hp).toBe(74);
+    expect(slept.ok && futureState(slept.state).dragon?.hp).toBe(74);
 
     const hunted = passTime(s, 600, 4, 'hunt', true);
 
-    expect(hunted.ok && hunted.state.dragon?.hp).toBe(47);
+    expect(hunted.ok && futureState(hunted.state).dragon?.hp).toBe(47);
 
   });
 
