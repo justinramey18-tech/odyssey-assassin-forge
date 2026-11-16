@@ -177,6 +177,7 @@ export const CLASS_SUGGESTED_ARRAYS: Record<DnDClass, BaseAbilityScores> = {
   cleric: { strength: 14, dexterity: 10, constitution: 13, intelligence: 8, wisdom: 15, charisma: 12 },
   druid: { strength: 10, dexterity: 14, constitution: 13, intelligence: 8, wisdom: 15, charisma: 12 },
   bard: { strength: 8, dexterity: 14, constitution: 13, intelligence: 10, wisdom: 12, charisma: 15 },
+  prodigy: { strength: 8, dexterity: 13, constitution: 14, intelligence: 10, wisdom: 12, charisma: 15 },
 };
 
 // Validation result

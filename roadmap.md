@@ -1,3 +1,4 @@
+- [x] Prodigy 2/4: registered exact solo-only class and Ascension features, applied Prodigy-only d10 HP; all 48 health/class tests passed and ordinary choices remain seven. No screens opened; activation awaits step 3.
 - [x] Prodigy 1/4: applied all 28 exact solo server replacements and identical class rules; 73 tests and server checks passed; redeployed only empyrean-rules. Phone activation awaits step 3; no gameplay or saved-data testing.
 - [x] Rider onboarding 5/5: connect saved-rider launch, missing canon guides, fresh story, map starting place and event choice; all 29 onboarding tests and app checks passed. Live sign-in flow not exercised by request.
 - [x] Rider onboarding 4/5: add the guide screen, /empyrean-create entrance and fifth start card; both requested screen tests passed. First-scene launch awaits step 5.

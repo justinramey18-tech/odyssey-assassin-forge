@@ -15,7 +15,8 @@ export type DnDClass =
   | 'warlock'
   | 'cleric'
   | 'druid'
-  | 'bard';
+  | 'bard'
+  | 'prodigy';  // solo Empyrean only (D-37): not in the D&D pickers
 
 /**
  * Valid hit dice in D&D 5e
@@ -80,6 +81,8 @@ export interface ClassConfig {
   themeColor: string;
   /** Short flavor description */
   flavorText: string;
+  /** Solo Empyrean's own class: left out of the D&D class pickers and multiclassing. */
+  empyreanOnly?: boolean;
 }
 
 /**

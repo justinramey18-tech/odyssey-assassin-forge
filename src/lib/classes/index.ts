@@ -10,6 +10,7 @@ import {
   CLERIC_CONFIG,
   DRUID_CONFIG,
   BARD_CONFIG,
+  PRODIGY_CONFIG,
 } from './spellcasters';
 
 // Re-export types
@@ -32,6 +33,7 @@ export const CLASS_REGISTRY: Record<DnDClass, ClassConfig> = {
   cleric: CLERIC_CONFIG,
   druid: DRUID_CONFIG,
   bard: BARD_CONFIG,
+  prodigy: PRODIGY_CONFIG,
 };
 
 /**
@@ -42,10 +44,10 @@ export function getClassById(classId: DnDClass): ClassConfig {
 }
 
 /**
- * Get all available classes
+ * Get all available classes for the D&D pickers (leaves out solo Empyrean's own class)
  */
 export function getAllClasses(): ClassConfig[] {
-  return Object.values(CLASS_REGISTRY);
+  return Object.values(CLASS_REGISTRY).filter(c => !c.empyreanOnly);
 }
 
 /**

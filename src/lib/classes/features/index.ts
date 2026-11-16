@@ -10,6 +10,7 @@ import { WARLOCK_FEATURES, getInvocationsKnown, ELDRITCH_INVOCATIONS } from './w
 import { CLERIC_FEATURES, getChannelDivinityUses, DESTROY_UNDEAD_CR } from './cleric';
 import { DRUID_FEATURES, getWildShapeMaxCR, WILD_SHAPE_CR_LIMITS } from './druid';
 import { BARD_FEATURES, getBardicInspirationDie, getSongOfRestDie, SONG_OF_REST_DIE } from './bard';
+import { PRODIGY_FEATURES } from './prodigy';
 
 // Re-export types
 export * from './types';
@@ -34,6 +35,7 @@ export const CLASS_FEATURES_REGISTRY: Record<DnDClass, ClassFeature[]> = {
   cleric: CLERIC_FEATURES,
   druid: DRUID_FEATURES,
   bard: BARD_FEATURES,
+  prodigy: PRODIGY_FEATURES,
 };
 
 /**

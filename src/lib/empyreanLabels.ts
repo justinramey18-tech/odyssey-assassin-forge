@@ -131,6 +131,7 @@ export const EMPYREAN_CLASS_LABELS: Record<string, string> = {
   cleric:   'Battle Medic',
   druid:    'Beast Speaker',
   bard:     'Rebel Coordinator',
+  prodigy:  'The Prodigy',
   fighter:  'Weaponmaster',
   paladin:  'Dragon Champion',
   ranger:   'Scout Rider',

@@ -27,6 +27,7 @@
 - Campaign map hooks access map rows, guides and travel through CampaignMapStore, defaulting to PARTY_MAP_STORE; image uploads stay separate so solo storage can reuse map logic without changing party behavior.
 - Solo fight rules are pure functions in empyrean-rules/combat.ts with caller-supplied time and randomness; its minigames.ts stays byte-identical to the party and phone copies because function deployments cannot import sibling function folders.
 - Prodigy rules stay byte-identical in the solo function and phone modules, with a parity test, because deployments cannot import app files; absent class or fight tier retains ordinary rider rules.
+- Solo-only engine classes use the empyreanOnly registry flag to stay out of ordinary pickers; Prodigy HP uses its registered die while other characters retain the legacy formula, preventing changes to existing heroes.
 - Creation assistants import character rules and the JSON template from _shared/creation-rules.ts to prevent their accepted fields and IDs from drifting.
 - Empyrean onboarding keeps its text in a pure prompt module and validates the signed-in user before AI calls; lore and rider context are bounded to keep requests isolated and predictable.
 - Rider onboarding stores its draft and staged launch outside character scope, applying campaign setup only after the new save exists, so character creation cannot lose its hand-off on the first save.

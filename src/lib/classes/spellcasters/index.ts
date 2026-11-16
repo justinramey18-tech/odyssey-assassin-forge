@@ -7,3 +7,4 @@ export { WARLOCK_CONFIG } from './warlock';
 export { CLERIC_CONFIG } from './cleric';
 export { DRUID_CONFIG } from './druid';
 export { BARD_CONFIG } from './bard';
+export { PRODIGY_CONFIG } from './prodigy';

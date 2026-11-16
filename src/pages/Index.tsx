@@ -104,7 +104,7 @@ import { resetAllAppData, repairXPData } from '@/lib/resetApp';
 import { shouldLandInPartyTable } from '@/lib/party-landing';
 import { readPendingAiCharacter, clearPendingAiCharacter, setWizardOpen } from '@/lib/creation-guard';
 import { applyPendingLaunch, readLaunch } from '@/lib/empyrean-onboarding';
-import { calculateMaxHP } from '@/lib/hpCalculation';
+import { calculateMaxHP, calculateMulticlassMaxHP } from '@/lib/hpCalculation';
 import { scoreToModifier } from '@/lib/abilityScores/types';
 import { getConcentrationCheckDC } from '@/lib/magic/calculations';
 import { 
@@ -624,8 +624,12 @@ const Index = () => {
   // Calculate max HP dynamically based on level, constitution, and prestige
   const calculatedMaxHP = useMemo(() => {
     const conMod = scoreToModifier(abilityScores.finalScores.constitution);
+    // The Prodigy (solo Empyrean's own class, D-37) uses its d10 hit die; every other class keeps the d8 formula.
+    if (character.primaryClass === 'prodigy') {
+      return calculateMulticlassMaxHP('prodigy', character.level, {}, conMod, prestigeData.prestigeLevel);
+    }
     return calculateMaxHP(character.level, conMod, prestigeData.prestigeLevel);
-  }, [character.level, abilityScores.finalScores.constitution, prestigeData.prestigeLevel]);
+  }, [character.level, character.primaryClass, abilityScores.finalScores.constitution, prestigeData.prestigeLevel]);
   
   // Determine if character is using Rogue class (legacy Magic Path system)
   const isRogueClass = (character.primaryClass ?? 'rogue') === 'rogue';

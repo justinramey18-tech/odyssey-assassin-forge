@@ -181,6 +181,7 @@ describe('Class Hit Die Configurations', () => {
       cleric: { die: 'd8', max: 8, avg: 5 },
       druid: { die: 'd8', max: 8, avg: 5 },
       bard: { die: 'd8', max: 8, avg: 5 },
+      prodigy: { die: 'd10', max: 10, avg: 6 },
     };
 
     for (const [classId, expected] of Object.entries(expectedHitDice)) {
