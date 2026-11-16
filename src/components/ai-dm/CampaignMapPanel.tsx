@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type { PartyCampaignMapApi } from '@/hooks/use-party-campaign-map';
 import { MapPackAssistant, type MapPackUndo } from './MapPackAssistant';
 import { AreaMapEditor } from './AreaMapEditor';
+import { MapPanZoom } from './MapPanZoom';
 import {
   LOCATION_KINDS, TIME_COMPRESSION_PRESETS, TRAVEL_PACE_MPH,
   activeCalibration, createCalibration, effectiveRouteMiles, formatCampaignTime, gameToRealMs, TRAVEL_DAY_MINUTES,
@@ -390,8 +391,11 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
         <span className="font-cinzel text-amber-200 text-[13px]">{formatCampaignTime(view?.campaignMinute ?? state.campaignMinute)}</span>
         <span className="min-w-0 text-right break-words">{here ? byId.get(here)?.name : flying ? (t?.startedAt === null ? 'Paused in flight' : onRoad ? 'Stopped along air route' : 'Airborne') : onRoad ? (onRoad.dayComplete ? 'Camped on the road' : city ? 'In the streets' : 'On the road') : t ? (city ? 'Walking' : method === 'horseback' ? 'Mounted' : 'Traveling') : 'Location unknown'}</span>
       </div>
-      <div style={landscape ? { gridArea: 'map' } : undefined} className={cn('min-w-0', landscape ? 'order-none flex items-start justify-center overflow-hidden' : 'order-2')}>
-      <MapCanvas state={state} showAll={host} fitHeight={landscape ? 'calc(100dvh - 4.25rem)' : undefined} partyDot={partyPoint(map, state)} selectedId={selected}
+      <div style={landscape ? { gridArea: 'map' } : undefined} className={cn('min-w-0', landscape ? 'order-none overflow-hidden' : 'order-2')}>
+      {/* Pan and pinch-zoom (CL-071): the map starts large and names stay readable while it grows. */}
+      <MapPanZoom height={landscape ? 'calc(100dvh - 4.25rem)' : '62vh'} focus={partyPoint(map, state)}
+        aspect={state.imageNaturalWidth && state.imageNaturalHeight ? state.imageNaturalWidth / state.imageNaturalHeight : null}>
+      <MapCanvas state={state} showAll={host} partyDot={partyPoint(map, state)} selectedId={selected}
         highlightRouteId={strong} highlightRouteIds={highlight}
         onTapPin={(id) => {
           const l = byId.get(id);
@@ -400,6 +404,7 @@ function PlayView({ map, state, onSetup, landscape = false }: { map: PartyCampai
           if (t || plan) return;
           if (reachableIds.has(id) || host) setSelected(id); else setSelected(null);
         }} />
+      </MapPanZoom>
       </div>
       <div style={landscape ? { gridArea: 'info' } : undefined} className={cn('space-y-3 min-h-0', landscape ? 'overflow-y-auto overflow-x-hidden pb-2 pr-0.5' : 'order-3')}>
       {host && !t && !plan && (
