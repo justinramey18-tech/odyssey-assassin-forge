@@ -17,6 +17,7 @@ import {
   storedHubState,
   type HubCategoryId,
   type HubState,
+  type QuestPayout,
   type SeekContext,
 } from '@/lib/empyrean-quest-hub';
 import { seekQuests } from '@/lib/empyrean-quest-seeker';
@@ -50,6 +51,8 @@ export interface UseEmpyreanQuestsOptions {
   onBondReward?: (bondDelta: number, trustDelta: number, reason: string) => void;
   /** Signet quests clear strain. */
   onStrainRelief?: (amount: number) => void;
+  /** Rules engine: the server pays this quest's XP and gold. Resolve false to pay on the phone instead. */
+  payQuest?: (payout: QuestPayout) => Promise<boolean>;
   /** Sends a message to the Empyrean DM (used when a quest is accepted). */
   sendMessage?: (text: string) => void;
   /** Story context for "Seek a quest", read at the moment of the tap. */
@@ -102,12 +105,19 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
       toast(`New quest: ${questTitle(q)}`, { description: `${cat.emoji} ${cat.label} — open the Quest Hub to accept it.`, icon: '📜' });
     }
     for (const p of plan.payouts) {
-      if (p.xp > 0) o.onAddXP?.(p.xp, `Quest: ${questTitle(p.quest)}`);
-      if (p.gold > 0) o.onGoldChange?.(p.gold);
+      const payHere = () => {
+        if (p.xp > 0) o.onAddXP?.(p.xp, `Quest: ${questTitle(p.quest)}`);
+        if (p.gold > 0) o.onGoldChange?.(p.gold);
+      };
+      // With the rules engine on, the server sets and records the XP and gold (once per quest).
+      // If it can't be reached, the quest still pays here.
+      const routed = !!o.payQuest;
+      if (o.payQuest) void o.payQuest(p).then(ok => { if (!ok) payHere(); }).catch(payHere);
+      else payHere();
       // Item rewards wait in the loot review (Accept / Discard) like the DM's own awards.
       const items = (p.quest.itemRewards ?? []).filter(it => it && typeof it.name === 'string' && it.name.trim());
       if (items.length > 0) addPendingDmItems(items.map(it => ({ ...it, name: it.name as string })));
-      const parts = [p.xp ? `${p.xp} XP` : '', p.gold ? `${p.gold} gold` : '', items.length ? `${items.length} item${items.length === 1 ? '' : 's'} to review` : '', `+${p.points} standing`].filter(Boolean);
+      const parts = [routed ? 'XP and gold on the way' : '', !routed && p.xp ? `${p.xp} XP` : '', !routed && p.gold ? `${p.gold} gold` : '', items.length ? `${items.length} item${items.length === 1 ? '' : 's'} to review` : '', `+${p.points} standing`].filter(Boolean);
       toast.success(`Quest complete: ${questTitle(p.quest)}`, { description: parts.join(', ') });
     }
     for (const q of plan.failed) toast(`Quest failed: ${questTitle(q)}`, { icon: '🥀' });

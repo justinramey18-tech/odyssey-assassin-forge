@@ -1053,6 +1053,16 @@ Rules:
     setMessages(prev => [...prev, mediaMessage]);
   }, []);
 
+  // Add a finished DM post that was written elsewhere (solo Empyrean: a journey encounter the
+  // server narrated while the app was closed). No AI call. The id makes a repeat harmless.
+  const addAssistantMessage = useCallback((content: string, id?: string) => {
+    const text = content.trim();
+    if (!text) return;
+    setMessages(prev => (id && prev.some(m => m.id === id)
+      ? prev
+      : [...prev, { id: id ?? crypto.randomUUID(), role: 'assistant', content: text, timestamp: new Date() }]));
+  }, []);
+
   const editMessage = useCallback((messageId: string, newContent: string) => {
     setMessages(prev =>
       prev.map(m => m.id === messageId ? { ...m, content: newContent } : m)
@@ -1116,6 +1126,7 @@ Rules:
     submitNpcInterjection,
     npcSceneConfig,
     addMediaMessage,
+    addAssistantMessage,
     cancelRequest,
     clearMessages,
     newGame,
