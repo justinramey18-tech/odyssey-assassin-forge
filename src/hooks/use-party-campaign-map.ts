@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { PARTY_MAP_STORE, type CampaignMapStore } from '@/lib/campaign-map-store';
 import {
   activeCalibration,
   buildDmLogisticsContext,
@@ -46,7 +47,7 @@ import {
   type AtlasMapNode, type CampaignAtlas, type NavigationMode,
 } from '@/lib/campaign-atlas';
 
-export const CAMPAIGN_MAP_STATE_TYPE = 'campaign_map';
+export { CAMPAIGN_MAP_STATE_TYPE } from '@/lib/campaign-map-store';
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
@@ -84,7 +85,7 @@ export type RestoreMode = 'campaign' | 'undo' | 'portable';
 const CONFLICT_MSG = 'The map changed on another screen. It has been refreshed — please try again.';
 const LAUNCH_FAILED_MSG = 'Travel is paused because the journey could not be prepared. Try again.';
 
-export function usePartyCampaignMap(partyId: string | null | undefined, currentUserId: string | null | undefined) {
+export function usePartyCampaignMap(partyId: string | null | undefined, currentUserId: string | null | undefined, store: CampaignMapStore = PARTY_MAP_STORE) {
   const [stored, setStored] = useState<Stored | null>(null);
   const [loading, setLoading] = useState(true);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
@@ -119,27 +120,24 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (!partyId) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.from('parties').select('created_by').eq('id', partyId).maybeSingle();
-      if (!cancelled) setHostUserId((data as { created_by?: string } | null)?.created_by ?? null);
+      const host = await store.resolveHost(partyId);
+      if (!cancelled) setHostUserId(host);
     })();
     return () => { cancelled = true; };
-  }, [partyId]);
+  }, [partyId, store]);
 
   // ── read the host's row (errors keep the last known map) ──
   const fetchState = useCallback(async () => {
     if (!partyId || !hostUserId) return;
     const scope = scopeRef.current;
-    const { data, error } = await (supabase.from('party_shared_state') as any)
-      .select('state_data, updated_at')
-      .eq('party_id', partyId).eq('user_id', hostUserId).eq('state_type', CAMPAIGN_MAP_STATE_TYPE)
-      .maybeSingle();
+    const { data, error } = await store.load(partyId, hostUserId);
     if (scope !== scopeRef.current) return;
     if (error) { console.warn('[campaign-map] read failed, keeping last map:', error.message); setLoading(false); return; }
     const next = data ? toStored(data.state_data, data.updated_at ?? null) : null;
     if (next?.kind === 'invalid') console.warn('[campaign-map] saved nested maps are invalid:', next.error);
     applyStored(next);
     setLoading(false);
-  }, [partyId, hostUserId, applyStored]);
+  }, [partyId, hostUserId, applyStored, store]);
 
   useEffect(() => {
     scopeRef.current += 1;
@@ -147,24 +145,18 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     setLoading(true);
     if (!partyId || !hostUserId) return;
     void fetchState();
-    const channel = supabase
-      .channel(`campaign-map:${partyId}:${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'party_shared_state', filter: `party_id=eq.${partyId}` }, (payload: any) => {
-        const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { user_id?: string; state_type?: string; state_data?: unknown; updated_at?: string };
-        if (row?.state_type !== CAMPAIGN_MAP_STATE_TYPE || row.user_id !== hostUserId) return; // only the host's row counts
-        const commit = Date.parse(payload.commit_timestamp || '');
-        if (Number.isFinite(commit)) skewRef.current = commit - Date.now();
-        if (payload.eventType === 'DELETE') applyStored(null);
-        else applyStored(toStored(row.state_data, row.updated_at ?? null));
-      })
-      .subscribe((status) => { if (status === 'SUBSCRIBED') void fetchState(); });
+    const unsubscribe = store.subscribe(partyId, hostUserId, (change) => {
+      if (change.commitMs !== undefined) skewRef.current = change.commitMs - Date.now();
+      if (change.deleted) applyStored(null);
+      else applyStored(toStored(change.stateData, change.updatedAt ?? null));
+    }, () => { void fetchState(); });
     const onVisible = () => { if (document.visibilityState === 'visible') void fetchState(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
-  }, [partyId, hostUserId, currentUserId, fetchState, applyStored]);
+  }, [partyId, hostUserId, currentUserId, fetchState, applyStored, store]);
 
   /** Compare-and-set save of a whole collection. `clientRevision` must be the persisted revision (0 when none). */
   const commitAtlas = useCallback(async (next: CampaignAtlas, clientRevision: number): Promise<Result & { updatedAt?: number }> => {
@@ -175,7 +167,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const cur = storedRef.current;
     const expected = cur ? cur.updatedAt || null : null;
     const envelope: CampaignAtlas = { ...next, sourcePartyId: partyId, revision: clientRevision };
-    const { data, error } = await (supabase.rpc as any)('write_campaign_atlas', { _party_id: partyId, _envelope: envelope, _expected_updated_at: expected });
+    const { data, error } = await store.writeAtlas(partyId, envelope, expected);
     if (scope !== scopeRef.current) return fail('The party changed while saving.');
     if (error) {
       if (error.code === '40001') { void fetchState(); return fail(CONFLICT_MSG); }
@@ -189,7 +181,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     applyStored(saved);
     const updatedAt = Date.parse(row.updated_at);
     return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow() };
-  }, [partyId, currentUserId, canWrite, fetchState, applyStored, serverNow]);
+  }, [partyId, currentUserId, canWrite, fetchState, applyStored, serverNow, store]);
 
   // ── host writes: returns the server's updated_at ──
   // `mid` is the active map id captured when the edit began; in nested mode a delayed edit never lands on another map.
@@ -206,16 +198,14 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
       return res.ok ? { ok: true, updatedAt: res.updatedAt ?? serverNow(), error: '' } : { ok: false, updatedAt: 0, error: (res as { error: string }).error };
     }
     const scope = scopeRef.current;
-    const { data, error } = await (supabase.from('party_shared_state') as any)
-      .upsert({ party_id: partyId, user_id: currentUserId, state_type: CAMPAIGN_MAP_STATE_TYPE, state_data: next }, { onConflict: 'party_id,user_id,state_type' })
-      .select('updated_at').single();
+    const { data, error } = await store.upsertLegacy(partyId, currentUserId, next);
     if (error) { void fetchState(); return { ok: false, updatedAt: 0, error: error.message || "The map could not be saved." }; }
     const updatedAtStr = (data as { updated_at?: string })?.updated_at ?? null;
     const updatedAt = Date.parse(updatedAtStr || '');
     if (Number.isFinite(updatedAt)) skewRef.current = updatedAt - Date.now();
     if (scope === scopeRef.current) applyStored({ kind: 'legacy', state: next, updatedAt: updatedAtStr });
     return { ok: true, updatedAt: Number.isFinite(updatedAt) ? updatedAt : serverNow(), error: "" };
-  }, [partyId, currentUserId, canWrite, serverNow, commitAtlas, fetchState, applyStored]);
+  }, [partyId, currentUserId, canWrite, serverNow, commitAtlas, fetchState, applyStored, store]);
 
   /** A tranche that is finished (by server time) folded into the saved state. */
   const settleTravel = useCallback((st: CampaignMapState, now: number): CampaignMapState => settleTravelState(st, now), []);
@@ -421,13 +411,13 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (!partyId || !canWrite) return fail(LAUNCH_FAILED_MSG);
     const scope = scopeRef.current;
     try {
-      const { data, error } = await supabase.functions.invoke('party-travel-director', { body: { partyId, action } });
-      if (scope !== scopeRef.current || error || data?.ok !== true) return fail(LAUNCH_FAILED_MSG);
+      const ok = await store.travel(partyId, action);
+      if (scope !== scopeRef.current || !ok) return fail(LAUNCH_FAILED_MSG);
       return OK;
     } catch {
       return fail(LAUNCH_FAILED_MSG);
     }
-  }, [partyId, canWrite]);
+  }, [partyId, canWrite, store]);
 
   const launchStagedTravel = useCallback(async (): Promise<Result> => {
     const result = await travelDirector('launch');
@@ -632,12 +622,11 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
 
   const clearCampaignMap = useCallback(async (): Promise<Result> => {
     if (!partyId || !currentUserId || !canWrite) return fail('Only the party host can clear the map.');
-    const { error } = await (supabase.from('party_shared_state') as any)
-      .delete().eq('party_id', partyId).eq('user_id', currentUserId).eq('state_type', CAMPAIGN_MAP_STATE_TYPE);
+    const { error } = await store.clear(partyId, currentUserId);
     if (error) return fail(error.message || 'The map could not be cleared.');
     applyStored(null);
     return OK;
-  }, [partyId, currentUserId, canWrite, applyStored]);
+  }, [partyId, currentUserId, canWrite, applyStored, store]);
 
   /** Reads the latest map at call time, so a moving dot is current even without a re-render. */
   const getPromptContext = useCallback((): string => {
@@ -766,8 +755,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     const up = await uploadImageFile(input.image, input.imageType);
     if (!up.ok) return { ok: false, error: (up as { error: string }).error };
     if (input.guides.length) {
-      const { data: existing, error: readErr } = await (supabase.from('party_location_guides') as any)
-        .select('scope, location_id, name, content').eq('party_id', partyId).eq('map_id', input.reservedId);
+      const { data: existing, error: readErr } = await store.readAreaGuides(partyId, input.reservedId);
       if (readErr) return { ok: false, error: 'Could not check the area guides. Nothing was changed.' };
       const key = (g: { scope: string; location_id?: string | null; locationId?: string | null; name: string; content: string }) => `${g.scope}|${g.location_id ?? g.locationId ?? ''}|${g.name}|${g.content}`;
       const want = input.guides.map(key).sort().join('\n');
@@ -775,8 +763,8 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
         const have = (existing as any[]).map(key).sort().join('\n');
         if (have !== want) return { ok: false, error: 'A different earlier attempt saved guides for this install. Start the install again.' };
       } else {
-        const { error } = await (supabase.from('party_location_guides') as any).insert(input.guides.map(g => ({
-          party_id: partyId, map_id: input.reservedId, scope: g.scope, location_id: g.scope === 'location' ? g.locationId : null,
+        const { error } = await store.insertAreaGuides(partyId, input.guides.map(g => ({
+          map_id: input.reservedId, scope: g.scope, location_id: g.scope === 'location' ? g.locationId : null,
           name: g.name.slice(0, 120), content: g.content, enabled: true,
         })));
         if (error) return { ok: false, error: 'The area guides could not be saved, so the map was not installed. Nothing else changed.' };
@@ -793,7 +781,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     if (!res.ok) return { ok: false, error: (res as { error: string }).error, guidesStaged: input.guides.length > 0 };
     const after = storedRef.current;
     return { ok: true, previous, previousLegacy, revisionAfter: after?.kind === 'atlas' ? after.atlas.revision : rev + 1 };
-  }, [partyId, canWrite, serverNow, settleTravel, uploadImageFile, commitAtlas]);
+  }, [partyId, canWrite, serverNow, settleTravel, uploadImageFile, commitAtlas, store]);
 
   /** Restore the full atlas from before an install, only if nothing changed since. */
   const undoAtlasInstall = useCallback(async (prev: { previous: CampaignAtlas | null; previousLegacy: CampaignMapState | null; revisionAfter: number }): Promise<Result> => {
@@ -812,7 +800,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
   const getBreadcrumbs = useCallback((mapId: string) => (atlas ? breadcrumbs(atlas, mapId) : []), [atlas]);
 
   return useMemo(() => ({
-    rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile,
+    rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, reload: fetchState,
     initialize, reset, uploadMapImage, replaceMapImage: uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute,
     setDiscovered, setCampaignClock, setTimeCompression, setDefaultPace, setTravelScale, setCalibration, setCurrentLocation,
@@ -821,7 +809,7 @@ export function usePartyCampaignMap(partyId: string | null | undefined, currentU
     exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
     atlas, isAtlasMode, activeMapId, viewedMapId, setViewedMapId, getMapState, getBreadcrumbs,
     convertToAtlas, createChild, enterChildMap, exitToParentMap, moveWithinLocalMap, editMap, editMapMeta, setMapTravelStyle,
-  }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
+  }), [rawState, loading, hostUserId, canWrite, getViewState, uploadImageFile, fetchState, initialize, reset, uploadMapImage, replaceLocationsAndRoutes,
     addLocation, editLocation, removeLocation, addRoute, editRoute, removeRoute, setDiscovered, setCampaignClock,
     setTimeCompression, setDefaultPace, setTravelScale, setCalibration, setCurrentLocation, startTravel, pauseTravel, resumeTravel, cancelTravel, finishTravelNow,
     reconcileTravelIfComplete, planJourney, getReachableDestinations, startJourney, continueJourney, cancelJourney, exportSaveSnapshot, restoreSaveSnapshot, clearCampaignMap, getPromptContext, serverNow, addAreaMap, replaceAreaImage, installAreaPack, undoAtlasInstall,
