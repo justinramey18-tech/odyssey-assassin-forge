@@ -28,7 +28,7 @@ const PLANNER_MODEL = 'qwen-3-6-plus';
 const Body = z.object({
   action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward',
     'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel',
-    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close']),
+    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief']),
   campaignId: uuid,
   riderKey: z.string().min(1).max(80).default('local'),
   dragonName: z.string().max(80).optional(),
@@ -36,6 +36,7 @@ const Body = z.object({
   sheet: z.object({
     level: z.number().optional(), maxHp: z.number().optional(), hp: z.number().optional(), ac: z.number().optional(),
     attackBonus: z.number().nullable().optional(),
+    riderClass: z.string().max(20).nullable().optional(),
     weapons: z.array(z.object({ name: z.string().max(80).optional(), damage: z.string().max(40).optional() })).max(8).optional(),
   }).optional(),
   foeKind: z.string().max(20).optional(),
@@ -123,7 +124,8 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
     dragonBody: l.bonded && s.dragon && s.dragon.name === (b.dragonName || '') ? { hp: s.dragon.hp, maxHp: s.dragon.maxHp } : null,
     fightOpen: !!C.cleanFight(s.fight),
     unlocks: R.unlockList(l.masteryXp, l.bond),
-    facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling }),
+    facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling, sheet: R.normalizeSheet(b.sheet) }),
+    prodigy: { tier: R.sheetProdigyTier(R.normalizeSheet(b.sheet)), briefsLeft: R.briefsLeft(s, l.minute, R.normalizeSheet(b.sheet)) },
     inbox: inbox || [],
   };
 }
@@ -210,7 +212,8 @@ async function settleFight(db: any, userId: string, b: Req): Promise<void> {
       if (s.spars.n >= R.SPARS_REWARDED_PER_DAY) events[0].xp = 0;
       else if (f.outcome === 'victory') s = { ...s, spars: { ...s.spars, n: s.spars.n + 1 } };
     }
-    const xpDelta = Math.max(0, Math.min(out.masteryXp, R.MASTERY_DAILY_XP - s.signet.xpToday));
+    const pt = f.prodigy ?? 0;
+    const xpDelta = Math.max(0, Math.min(out.masteryXp * (pt ? 2 : 1), R.masteryDailyXp(pt) - s.signet.xpToday));
     if (xpDelta) s = { ...s, signet: { ...s.signet, xpToday: s.signet.xpToday + xpDelta } };
     return { state: s, events, xpDelta, advance: clock ? 10 : 0 };
   };
@@ -247,6 +250,7 @@ async function fightStart(db: any, userId: string, b: Req): Promise<Record<strin
       foeKind: b.foeKind, foeName: b.foeName, count: b.count ?? 1, challenge: b.challenge, lethal: b.lethal !== false, arena,
       dragon: l.bonded && b.dragonName ? { name: b.dragonName, hp: body ? body.hp : null, bond: l.bond ?? 15 } : null,
       masteryXp: l.masteryXp,
+      prodigy: R.sheetProdigyTier(R.normalizeSheet(sheet)),
     }, now, rand);
     return { state: { ...state, fight }, reply: { ok: true, fight: C.viewOf(fight, now) } };
   });
@@ -576,7 +580,7 @@ Deno.serve(async (req) => {
         break;
       case 'signet_used':
         result = await mutate(db, userId, b, l => {
-          const r = R.signetUse(l.state, l.minute, b.intensity ?? 1);
+          const r = R.signetUse(l.state, l.minute, b.intensity ?? 1, R.sheetProdigyTier(sheet));
           return { state: r.state, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta } };
         });
         break;
@@ -589,6 +593,13 @@ Deno.serve(async (req) => {
         result = await mutate(db, userId, b, l => {
           const r = R.storyReward(l.state, l.minute, b.kind === 'gold' ? 'gold' : 'xp', b.amount ?? 0, sheet.level, b.source || 'Story');
           return r.events.length ? { state: r.state, events: r.events, extra: { granted: r.granted } } : null;
+        });
+        break;
+      case 'battle_brief':
+        result = await mutate(db, userId, b, l => {
+          const r = R.battleBrief(l.state, l.minute, sheet);
+          if (!r.ok) return { error: (r as { error: string }).error };
+          return { state: r.state, extra: { brief: { line: r.line, left: r.left } } };
         });
         break;
       case 'set_events':

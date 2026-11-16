@@ -2,6 +2,8 @@
 // runs in the edge function and in the app's tests. The AI proposes; these rules decide.
 // Time is the campaign map's clock (minutes since Day 1, 00:00).
 
+import * as P from './prodigy.ts';
+
 export type Rand = () => number;
 export const d = (sides: number, rand: Rand) => Math.floor(rand() * sides) + 1;
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -53,6 +55,8 @@ export interface CampaignState {
   dragon: { name: string; hp: number; maxHp: number } | null;
   /** Rewarded sparring matches today. */
   spars: { day: number; n: number };
+  /** A Prodigy's Battle Briefs used today (D-37). */
+  briefs: { day: number; n: number };
 }
 export function freshState(): CampaignState {
   return {
@@ -61,7 +65,7 @@ export function freshState(): CampaignState {
     events: { level: 'normal', lastEventDay: 0, pending: null },
     signet: { xpDay: 1, xpToday: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
-    fight: null, dragon: null, spars: { day: 1, n: 0 },
+    fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -96,15 +100,18 @@ export function normalizeState(raw: unknown): CampaignState {
     dragon: r.dragon && Number.isFinite(Number(r.dragon.maxHp)) && Number(r.dragon.maxHp) > 0
       ? { name: String(r.dragon.name ?? '').slice(0, 80), maxHp: clamp(int(r.dragon.maxHp), 1, 2000), hp: clamp(int(r.dragon.hp), 0, clamp(int(r.dragon.maxHp), 1, 2000)) } : null,
     spars: { day: Math.max(1, int(r.spars?.day, 1)), n: Math.max(0, int(r.spars?.n)) },
+    briefs: { day: Math.max(1, int(r.briefs?.day, 1)), n: Math.max(0, int(r.briefs?.n)) },
   };
 }
 
 export interface RuleEvent { kind: string; reason?: string; xp?: number; gold?: number; hp?: number; payload?: Record<string, unknown>; idem_key: string }
-export interface Sheet { level: number; maxHp: number }
+export interface Sheet { level: number; maxHp: number; riderClass?: string | null }
 export function normalizeSheet(raw: unknown): Sheet {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, any>) : {};
-  return { level: clamp(int(r.level, 1), 1, 20), maxHp: clamp(int(r.maxHp, 10), 1, 999) };
+  return { level: clamp(int(r.level, 1), 1, 20), maxHp: clamp(int(r.maxHp, 10), 1, 999), riderClass: P.isProdigy(r.riderClass) ? P.PRODIGY_CLASS_ID : null };
 }
+/** The rider's Prodigy Ascension tier (0 for anyone who is not a Prodigy). */
+export const sheetProdigyTier = (sheet: Sheet): P.ProdigyTier => P.prodigyTier(sheet.riderClass, sheet.level);
 
 /** Daily counters roll over and timed conditions end. Call before every rule. */
 export function tick(state: CampaignState, minute: number): CampaignState {
@@ -131,17 +138,19 @@ export function masteryInfo(xp: number) {
   const next = MASTERY_THRESHOLDS[rank + 1] ?? null;
   return { xp, rank, name: MASTERY_NAMES[rank], next, checkBonus: Math.min(rank, 3) };
 }
-/** Strain a channel of this intensity (1–8) costs at this mastery rank. Never less than 1. */
-export function signetStrainCost(intensity: number, rank: number): number {
+/** Strain a channel of this intensity (1–8) costs at this mastery rank (and Prodigy tier). Never less than 1. */
+export function signetStrainCost(intensity: number, rank: number, prodigy = 0): number {
   const i = clamp(int(intensity, 1), 1, 8);
-  const off = (rank >= 2 && i >= 3 ? 1 : 0) + (rank >= 4 && i >= 5 ? 1 : 0);
+  const off = (rank >= 2 && i >= 3 ? 1 : 0) + (rank >= 4 && i >= 5 ? 1 : 0) + P.prodigyStrainDiscount(clamp(int(prodigy), 0, 5) as P.ProdigyTier, i);
   return Math.max(1, i - off);
 }
-/** Mastery XP for one channel: up to 3 a use, 8 an in-game day. */
-export function signetUse(state: CampaignState, minute: number, intensity: number): { state: CampaignState; xpDelta: number } {
+/** Mastery XP an in-game day allows (a Prodigy gets twice as much). */
+export const masteryDailyXp = (prodigy = 0) => MASTERY_DAILY_XP * P.prodigyMasteryMultiplier(clamp(int(prodigy), 0, 5) as P.ProdigyTier);
+/** Mastery XP for one channel: up to 3 a use, 8 an in-game day (a Prodigy: twice both). */
+export function signetUse(state: CampaignState, minute: number, intensity: number, prodigy = 0): { state: CampaignState; xpDelta: number } {
   const s = tick(state, minute);
-  const want = clamp(Math.ceil(clamp(int(intensity, 1), 1, 8) / 3), 1, 3);
-  const xpDelta = Math.max(0, Math.min(want, MASTERY_DAILY_XP - s.signet.xpToday));
+  const want = clamp(Math.ceil(clamp(int(intensity, 1), 1, 8) / 3), 1, 3) * P.prodigyMasteryMultiplier(clamp(int(prodigy), 0, 5) as P.ProdigyTier);
+  const xpDelta = Math.max(0, Math.min(want, masteryDailyXp(prodigy) - s.signet.xpToday));
   return { state: { ...s, signet: { ...s.signet, xpToday: s.signet.xpToday + xpDelta } }, xpDelta };
 }
 
@@ -177,8 +186,10 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
   const tier = DC_LADDER.indexOf(dc) + 1;
   const parts: string[] = [];
   let bonus = 0;
+  const pt = sheetProdigyTier(sheet);
   if (input.risk === 'signet') { const b = masteryInfo(input.masteryXp).checkBonus; if (b) { bonus += b; parts.push(`+${b} Signet Mastery`); } }
-  const assist = dragonAssist(input.bond);
+  if (input.risk === 'signet' && P.prodigyCheckBonus(pt)) { bonus += P.prodigyCheckBonus(pt); parts.push(`+${P.prodigyCheckBonus(pt)} Prodigy`); }
+  const assist = dragonAssist(input.bond) + (input.bond != null ? P.prodigyDragonAssistBonus(pt) : 0);
   if (assist) { bonus += assist; parts.push(`+${assist} dragon's help`); }
   const pen = checkPenalty(s);
   if (pen) { bonus -= pen; parts.push(`-${pen} wounds and conditions`); }
@@ -220,6 +231,23 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
     payload: { outcome, dc, total, d20, strain, condition: condition ? (condition as Condition).name : null, injury: injury ? (injury as Injury).name : null },
   }];
   return { dc, total, outcome, parts, hp, strain, condition, injury, line, state: s, events };
+}
+
+// ── Battle Brief (a Prodigy's Command, D-37) ──
+export function briefsLeft(state: CampaignState, minute: number, sheet: Sheet): number {
+  const per = P.prodigyBriefsPerDay(sheetProdigyTier(sheet));
+  const used = state.briefs.day === dayOf(minute) ? state.briefs.n : 0;
+  return Math.max(0, per - used);
+}
+export const BRIEF_LINE = '[BATTLE BRIEF, binding: the rider reads the situation like a Prodigy. State one true, useful tactical fact about this exact moment (a weakness, a hidden threat, a safer route or the right moment to act), then continue the scene. Do not invent an advantage the scene does not hold.]';
+export function battleBrief(state: CampaignState, minute: number, sheet: Sheet): { ok: false; error: string } | { ok: true; state: CampaignState; left: number; line: string } {
+  const s = tick(state, minute);
+  if (!sheetProdigyTier(sheet)) return { ok: false, error: 'Only a Prodigy can give a Battle Brief.' };
+  if (briefsLeft(s, minute, sheet) <= 0) return { ok: false, error: 'No Battle Briefs left today. They come back at the next in-game day.' };
+  const day = dayOf(minute);
+  const n = s.briefs.day === day ? s.briefs.n + 1 : 1;
+  const next = { ...s, briefs: { day, n } };
+  return { ok: true, state: next, left: briefsLeft(next, minute, sheet), line: BRIEF_LINE };
 }
 
 /** A wounded dragon mends by a share of its full health (a long rest: half; a hunt: a quarter). */
@@ -420,7 +448,7 @@ export function unlockList(masteryXp: number, bond: number | null): Unlock[] {
   ];
 }
 
-export interface FactsInput { minute: number; masteryXp: number; bond: number | null; bonded: boolean; traveling: boolean }
+export interface FactsInput { minute: number; masteryXp: number; bond: number | null; bonded: boolean; traveling: boolean; sheet?: Sheet }
 /** The rule half of the one GAME FACTS block. The phone adds the map half (place, journey) at send time. */
 export function buildRuleFacts(state: CampaignState, f: FactsInput): string {
   const s = tick(state, f.minute);
@@ -430,6 +458,7 @@ export function buildRuleFacts(state: CampaignState, f: FactsInput): string {
   lines.push(`Rest: ${SHORT_RESTS_PER_DAY - s.shortRests} short rest${SHORT_RESTS_PER_DAY - s.shortRests === 1 ? '' : 's'} left today; a long rest is ${canLong ? 'available' : 'not available yet'}. A rest only counts when the player uses the Rest button; if the story calls for one, suggest it.`);
   if (s.injuries.length) lines.push(`Injuries (real, not healed by narration): ${s.injuries.map(i => `${i.name} (${['', 'light', 'serious', 'severe'][i.severity]})`).join('; ')}. Each long rest eases them one step.`);
   if (s.conditions.length) lines.push(`Conditions: ${s.conditions.map(c => `${c.name} until ${formatTime(c.untilMinute)}`).join('; ')}.`);
+  if (f.sheet) { const pl = P.prodigyFactsLine(f.sheet.riderClass, f.sheet.level, briefsLeft(s, f.minute, f.sheet)); if (pl) lines.push(pl); }
   const m = masteryInfo(f.masteryXp);
   if (f.bonded) lines.push(`Signet Mastery: ${m.name} (rank ${m.rank} of 4). Describe the signet's control and finesse at that level; raw power still follows the channeled intensity.`);
   if (f.bonded) {

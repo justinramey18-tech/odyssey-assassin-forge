@@ -14,6 +14,8 @@ import * as M from './minigames.ts';
 
 import { d, masteryInfo, signetStrainCost, type Rand, type RuleEvent } from './rules.ts';
 
+import * as P from './prodigy.ts';
+
 
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -200,6 +202,10 @@ export interface Fight {
 
   strainSpent: number; signetUses: number; dragonDied: boolean; riderDown: boolean;
 
+  /** The rider's Prodigy Ascension tier (0 for every other rider; absent in fights saved before D-37). */
+
+  prodigy?: P.ProdigyTier;
+
 }
 
 
@@ -243,6 +249,10 @@ export interface StartInput {
   foeKind: unknown; foeName?: unknown; count: unknown; challenge: unknown; lethal: boolean; arena: unknown;
 
   dragon: { name: string; hp: number | null; bond: number } | null; masteryXp: number;
+
+  /** The rider's Prodigy Ascension tier (0 = not a Prodigy). */
+
+  prodigy?: number;
 
 }
 
@@ -298,11 +308,15 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
 
   const atk = Number.isFinite(Number(input.attackBonus)) ? clamp(int(input.attackBonus), -2, 20) : proficiency(level) + 3;
 
+  const pt = clamp(int(input.prodigy, 0), 0, 5) as P.ProdigyTier;
+
   let dragon: DragonFighter | null = null;
 
   if (input.dragon && arena !== 'mat') {
 
-    const body = dragonBody(level, input.dragon.bond);
+    const base = dragonBody(level, input.dragon.bond);
+
+    const body = { ...base, maxHp: Math.round(base.maxHp * P.prodigyDragonHpMultiplier(pt)) };
 
     const dhp = input.dragon.hp == null ? body.maxHp : clamp(int(input.dragon.hp, body.maxHp), 0, body.maxHp);
 
@@ -318,7 +332,7 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
 
     rider: { name: str(input.riderName, 60, 'The rider'), hp, maxHp, startHp: hp, ac: clamp(int(input.ac, 12), 5, 30), level, atk, weapons, readyAt: now + 1500, masteryRank: masteryInfo(input.masteryXp).rank, clash: null, streak: 0 },
 
-    dragon, enemies, log: [], strainSpent: 0, signetUses: 0, dragonDied: false, riderDown: false,
+    dragon, enemies, log: [], strainSpent: 0, signetUses: 0, dragonDied: false, riderDown: false, prodigy: pt,
 
   };
 
@@ -554,7 +568,9 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   g.turns += 1;
 
-  g.nextAt = at + DRAGON_INTERVAL_MS;
+  const pt = f.prodigy ?? 0;
+
+  g.nextAt = at + P.prodigyDragonIntervalMs(pt, DRAGON_INTERVAL_MS);
 
   const foes = f.enemies.filter(up);
 
@@ -564,7 +580,7 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   const threat = f.enemies.find(e => up(e) && e.pending && e.pending.target === 'rider' && !e.pending.warded);
 
-  if (threat?.pending && g.bond >= 61 && rand() < 0.5) {
+  if (threat?.pending && g.bond >= P.prodigyShieldBond(pt) && rand() < 0.5) {
 
     threat.pending.warded = true;
 
@@ -574,7 +590,7 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   }
 
-  if (g.turns % 3 === 0 && (foes.length >= 2 || rand() < 0.5)) {
+  if (g.turns % P.prodigyFireEvery(pt) === 0 && (foes.length >= 2 || rand() < 0.5)) {
 
     say(f, at, `${g.name} breathes fire!`, 'good');
 
@@ -742,7 +758,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const intensity = clamp(int(a.intensity, 1), 1, 8);
 
-    strain = signetStrainCost(intensity, f.rider.masteryRank);
+    strain = signetStrainCost(intensity, f.rider.masteryRank, f.prodigy ?? 0);
 
     if (strain > Math.max(0, int(a.strainRoom))) return { ok: false, error: 'That much power would burn you out. Channel less.' };
 
@@ -750,7 +766,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const r = attackRoll(rand, bonus, target.ac);
 
-    const full = rollDice({ count: intensity, sides: 6, bonus: f.rider.masteryRank }, rand, r.crit);
+    const full = rollDice({ count: intensity + P.prodigySignetDice(f.prodigy ?? 0), sides: 6, bonus: f.rider.masteryRank }, rand, r.crit);
 
     f.strainSpent += strain; f.signetUses += 1;
 
@@ -784,7 +800,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const dragonUp = !!f.dragon && up(f.dragon);
 
-    const roll = d(20, rand) + proficiency(f.rider.level) + 2 + (dragonUp ? 4 : 0);
+    const roll = d(20, rand) + proficiency(f.rider.level) + 2 + (dragonUp ? 4 : 0) + P.prodigyFleeBonus(f.prodigy ?? 0);
 
     if (roll >= FLEE_DC[f.challenge]) { say(f, now, dragonUp ? `${f.dragon?.name ?? 'Your dragon'} hauls you clear. You get away.` : 'You break away and escape.', 'info'); finish(f, now, 'fled'); }
 
@@ -792,7 +808,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
   }
 
-  f.rider.readyAt = now + RIDER_COOLDOWN_MS;
+  f.rider.readyAt = now + P.prodigyRiderCooldownMs(f.prodigy ?? 0, RIDER_COOLDOWN_MS);
 
   checkEnd(f, now);
 
