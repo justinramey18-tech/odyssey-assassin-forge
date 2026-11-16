@@ -115,6 +115,11 @@ import { EmpyreanLootReview, usePendingDmItems } from '@/components/empyrean/Emp
 import { addPendingDmItems } from '@/lib/pendingDmItems';
 import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { removeScopedItem } from '@/lib/scoped-storage';
+import { useEmpyreanRules, type EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
+import { useSoloCampaignMap } from '@/hooks/use-solo-campaign-map';
+import { buildGameFacts, checkRisk, signetStrainCost } from '@/lib/empyrean-rules-client';
+import { EmpyreanCampSheet, EmpyreanEngineButtons } from '@/components/empyrean/EmpyreanCampSheet';
+import { CampaignMapPanel } from '@/components/ai-dm/CampaignMapPanel';
 
 /** Per-character bookmark ("you left off here") for the solo Empyrean story. */
 const EMPYREAN_BOOKMARK_KEY = 'empyrean-dm-bookmark';
@@ -522,13 +527,34 @@ UNBONDED RIDER RULES:
   // so its quest callbacks reach the hub through this ref, filled in further down.
   const questApiRef = useRef<ReturnType<typeof useEmpyreanQuests> | null>(null);
 
+  // ─── Rules engine (solo) ─────────────────────────────────────────────────
+  // The engine's hooks sit further down (they need the campaign id). The hooks above them reach
+  // it through this ref, and the DM's GAME FACTS and area guides through these two strings.
+  const rulesRef = useRef<EmpyreanRulesApi | null>(null);
+  const [gameFacts, setGameFacts] = useState('');
+  const [areaGuidesText, setAreaGuidesText] = useState('');
+  // While the engine is live, XP and gold the story hands out are sized and recorded by the
+  // server, and a rest in the story only suggests the Rest button. Otherwise: exactly as before.
+  const syncAddXP = useCallback((amount: number, source: string) => {
+    const r = rulesRef.current;
+    if (r?.active) r.storyReward('xp', amount, source); else autoSyncCallbacks?.onAddXP?.(amount, source);
+  }, [autoSyncCallbacks]);
+  const syncGoldChange = useCallback((netChange: number) => {
+    const r = rulesRef.current;
+    if (r?.active) r.storyReward('gold', netChange, 'Story'); else autoSyncCallbacks?.onGoldChange?.(netChange);
+  }, [autoSyncCallbacks]);
+  const syncRestOccurred = useCallback((type: 'short' | 'long') => {
+    if (rulesRef.current?.active) toast(`The story mentions a ${type} rest`, { description: 'Open Camp (the tent) to take it, so the clock and your wounds keep up.', icon: '⛺' });
+    else autoSyncCallbacks?.onRestOccurred?.(type);
+  }, [autoSyncCallbacks]);
+
   // Auto-sync hook
   const autoSync = useDmAutoSync({
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
-    onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
-    onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
+    onAddXP: syncAddXP,
+    onGoldChange: syncGoldChange,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
-    onRestOccurred: autoSyncCallbacks?.onRestOccurred ?? NOOP,
+    onRestOccurred: syncRestOccurred,
     onMapUpdate: NOOP_TWO_ARG,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     getCurrentGold: autoSyncCallbacks?.getCurrentGold ?? NOOP_RETURN_ZERO,
@@ -590,6 +616,8 @@ UNBONDED RIDER RULES:
       true, // isSoloRuleOfCool — solo DM always says yes, no canon gatekeeping
       bs.wounds ?? 0, // open trust wounds: teaches the DM the amends tag (D-30)
     );
+    // The app's own rules and map (time, place, rests, wounds, rulings). Empty while the engine is off.
+    if (gameFacts) persona += `\n\n${gameFacts}`;
     if (threshingAuthorized && isUnbonded) {
       persona += `\n\n## THRESHING CEREMONY — NARRATE NOW
 
@@ -614,7 +642,7 @@ The following facts about the character or the moment are known to you but not s
 ${oocLines}`;
     }
     return persona;
-  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized, activeOOCNotes]);
+  }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized, activeOOCNotes, gameFacts]);
 
   const [trackingCampaignId, setTrackingCampaignId] = useState<string | null>(null);
   const { weather } = useWeather();
@@ -622,8 +650,8 @@ ${oocLines}`;
   const linkedUniverse = useLinkedUniverse({ campaignId: trackingCampaignId });
   const universeContext = linkedUniverse.universeContext;
   const combinedGuidesContent = useMemo(
-    () => [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext].filter(Boolean).join('\n\n'),
-    [enabledContent, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext]
+    () => [enabledContent, areaGuidesText, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext].filter(Boolean).join('\n\n'),
+    [enabledContent, areaGuidesText, universeContext, linkedUniverse.pendingCrossoverPrompt, linkedUniverse.liveBeatContext]
   );
 
   const worldStatePrompt = useMemo(() => {
@@ -701,6 +729,7 @@ ${oocLines}`;
     cancelRequest,
     editMessage,
     setMessageSceneImage,
+    addAssistantMessage,
     deleteMessage,
     regenerateMessage,
     loadCampaign,
@@ -727,6 +756,8 @@ ${oocLines}`;
           }
         }).catch(() => {});
       }
+      // A random event the app asked the DM to open has now been told: clear it.
+      if (rulesRef.current?.snapshot?.rules.eventPending) rulesRef.current.eventDone();
 
 
       // Extract bond strain events
@@ -903,6 +934,9 @@ ${oocLines}`;
     onGoldChange: autoSyncCallbacks?.onGoldChange,
     onBondReward: dragonBond.processQuestReward,
     onStrainRelief: (amount: number) => setBurnoutLevel(prev => Math.max(0, prev - amount)),
+    payQuest: (p) => (rulesRef.current?.active
+      ? rulesRef.current.questPayout(p.quest.key, p.quest.challengeRating, p.quest.title || p.quest.key)
+      : Promise.resolve(false)),
     sendMessage,
     getSeekContext: () => {
       const lastDm = [...messages].reverse().find(m => m.role === 'assistant');
@@ -1038,6 +1072,64 @@ ${oocLines}`;
   ) => {
     return saveCampaignSession(name, msgs, summary, existingId);
   }, [saveCampaignSession]);
+
+  // ─── Rules engine + campaign map (solo; signed in with a saved campaign) ───
+  const engineOn = isSignedIn && !!activeCampaignId;
+  const [campOpen, setCampOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const rulesTravelRef = useRef<EmpyreanRulesApi['travel']>(async () => false);
+  const journeyContextRef = useRef<() => { dmContext: string; dmModel?: string }>(() => ({ dmContext: '' }));
+  const soloMap = useSoloCampaignMap({
+    enabled: engineOn && open,
+    campaignId: activeCampaignId,
+    travel: (action, extra) => rulesTravelRef.current(action, extra),
+    getJourneyContext: () => journeyContextRef.current(),
+  });
+  const rules = useEmpyreanRules({
+    enabled: engineOn && open,
+    campaignId: activeCampaignId,
+    dragonName: config?.dragonName,
+    bonded: !isUnbonded && !!config?.dragonName,
+    getSheet: () => ({ level: characterContext?.level, maxHp: characterContext?.maxHP }),
+    getPlace: soloMap.place,
+    getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
+    onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
+    onGoldChange: autoSyncCallbacks?.onGoldChange ?? NOOP,
+    onSheetRest: autoSyncCallbacks?.onRestOccurred ?? NOOP,
+    onStrain: (change) => setBurnoutLevel(prev => (change === 'reset' ? 0 : Math.max(0, prev + change))),
+    // A journey encounter the server wrote while the app was closed joins the story once the DM is idle.
+    onDmPost: (id, content) => { if (isLoading) return false; addAssistantMessage(content, id); return true; },
+    onDragonTrust: (delta, reason) => dragonBond.processQuestReward(0, delta, reason),
+    onMapChanged: () => { void soloMap.map.reload(); },
+    flying: soloMap.flying,
+  });
+  useEffect(() => { rulesRef.current = rules; rulesTravelRef.current = rules.travel; });
+  // What the server needs to narrate a journey encounter with the app closed: the DM's own
+  // instructions, the guides, and the recent story, capped.
+  journeyContextRef.current = () => {
+    const recent = messages.slice(-6).map(m => `${m.role === 'assistant' ? 'DM' : 'PLAYER'}: ${stripAllMetaTags(String(m.content ?? '')).slice(0, 1500)}`).join('\n\n');
+    const dmContext = [
+      campaignSummary ? `## STORY SO FAR\n${campaignSummary.slice(-3000)}` : '',
+      recent ? `## RECENT STORY\n${recent}` : '',
+      dmPersonaPrompt ? `## DM INSTRUCTIONS\n${dmPersonaPrompt.slice(0, 16000)}` : '',
+      combinedGuidesContent ? `## GUIDES\n${combinedGuidesContent.slice(0, 24000)}` : '',
+    ].filter(Boolean).join('\n\n').slice(0, 58000);
+    return { dmContext, dmModel: selectedModel };
+  };
+  // One GAME FACTS block for the DM: the server's rule facts plus the map's facts for this moment.
+  const [factsTick, setFactsTick] = useState(0);
+  useEffect(() => {
+    if (!soloMap.flying) return;
+    const timer = window.setInterval(() => setFactsTick(n => n + 1), 30000);
+    return () => window.clearInterval(timer);
+  }, [soloMap.flying]);
+  const ruleFacts = rules.active ? rules.snapshot?.facts ?? '' : '';
+  useEffect(() => {
+    setGameFacts(rules.active ? buildGameFacts(ruleFacts, soloMap.ready ? soloMap.mapFacts() : '') : '');
+    setAreaGuidesText(rules.active && soloMap.ready ? soloMap.areaGuides() : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rules.active, ruleFacts, soloMap.ready, soloMap.mapFacts, soloMap.areaGuides, factsTick]);
 
   // Auto-create + restore a persistent campaign so linking is always available
   useAutoCampaign({
@@ -1237,8 +1329,17 @@ ${oocLines}`;
       actionPhrase: auto.actionPhrase,
       characterContext,
     });
-    // Hold the result until any crit cinematic finishes.
-    void awaitLatestD20Reveal().then(() => empyreanInputRef.current?.appendText(result.chatMessage));
+    // Hold the result until any crit cinematic finishes. With the rules engine live and a DC on
+    // the whisper, the server rules on the roll and its line goes to the DM with the result.
+    void awaitLatestD20Reveal().then(async () => {
+      let text = result.chatMessage;
+      const engine = rulesRef.current;
+      if (engine?.active && hint.dc != null) {
+        const ruling = await engine.check({ d20: result.kept, modifier: result.modifier, dc: hint.dc, risk: checkRisk(whisperContent), label: auto.actionPhrase ?? whisperContent });
+        if (ruling) text += `\n${ruling.line}`;
+      }
+      empyreanInputRef.current?.appendText(text);
+    });
   }, [characterContext]);
 
   const handleAskDirector = useCallback(() => {
@@ -1496,7 +1597,11 @@ ${oocLines}`;
 
     // Deterministic signet channeling: apply burnout, tag intensity for AI.
     if (armedSignetIntensity != null) {
-      const newBurnout = Math.min(maxBurnout, burnoutLevelRef.current + armedSignetIntensity);
+      // Signet Mastery lowers what a channel costs (never below 1) and each use builds mastery.
+      const engine = rulesRef.current;
+      const strainCost = engine?.active ? signetStrainCost(armedSignetIntensity, engine.snapshot?.mastery.rank ?? 0) : armedSignetIntensity;
+      if (engine?.active) engine.signetUsed(armedSignetIntensity);
+      const newBurnout = Math.min(maxBurnout, burnoutLevelRef.current + strainCost);
       setBurnoutLevel(newBurnout);
       messageToSend += `\n\n[SIGNET CHANNELED — intensity ${armedSignetIntensity}/8. Narrate the signet's power proportional to this intensity: 1 is a faint flicker, 8 is a catastrophic, bond-threatening overload.]`;
       signetUsedThisRoundRef.current = true;
@@ -1868,6 +1973,7 @@ ${oocLines}`;
               <NarrationSpeedPopover iconSize="w-5 h-5" />
             </>
           )}
+          <EmpyreanEngineButtons rules={rules} mapReady={soloMap.ready} onCamp={() => setCampOpen(true)} onMap={() => setMapOpen(true)} />
           {pendingLoot.length > 0 && (
             <Button variant="ghost"
               onClick={() => setLootOpen(true)}
@@ -1991,6 +2097,7 @@ ${oocLines}`;
                 <NarrationSpeedPopover iconSize="w-5 h-5" />
               </>
             )}
+            <EmpyreanEngineButtons rules={rules} mapReady={soloMap.ready} onCamp={() => setCampOpen(true)} onMap={() => setMapOpen(true)} />
             {pendingLoot.length > 0 && (
               <Button variant="ghost"
                 onClick={() => setLootOpen(true)}
@@ -2785,6 +2892,26 @@ ${oocLines}`;
 
       {/* Quest Hub Overlay */}
       <EmpyreanQuestHub open={questHubOpen} onClose={() => setQuestHubOpen(false)} api={questApi} />
+
+      {/* Camp (rest, time, wounds, progress) and the campaign map: the rules engine's two screens */}
+      <EmpyreanCampSheet
+        open={campOpen}
+        onOpenChange={setCampOpen}
+        rules={rules}
+        bonded={!isUnbonded && !!config?.dragonName}
+        dragonName={config?.dragonName}
+        placeName={soloMap.place()?.name}
+        onOpenMap={() => { setCampOpen(false); setMapOpen(true); }}
+      />
+      {engineOn && (
+        <CampaignMapPanel
+          open={mapOpen}
+          onOpenChange={(next) => { setMapOpen(next); if (!next) { void soloMap.reloadGuides(); void rules.refresh(); } }}
+          map={soloMap.map}
+          partyId={activeCampaignId}
+          solo
+        />
+      )}
 
       {/* Loot review: DM awards and quest item rewards wait here */}
       <EmpyreanLootReview open={lootOpen} onOpenChange={setLootOpen} onAccept={drawerContext?.acceptDmItem} />
