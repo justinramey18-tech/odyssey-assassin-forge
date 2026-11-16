@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 export type RulesAction =
   | 'state' | 'ack' | 'rest' | 'pass_time' | 'check' | 'signet_used' | 'quest_payout' | 'story_reward'
   | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel';
+export type FightAction = 'fight_start' | 'fight_tick' | 'fight_act' | 'fight_clash' | 'fight_close';
 export type EventLevel = 'off' | 'rare' | 'normal';
 export type CheckRisk = 'physical' | 'mental' | 'signet';
 export type PassActivity = 'wait' | 'hunt' | 'fly' | 'train';
@@ -49,6 +50,10 @@ export interface RulesSnapshot {
   };
   mastery: { xp: number; rank: number; name: string; next: number | null; checkBonus: number };
   dragonAssist: number;
+  /** The dragon's body between fights (null until its first fight, or when unbonded). */
+  dragonBody?: { hp: number; maxHp: number } | null;
+  /** A fight is running or finished and not yet closed. */
+  fightOpen?: boolean;
   unlocks: Array<{ id: string; label: string; source: string; unlocked: boolean }>;
   facts: string;
   inbox: RulesInboxEvent[];
@@ -59,7 +64,7 @@ export interface RulesContext {
   riderKey: string;
   dragonName?: string;
   bonded: boolean;
-  sheet?: { level?: number; maxHp?: number };
+  sheet?: { level?: number; maxHp?: number; hp?: number; ac?: number; attackBonus?: number | null; weapons?: Array<{ name: string; damage: string }> };
   place?: { name?: string; kind?: string };
 }
 
@@ -72,6 +77,61 @@ export async function callRules(action: RulesAction, ctx: RulesContext, extra: R
   } catch {
     return null;
   }
+}
+
+// ── fights ──
+export type FoeKind = 'cadet' | 'rider' | 'soldier' | 'flier' | 'wyvern' | 'venin' | 'beast';
+export type FightChallenge = 'easy' | 'moderate' | 'hard' | 'deadly';
+export type FightArena = 'mat' | 'ground' | 'air';
+export const FOE_OPTIONS: Array<{ id: FoeKind; label: string }> = [
+  { id: 'cadet', label: 'Cadet' }, { id: 'rider', label: 'Rider' }, { id: 'soldier', label: 'Soldier' }, { id: 'flier', label: 'Gryphon flier' },
+  { id: 'beast', label: 'Beast' }, { id: 'venin', label: 'Venin' }, { id: 'wyvern', label: 'Wyvern' },
+];
+export const CHALLENGE_OPTIONS: FightChallenge[] = ['easy', 'moderate', 'hard', 'deadly'];
+export type ClashSide = 'left' | 'top' | 'right';
+export type ClashQuality = 'perfect' | 'block' | 'wrong' | 'bait' | 'early';
+export interface FightClash { id: string; move: 'heavy' | 'signature' | 'sweep' | 'pin'; swings: Array<{ off: number; side: ClashSide; feint: boolean }> }
+export interface FightLogLine { n: number; at: number; text: string; tone: 'info' | 'good' | 'warn' | 'muted'; targetId?: string; amount?: number; flash?: 'hit' | 'heal' }
+export interface FightEnemyView {
+  id: string; name: string; kind: FoeKind; hp: number; maxHp: number; status: 'up' | 'down'; nextAt: number;
+  pending: { move: FightClash['move']; label: string; target: 'rider' | 'dragon' | 'both'; strikeAt: number; clash: FightClash | null; warded: boolean } | null;
+}
+export interface FightView {
+  id: string; status: 'active' | 'ended'; outcome: 'victory' | 'defeat' | 'fled' | 'yield' | null; lethal: boolean; arena: FightArena; challenge: FightChallenge;
+  serverNow: number; nextDueAt: number | null;
+  rider: { id: string; name: string; hp: number; maxHp: number; level: number; readyAt: number; weapons: string[]; clash: { id: string; r: Array<ClashQuality | null> } | null };
+  dragon: { id: string; name: string; hp: number; maxHp: number; status: 'up' | 'down'; nextAt: number } | null;
+  enemies: FightEnemyView[];
+  log: FightLogLine[];
+  dragonDied: boolean; riderDown: boolean;
+}
+export interface FightReply {
+  ok: boolean; error?: string; serverNow?: number; fight?: FightView | null; inbox?: RulesInboxEvent[];
+  strain?: number; usedPotion?: boolean; index?: number; quality?: ClashQuality;
+}
+export interface FightOffer { foeKind: FoeKind; foeName: string; count: number; challenge: FightChallenge; lethal: boolean }
+
+/** null when the fight server could not be reached at all. */
+export async function callFight(action: FightAction, ctx: RulesContext, extra: Record<string, unknown> = {}): Promise<FightReply | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('empyrean-rules', { body: { action, ...ctx, ...extra } });
+    if (error || !data || typeof data !== 'object' || typeof (data as FightReply).ok !== 'boolean') return null;
+    return data as FightReply;
+  } catch {
+    return null;
+  }
+}
+
+const FIGHT_TAG = /<!--FIGHT:([^>]*?)-->/i;
+/** The DM's hidden offer of a fight: <!--FIGHT:kind|name|count|challenge|lethal-->. Null when there is none. */
+export function parseFightOffer(content: string | null | undefined): FightOffer | null {
+  const m = String(content ?? '').match(FIGHT_TAG);
+  if (!m) return null;
+  const [kind = '', name = '', count = '', challenge = '', lethal = ''] = m[1].split('|').map(s => s.trim());
+  const foe = FOE_OPTIONS.find(f => f.id === kind.toLowerCase()) ?? { id: 'soldier' as const, label: 'Soldier' };
+  const ch = CHALLENGE_OPTIONS.find(c => c === challenge.toLowerCase()) ?? 'moderate';
+  const n = Math.min(4, Math.max(1, Math.trunc(Number(count)) || 1));
+  return { foeKind: foe.id, foeName: (name || foe.label).slice(0, 40), count: n, challenge: ch, lethal: !/^(no|false|spar|mat)$/i.test(lethal) };
 }
 
 /** Strain a channel of this intensity costs at this Signet Mastery rank (same rule as the server's). */

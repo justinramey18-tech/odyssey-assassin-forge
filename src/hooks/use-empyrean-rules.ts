@@ -40,6 +40,8 @@ export interface EmpyreanRulesOptions {
   onDragonTrust: (delta: number, reason: string) => void;
   /** The server moved the clock or the journey: reload the map. */
   onMapChanged: () => void;
+  /** A fight's result has just been applied to the sheet (the payload says who fell and carries the line for the DM). */
+  onFightResult?: (payload: Record<string, any>) => void;
   /** Poll faster while a journey is under way. */
   flying: boolean;
 }
@@ -54,6 +56,8 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const applyingRef = useRef(false);
+  const snapshotRef = useRef<RulesSnapshot | null>(null);
+  snapshotRef.current = snapshot;
 
   const context = useCallback((): RulesContext | null => {
     const o = optsRef.current;
@@ -68,7 +72,8 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     const o = optsRef.current;
     const p = e.payload || {};
     if (e.kind === 'dm_post') return typeof p.content === 'string' && p.content.trim() ? o.onDmPost(e.id, p.content) : true;
-    if (e.hp < 0) o.onHPChange(-e.hp, 'damage');
+    // The sheet's handler adds the number it is given: damage goes in negative, healing positive.
+    if (e.hp < 0) o.onHPChange(e.hp, 'damage');
     if (e.hp > 0) o.onHPChange(e.hp, 'healing');
     if (e.xp > 0) o.onAddXP(e.xp, e.reason || 'Empyrean');
     if (e.gold !== 0) o.onGoldChange(e.gold);
@@ -82,6 +87,10 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
       if (bits.length) toast.success(bits.join(', '), { description: e.reason || undefined });
     }
     if (e.kind === 'dragon_need') toast(e.reason || 'Your dragon is unhappy', { icon: '🐉' });
+    if (e.kind === 'fight') {
+      if (e.xp > 0) toast.success(`${e.xp} XP`, { description: e.reason || undefined });
+      o.onFightResult?.(p);
+    }
     return true;
   }, []);
 
@@ -178,7 +187,15 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     travel: async (action: 'launch' | 'sync' | 'cancel', extra: Record<string, unknown> = {}): Promise<boolean> =>
       !!(await run(`travel_${action}` as RulesAction, extra, true))?.ok,
     refresh,
-  }), [run, timed, refresh]);
+    /** Who is asking, for calls made outside this hook (the fight hook). Null while the engine is off. */
+    context,
+    /** Apply results that arrived with another reply (a fight's end) through the same once-only path. */
+    absorbInbox: (inbox: RulesInboxEvent[]) => {
+      const ctx = context();
+      const cur = snapshotRef.current;
+      if (ctx && cur && inbox.length) void applyInbox({ ...cur, inbox }, ctx);
+    },
+  }), [run, timed, refresh, context, applyInbox]);
 
   return { ...api, snapshot, busy, active: !!scope && !!snapshot };
 }

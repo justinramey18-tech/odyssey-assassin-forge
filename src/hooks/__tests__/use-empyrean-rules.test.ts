@@ -37,6 +37,24 @@ describe('useEmpyreanRules', () => {
     expect(await result.current.questPayout('q', 'easy', 'Quest')).toBe(false);
   });
 
+  it("applies a fight's result as damage (a negative number, the way the sheet takes it) and reports it once", async () => {
+    const fightEv = ev('f1', { kind: 'fight', hp: -14, xp: 90, reason: 'VICTORY: Wyvern', payload: { outcome: 'victory', riderDown: false, dragonDied: false, line: '[FIGHT RESULT, binding: VICTORY.]' } });
+    answer((action) => (action === 'ack' ? snap([]) : snap([])));
+    const c = { ...calls(), onFightResult: vi.fn() };
+    const { result } = renderHook(() => useEmpyreanRules(options(c)));
+    await waitFor(() => expect(result.current.active).toBe(true));
+    expect(result.current.context()).toMatchObject({ campaignId: 'camp-1', bonded: true, dragonName: 'Gwyn' });
+    await act(async () => { result.current.absorbInbox([fightEv]); });
+    await waitFor(() => expect(c.onFightResult).toHaveBeenCalledTimes(1));
+    expect(c.onHPChange).toHaveBeenCalledWith(-14, 'damage');
+    expect(c.onAddXP).toHaveBeenCalledWith(90, 'VICTORY: Wyvern');
+    expect(c.onFightResult.mock.calls[0][0]).toMatchObject({ outcome: 'victory', line: '[FIGHT RESULT, binding: VICTORY.]' });
+    // The same result arriving again (the next snapshot still lists it) is not applied twice.
+    await act(async () => { result.current.absorbInbox([fightEv]); });
+    expect(c.onHPChange).toHaveBeenCalledTimes(1);
+    expect(c.onFightResult).toHaveBeenCalledTimes(1);
+  });
+
   it('is off without a campaign and makes no calls', async () => {
     const c = calls();
     const { result } = renderHook(() => useEmpyreanRules(options(c, { campaignId: null })));
@@ -64,7 +82,7 @@ describe('useEmpyreanRules', () => {
     await waitFor(() => expect(c.onAddXP).toHaveBeenCalled());
     await waitFor(() => expect(mock.invoke.mock.calls.some(([, o]) => o.body.action === 'ack')).toBe(true));
     expect(result.current.active).toBe(true);
-    expect(c.onHPChange).toHaveBeenCalledWith(5, 'damage');
+    expect(c.onHPChange).toHaveBeenCalledWith(-5, 'damage'); // the sheet adds what it is given: damage is negative
     expect(c.onStrain).toHaveBeenCalledWith(1);
     expect(c.onStrain).toHaveBeenCalledWith('reset');
     expect(c.onAddXP).toHaveBeenCalledWith(120, 'Quest: Run the Gauntlet');
