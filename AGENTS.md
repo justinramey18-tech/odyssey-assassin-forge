@@ -34,3 +34,4 @@
 - Rider onboarding stores its draft and staged launch outside character scope, applying campaign setup only after the new save exists, so character creation cannot lose its hand-off on the first save.
 - The rider onboarding page uses the existing aiCreatedCharacter hand-off and carries its draft through optional Empyrean account switching, so creation stays on the existing save path.
 - Empyrean onboarding launches pass explicitly through Index, Home and the hub; fresh campaigns retain the launch's starting place and event choice until the solo engine opens, so existing manual entry defaults stay unchanged.
+- Solo Empyrean opening sends use a ref-backed hook with latest callbacks and a once-only clear step, because re-renders must not restart the timer or erase later chat.

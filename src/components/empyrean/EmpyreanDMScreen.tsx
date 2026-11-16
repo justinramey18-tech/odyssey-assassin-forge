@@ -31,6 +31,7 @@ import { CharacterContext } from '@/components/oracle/types';
 import { useAIDM } from '@/hooks/use-ai-dm';
 import { useCampaignSessions, CampaignSession } from '@/hooks/use-campaign-sessions';
 import { useAutoCampaign } from '@/hooks/use-auto-campaign';
+import { useEmpyreanOpening } from '@/hooks/use-empyrean-opening';
 import { CampaignDropdown } from '@/components/ai-dm/CampaignDropdown';
 import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsManager';
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
@@ -69,6 +70,7 @@ import {
   clearEmpyreanDMConfig,
   clearDragonNotes,
   clearEmpyreanOpeningScene,
+  loadEmpyreanOpeningScene,
 } from '@/lib/empyreanDMPersona';
 import { loadDiceOddsMode, saveDiceOddsMode, type DiceOddsMode } from '@/lib/diceOdds';
 import { useDragonBond } from '@/hooks/use-dragon-bond';
@@ -311,7 +313,6 @@ export function EmpyreanDMScreen({
   const lastProcessedMsgIdRef = useRef<string | null>(null);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
   const [dragonNotes, setDragonNotes] = useState(() => loadDragonNotes());
-  const [initialSent, setInitialSent] = useState(false);
   const [activeNavTab, setActiveNavTab] = useState<DMNavTab | null>(null);
   const [navExpanded, setNavExpanded] = useState(false);
   const [showAutopilotGuide, setShowAutopilotGuide] = useState(false);
@@ -1360,26 +1361,23 @@ ${oocLines}`;
     }
   }, [sceneBusyId, characterName, empyreanCharacterContext, config?.dragonName, config?.dragonColor, setMessageSceneImage]);
 
-  // Auto-send initial message from prompt library
-  useEffect(() => {
-    // A campaign the Empyrean Guide just built starts fresh, even if an older one is open here.
-    if (open && initialMessage && !initialSent && startFresh && messages.length > 0) {
-      newGame();
-      return;
-    }
-    if (open && initialMessage && !initialSent && messages.length === 0) {
-      const timer = setTimeout(() => {
-        sendMessage(initialMessage);
-        setInitialSent(true);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [open, initialMessage, initialSent, messages.length, sendMessage, startFresh, newGame]);
-
-  // Reset initialSent when screen closes
-  useEffect(() => {
-    if (!open) setInitialSent(false);
-  }, [open]);
+  // Send the opening message (a campaign the Empyrean Guide just built, the saved opening scene,
+  // or a prompt from the library) once the chat is empty. A fresh start clears an older story
+  // once only (CL-067).
+  useEmpyreanOpening({
+    open,
+    initialMessage,
+    startFresh,
+    messageCount: messages.length,
+    isLoading,
+    newGame,
+    sendMessage,
+  });
+  // The saved opening scene of this campaign, offered on an empty chat.
+  const savedOpeningScene = useMemo(
+    () => (open && messages.length === 0 ? loadEmpyreanOpeningScene() : ''),
+    [open, messages.length],
+  );
 
   // Deterministic recovery + SITUATION tag parsing on new assistant messages.
   // Burnout is no longer parsed from AI tags — the app fully owns it.
@@ -2403,6 +2401,16 @@ ${oocLines}`;
             <p className="text-sm text-muted-foreground text-center max-w-xs">
               Your Empyrean campaign awaits. Send a message or pick a prompt to begin.
             </p>
+            {savedOpeningScene && !isLoading && (
+              <Button
+                type="button"
+                onClick={() => sendMessage(savedOpeningScene)}
+                className="mt-1 min-h-[48px] px-5 rounded-xl border border-primary/50 bg-primary/15 text-primary font-cinzel text-sm opacity-100 active:scale-[0.97] transition-transform"
+                style={{ touchAction: 'manipulation' }}
+              >
+                ▶ Play the opening scene
+              </Button>
+            )}
           </div>
         )}
 
