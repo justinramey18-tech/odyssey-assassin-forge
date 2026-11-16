@@ -71,12 +71,22 @@ export interface StarterGuide { mapId: string; scope: 'map' | 'location'; locati
 export interface StarterMap { atlas: CampaignAtlas; guides: StarterGuide[]; rootMapId: string; basgiathMapId: string }
 
 /** Build the starter atlas for one solo campaign. The rider begins in Basgiath's courtyard. */
-export function buildEmpyreanStarterAtlas(campaignId: string, opts: { campaignMinute?: number; makeId?: () => string } = {}): StarterMap {
+/** Where a campaign may start on the map: Basgiath (every cadet), or an outpost a graduated rider is posted to. */
+export const STARTER_START_IDS = ['basgiath', 'montserrat', 'samara', 'athebyne', 'chakir'] as const;
+
+/**
+ * The starter map. By default the rider starts inside Basgiath's grounds (in the courtyard). With
+ * startLocationId set to one of the outposts, the rider starts at that place on the Continent map
+ * instead; Basgiath's grounds map still exists inside it.
+ */
+export function buildEmpyreanStarterAtlas(campaignId: string, opts: { campaignMinute?: number; makeId?: () => string; startLocationId?: string | null } = {}): StarterMap {
   const makeId = opts.makeId ?? (() => crypto.randomUUID());
   const rootMapId = makeId();
   const basgiathMapId = makeId();
   const cal = calibrationFromMapWidth(CONTINENT_IMAGE_SIZE.width, CONTINENT_IMAGE_SIZE.height, CONTINENT_WIDTH_MILES);
   const byId = new Map(CONTINENT_PLACES.map(p => [p.id, p]));
+  const start = opts.startLocationId && opts.startLocationId !== 'basgiath' && (STARTER_START_IDS as readonly string[]).includes(opts.startLocationId)
+    ? opts.startLocationId : 'basgiath';
   const routes: CampaignMapRoute[] = CONTINENT_ROADS.map(([a, b, terrain]) => {
     const from = byId.get(a), to = byId.get(b);
     if (!from || !to) throw new Error(`Unknown starter road: ${a}-${b}`);
@@ -88,7 +98,7 @@ export function buildEmpyreanStarterAtlas(campaignId: string, opts: { campaignMi
   });
   const world = sanitizeCampaignMapState({
     imageUrl: CONTINENT_MAP_IMAGE, imageNaturalWidth: CONTINENT_IMAGE_SIZE.width, imageNaturalHeight: CONTINENT_IMAGE_SIZE.height,
-    mapCalibration: cal, locations: CONTINENT_PLACES.map(place), routes, currentLocationId: 'basgiath',
+    mapCalibration: cal, locations: CONTINENT_PLACES.map(place), routes, currentLocationId: start,
     campaignMinute: opts.campaignMinute ?? STARTER_CAMPAIGN_MINUTE, defaultPace: 'flying',
   });
   let grounds = sanitizeCampaignMapState({
@@ -104,9 +114,13 @@ export function buildEmpyreanStarterAtlas(campaignId: string, opts: { campaignMi
     id: basgiathMapId, name: 'Basgiath War College', navigationMode: 'local', state: grounds, entryLocationId: 'courtyard',
   });
   if (typeof withChild === 'string') throw new Error(withChild);
-  const entered = enterChild(withChild, basgiathMapId);
-  if (typeof entered === 'string') throw new Error(entered);
-  atlas = entered;
+  if (start === 'basgiath') {
+    const entered = enterChild(withChild, basgiathMapId);
+    if (typeof entered === 'string') throw new Error(entered);
+    atlas = entered;
+  } else {
+    atlas = withChild;
+  }
 
   const guides: StarterGuide[] = [
     { mapId: rootMapId, scope: 'map', locationId: null, name: 'The Continent', content: 'Navarre holds the west behind its wards; Poromiel lies east across the Esben Mountains; the Barrens lie beyond. Tyrrendor is Navarre\'s largest and southernmost province, walled off by the Cliffs of Dralor. Riders cross these distances on dragonback; everyone else takes days on the roads. Outposts along the border are held by active riders, and the wards weaken toward their edge.' },

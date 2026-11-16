@@ -28,3 +28,4 @@
 - Solo fight rules are pure functions in empyrean-rules/combat.ts with caller-supplied time and randomness; its minigames.ts stays byte-identical to the party and phone copies because function deployments cannot import sibling function folders.
 - Creation assistants import character rules and the JSON template from _shared/creation-rules.ts to prevent their accepted fields and IDs from drifting.
 - Empyrean onboarding keeps its text in a pure prompt module and validates the signed-in user before AI calls; lore and rider context are bounded to keep requests isolated and predictable.
+- Rider onboarding stores its draft and staged launch outside character scope, applying campaign setup only after the new save exists, so character creation cannot lose its hand-off on the first save.
