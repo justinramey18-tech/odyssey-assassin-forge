@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="An original app-drawn plan of Basgiath War College">
+<rect width="1200" height="900" fill="#2b2a22"/>
+<path d="M0,120 C200,60 420,90 620,60 S1000,40 1200,110 L1200,0 L0,0 Z" fill="#23221c"/>
+<g fill="none" stroke="#8d7f55" stroke-width="2.2" stroke-linejoin="round" opacity="0.85">
+<path d="M107,266 L126,236 L145,266" />
+<path d="M133,273 L153,240 L174,273" />
+<path d="M178,294 L195,266 L213,294" />
+<path d="M218,287 L239,252 L261,287" />
+<path d="M257,274 L277,243 L296,274" />
+<path d="M294,251 L314,220 L333,251" />
+<path d="M332,237 L354,202 L376,237" />
+<path d="M372,236 L390,208 L407,236" />
+<path d="M394,243 L416,209 L438,243" />
+<path d="M445,245 L461,219 L477,245" />
+<path d="M480,272 L503,235 L526,272" />
+<path d="M519,283 L540,251 L560,283" />
+<path d="M40,125 L56,98 L73,125" />
+<path d="M81,145 L95,121 L110,145" />
+<path d="M127,144 L139,124 L151,144" />
+<path d="M178,123 L191,103 L203,123" />
+<path d="M222,119 L234,99 L247,119" />
+<path d="M255,116 L274,86 L294,116" />
+<path d="M306,125 L326,94 L345,125" />
+<path d="M345,146 L359,123 L373,146" />
+<path d="M391,140 L405,117 L419,140" />
+<path d="M446,132 L462,106 L479,132" />
+<path d="M487,118 L503,92 L519,118" />
+<path d="M522,103 L535,81 L549,103" />
+<path d="M577,118 L592,95 L606,118" />
+<path d="M619,135 L634,113 L648,135" />
+<path d="M668,149 L682,127 L696,149" />
+<path d="M703,143 L721,114 L740,143" />
+<path d="M749,123 L769,92 L788,123" />
+<path d="M783,112 L800,84 L818,112" />
+<path d="M833,114 L845,94 L857,114" />
+<path d="M883,137 L899,111 L916,137" />
+<path d="M930,144 L948,116 L965,144" />
+<path d="M970,146 L986,121 L1001,146" />
+<path d="M1019,136 L1035,111 L1050,136" />
+<path d="M1058,108 L1075,80 L1093,108" />
+<path d="M1101,122 L1119,93 L1137,122" />
+<path d="M1139,126 L1156,99 L1173,126" />
+</g>
+<path d="M-10,820 C200,760 420,860 640,790 S1000,700 1210,760" fill="none" stroke="#4d7186" stroke-width="9" opacity="0.8"/>
+<path d="M770,200 C760,320 800,420 780,560 S760,700 800,790" fill="none" stroke="#17160f" stroke-width="26" opacity="0.9"/>
+<path d="M420,330 L640,330 L640,430 L560,430 L560,610 L420,610 Z" fill="#3d3829" stroke="#a08f5c" stroke-width="4"/>
+<path d="M590,470 C640,455 700,500 690,560 C680,610 610,620 585,575 Z" fill="#33301f" stroke="#a08f5c" stroke-width="3"/>
+<line x1="690" y1="545" x2="800" y2="590" stroke="#cdbb86" stroke-width="4" stroke-dasharray="2 6"/>
+<line x1="640" y1="400" x2="830" y2="410" stroke="#a08f5c" stroke-width="7"/>
+<rect x="830" y="350" width="150" height="110" fill="#3d3829" stroke="#a08f5c" stroke-width="3"/>
+<rect x="760" y="610" width="200" height="110" fill="#3d3829" stroke="#a08f5c" stroke-width="3"/>
+<rect x="640" y="700" width="130" height="70" fill="#3d3829" stroke="#a08f5c" stroke-width="3"/>
+<path d="M170,270 L330,250 L350,390 L190,400 Z" fill="#30301f" stroke="#8d7f55" stroke-width="3" stroke-dasharray="10 6"/>
+<path d="M300,430 L330,470 L290,500 L330,540 L295,575" fill="none" stroke="#cdbb86" stroke-width="5"/>
+<ellipse cx="1010" cy="770" rx="95" ry="50" fill="#35505e" opacity="0.8"/>
+<g font-family="Georgia, 'Times New Roman', serif" fill="#cdbb86" text-anchor="middle" letter-spacing="5" opacity="0.55">
+<text x="600" y="48" font-size="26">THE VALE</text>
+<text x="490" y="660" font-size="22">THE CITADEL</text>
+<text x="600" y="880" font-size="20">IAKOBOS RIVER</text>
+<text x="770" y="180" font-size="16" letter-spacing="3">RAVINE</text>
+</g>
+</svg>

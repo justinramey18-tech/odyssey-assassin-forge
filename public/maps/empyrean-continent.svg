@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" width="1600" height="1200" role="img" aria-label="An original app-drawn map of the Continent">
+<defs>
+<radialGradient id="sea" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#22303a"/><stop offset="1" stop-color="#11181e"/></radialGradient>
+<linearGradient id="land" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b3626"/><stop offset="1" stop-color="#2c2a20"/></linearGradient>
+<filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="4"/><feDisplacementMap in="SourceGraphic" scale="26"/></filter>
+</defs>
+<rect width="1600" height="1200" fill="url(#sea)"/>
+<g filter="url(#rough)">
+<path d="M1484,600 L1486,687 L1493,783 L1383,846 L1311,917 L1222,981 L1090,997 L989,1053 L865,1079 L733,1093 L625,1019 L503,1006 L415,947 L262,934 L193,856 L210,756 L63,694 L52,600 L103,511 L143,427 L250,368 L335,311 L382,223 L517,213 L622,173 L739,154 L858,172 L988,151 L1104,184 L1241,202 L1312,282 L1401,346 L1443,430 L1498,511 Z" fill="url(#land)" stroke="#6b5f3c" stroke-width="3"/>
+<path d="M1586,640 L1581,748 L1553,848 L1510,935 L1445,972 L1380,1003 L1325,918 L1263,905 L1201,855 L1183,746 L1161,640 L1207,547 L1219,447 L1270,389 L1318,323 L1380,304 L1435,363 L1490,391 L1533,456 L1589,528 Z" fill="#34281f" opacity="0.85"/>
+<path d="M1082,1120 L1092,1144 L1050,1149 L1020,1163 L991,1149 L966,1138 L936,1120 L966,1102 L983,1083 L1020,1081 L1054,1086 L1081,1100 Z" fill="url(#land)" stroke="#6b5f3c" stroke-width="2"/>
+<path d="M1239,1140 L1231,1154 L1211,1162 L1190,1174 L1170,1161 L1147,1155 L1132,1140 L1154,1128 L1164,1113 L1190,1109 L1210,1119 L1231,1126 Z" fill="url(#land)" stroke="#6b5f3c" stroke-width="2"/>
+<path d="M901,1150 L894,1163 L881,1173 L860,1173 L837,1175 L821,1165 L818,1150 L830,1139 L840,1127 L860,1126 L878,1130 L901,1135 Z" fill="url(#land)" stroke="#6b5f3c" stroke-width="2"/>
+</g>
+<g fill="none" stroke="#8d7f55" stroke-width="2.2" stroke-linejoin="round" opacity="0.9">
+<path d="M878,241 L895,214 L912,241" />
+<path d="M928,258 L942,235 L957,258" />
+<path d="M952,279 L968,254 L983,279" />
+<path d="M907,299 L925,271 L942,299" />
+<path d="M941,309 L960,279 L979,309" />
+<path d="M942,330 L963,296 L984,330" />
+<path d="M885,347 L905,317 L924,347" />
+<path d="M888,364 L907,335 L925,364" />
+<path d="M904,371 L925,338 L946,371" />
+<path d="M849,399 L870,365 L891,399" />
+<path d="M885,417 L902,390 L918,417" />
+<path d="M915,429 L937,395 L958,429" />
+<path d="M884,436 L899,413 L914,436" />
+<path d="M909,469 L927,441 L944,469" />
+<path d="M956,476 L974,447 L992,476" />
+<path d="M907,494 L926,464 L944,494" />
+<path d="M938,520 L957,489 L977,520" />
+<path d="M963,538 L985,503 L1007,538" />
+<path d="M895,543 L916,510 L937,543" />
+<path d="M915,571 L933,541 L951,571" />
+<path d="M919,578 L940,545 L961,578" />
+<path d="M861,592 L875,569 L889,592" />
+<path d="M889,620 L903,597 L917,620" />
+<path d="M917,628 L932,605 L947,628" />
+<path d="M859,655 L880,621 L901,655" />
+<path d="M901,665 L915,643 L929,665" />
+<path d="M948,682 L969,648 L990,682" />
+<path d="M912,702 L934,667 L956,702" />
+<path d="M933,710 L952,681 L971,710" />
+<path d="M954,728 L971,701 L988,728" />
+<path d="M908,743 L922,721 L936,743" />
+<path d="M918,767 L940,732 L961,767" />
+<path d="M934,783 L951,755 L969,783" />
+<path d="M860,805 L879,775 L898,805" />
+<path d="M412,151 L425,131 L438,151" />
+<path d="M444,163 L457,142 L470,163" />
+<path d="M491,177 L506,152 L522,177" />
+<path d="M514,160 L526,140 L539,160" />
+<path d="M548,140 L559,121 L571,140" />
+<path d="M593,151 L609,126 L624,151" />
+<path d="M628,149 L640,129 L652,149" />
+<path d="M655,172 L671,147 L686,172" />
+<path d="M695,166 L710,143 L724,166" />
+<path d="M728,163 L739,144 L751,163" />
+<path d="M753,146 L769,119 L786,146" />
+</g>
+<polyline points="300,760 360,735 440,742 520,770 600,800 650,850 690,910" fill="none" stroke="#a08f5c" stroke-width="5" stroke-dasharray="3 7" opacity="0.8"/>
+<path d="M560,300 C590,380 540,450 580,520 S520,640 470,700" fill="none" stroke="#4d7186" stroke-width="4" opacity="0.8"/>
+<path d="M1040,330 C1100,420 1060,520 1130,600 S1200,760 1160,860" fill="none" stroke="#4d7186" stroke-width="3" opacity="0.6"/>
+<g font-family="Georgia, 'Times New Roman', serif" fill="#cdbb86" text-anchor="middle" letter-spacing="10">
+<text x="470" y="250" font-size="54" opacity="0.5">NAVARRE</text>
+<text x="1160" y="300" font-size="54" opacity="0.5">POROMIEL</text>
+<text x="400" y="960" font-size="34" opacity="0.5">TYRRENDOR</text>
+<text x="1385" y="650" font-size="30" opacity="0.45" transform="rotate(90 1385 650)">THE BARRENS</text>
+<text x="150" y="120" font-size="26" opacity="0.4" letter-spacing="6" fill="#8fb0c2">EMERALD SEA</text>
+<text x="1010" y="560" font-size="22" opacity="0.5" letter-spacing="5" transform="rotate(80 1010 560)">ESBEN MOUNTAINS</text>
+<text x="560" y="725" font-size="18" opacity="0.5" letter-spacing="4" transform="rotate(14 560 725)">CLIFFS OF DRALOR</text>
+<text x="1040" y="1185" font-size="20" opacity="0.4" letter-spacing="5">THE ISLES</text>
+</g>
+<g transform="translate(1480,1080)" stroke="#cdbb86" fill="none" opacity="0.6" stroke-width="2"><circle r="34"/><path d="M0,-46 L8,0 L0,46 L-8,0 Z M-46,0 L0,-8 L46,0 L0,8 Z" fill="#cdbb86" opacity="0.5"/><text y="-54" text-anchor="middle" font-family="Georgia, serif" font-size="20" fill="#cdbb86" stroke="none">N</text></g>
+</svg>
