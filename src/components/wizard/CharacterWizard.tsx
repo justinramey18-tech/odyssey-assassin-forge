@@ -346,7 +346,7 @@ export function CharacterWizard({
               <p className="text-[10px] text-muted-foreground pl-13">
                 Answer questions and get a custom character built for you
               </p>
-            </Button>
+            </button>
 
             {/* Become a Dragon Rider (solo Empyrean) */}
             <Button variant="outline"
