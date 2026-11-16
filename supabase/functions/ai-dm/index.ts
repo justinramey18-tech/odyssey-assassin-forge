@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { outputBudget } from "./output-budget.ts";
 import { BATTLE_REMINDER, BATTLE_RULE, loadBattleDossier } from "./battle.ts";
 
 const corsHeaders = {
@@ -1182,7 +1183,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: perplexityModelId,
-          max_tokens: maxTokens || 16000,
+          max_tokens: outputBudget(maxTokens),
           messages: [
             { role: "system", content: systemPrompt },
             ...trimmedMessages,
@@ -1223,7 +1224,7 @@ serve(async (req) => {
           userApiKey: user_openai_key.trim(),
           systemPrompt,
           messages: trimmedMessages,
-          maxTokens: maxTokens || 16000,
+          maxTokens: outputBudget(maxTokens),
           model: openaiDirectModelId,
         });
         return new Response(streamResponse.body, {
@@ -1255,7 +1256,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: xaiModelId,
-          max_tokens: maxTokens || 16000,
+          max_tokens: outputBudget(maxTokens),
           messages: [
             { role: "system", content: systemPrompt },
             ...trimmedMessages,
@@ -1305,7 +1306,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: veniceModelId,
-          max_tokens: maxTokens || 16000,
+          max_tokens: outputBudget(maxTokens),
           messages: [
             { role: "system", content: systemPrompt },
             ...trimmedMessages,
@@ -1369,7 +1370,7 @@ serve(async (req) => {
           ...trimmedMessages,
         ],
         stream: true,
-        max_tokens: maxTokens || 16000,
+        max_tokens: outputBudget(maxTokens),
       }),
     });
 
