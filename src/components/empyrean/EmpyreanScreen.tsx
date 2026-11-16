@@ -9,7 +9,12 @@ import { ArcPlannerWizard } from '@/components/empyrean/ArcPlannerWizard';
 import { SessionPlannerWizard } from '@/components/empyrean/SessionPlannerWizard';
 import { EmpyreanCampaignSetup } from '@/components/empyrean/EmpyreanCampaignSetup';
 import { EmpyreanDMScreen } from '@/components/empyrean/EmpyreanDMScreen';
-import { EmpyreanAICampaignSetup } from '@/components/empyrean/EmpyreanAICampaignSetup';
+import { EmpyreanOnboardingChat } from '@/components/empyrean/EmpyreanOnboardingChat';
+import {
+  applyEmpyreanSetup, campaignLoreText, missingCanonGuides, readLaunch, riderSummary, saveLaunch, setLaunchStage,
+  type OnboardingResult,
+} from '@/lib/empyrean-onboarding';
+import { EMPYREAN_LORE_GUIDES } from '@/lib/empyreanGMGuides';
 import { loadEmpyreanDMConfig, loadEmpyreanOpeningScene, EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { CharacterContext } from '@/components/oracle/types';
 import { EMPYREAN_FEATURE_FLAGS } from '@/lib/empyreanFeatureFlags';
@@ -29,7 +34,7 @@ interface EmpyreanScreenProps {
     getCurrentHP: () => number;
     getCurrentGold: () => number;
   };
-  autoOpen?: 'manual' | null;
+  autoOpen?: 'manual' | 'launch' | null;
   onAutoOpenConsumed?: () => void;
 }
 
@@ -83,6 +88,29 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
     return saved || null;
   });
   const [showAISetup, setShowAISetup] = useState(false);
+  // The first scene of a campaign the Empyrean Guide just built: start it as a fresh campaign.
+  const [freshStart, setFreshStart] = useState(false);
+
+  // Install the canon guides a campaign needs (the ones already installed stay as they are),
+  // then open the first scene.
+  const startBuiltCampaign = useCallback((openingScene: string) => {
+    const missing = missingCanonGuides(guides.map(g => g.id));
+    if (missing.length) addGuides(missing);
+    setEmpyreanConfig(loadEmpyreanDMConfig());
+    setPendingPrompt(openingScene);
+    setFreshStart(true);
+    setLaunchStage('open');
+    setShowDM(true);
+  }, [guides, addGuides]);
+
+  // "New campaign" from the Empyrean Guide, for the rider who already exists.
+  const handleCampaignBegin = useCallback((result: OnboardingResult) => {
+    if (result.kind !== 'campaign') return;
+    applyEmpyreanSetup(result.empyrean, result.campaign, characterName, loadEmpyreanDMConfig());
+    saveLaunch(characterName, result.empyrean, result.campaign, 'ready');
+    setShowAISetup(false);
+    startBuiltCampaign(result.campaign.openingScene);
+  }, [characterName, startBuiltCampaign]);
 
   // Reload config when screen opens
   useEffect(() => {
@@ -100,6 +128,14 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
       onAutoOpenConsumed?.();
     }
   }, [open, autoOpen, onAutoOpenConsumed]);
+
+  // A new rider from "Become a Dragon Rider" was just saved and set up: start its first scene.
+  useEffect(() => {
+    if (!open || autoOpen !== 'launch') return;
+    onAutoOpenConsumed?.();
+    const note = readLaunch();
+    if (note && note.stage === 'ready') startBuiltCampaign(note.campaign.openingScene);
+  }, [open, autoOpen, onAutoOpenConsumed, startBuiltCampaign]);
 
   // Re-read config/opening-scene whenever the DM sub-screen closes.
   // This catches New Campaign wipes even when React batches the close + config-clear updates.
@@ -159,7 +195,7 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
                   <div className="text-left min-w-0">
                     <p className="text-base font-cinzel font-bold text-purple-300">Launch with AI</p>
                     <p className="text-[11px] text-muted-foreground">
-                      Talk through your rider, dragon, signet, and focus — the Herald handles the rest.
+                      The Empyrean Guide builds your campaign with you: dragon, signet, focus, where it starts and the first scene.
                     </p>
                   </div>
                 </button>
@@ -324,28 +360,30 @@ export function EmpyreanScreen({ open, onClose, characterName, characterContext,
         }}
         initialConfig={empyreanConfig}
       />
-      <EmpyreanAICampaignSetup
-        open={showAISetup}
-        onClose={() => setShowAISetup(false)}
-        characterName={characterName}
-        onLaunch={(config, openingPrompt) => {
-          setEmpyreanConfig(config);
-          setPendingPrompt(openingPrompt);
-          setShowAISetup(false);
-          setShowDM(true);
-        }}
-      />
+      {showAISetup && (
+        <EmpyreanOnboardingChat
+          mode="campaign"
+          layer="z-[70]"
+          characterName={characterName}
+          getLore={() => campaignLoreText(guides, EMPYREAN_LORE_GUIDES.map(g => g.id))}
+          getRider={() => riderSummary(characterName, characterContext, loadEmpyreanDMConfig())}
+          onBegin={handleCampaignBegin}
+          onClose={() => setShowAISetup(false)}
+        />
+      )}
       <EmpyreanDMScreen
         open={showDM}
         onClose={() => {
           setShowDM(false);
           setPendingPrompt(null);
+          setFreshStart(false);
           // Re-read from storage to catch New Campaign wipes
           setEmpyreanConfig(loadEmpyreanDMConfig());
         }}
         characterContext={characterContext}
         characterName={characterName}
         initialMessage={pendingPrompt}
+        startFresh={freshStart}
         autoSyncCallbacks={autoSyncCallbacks}
       />
     </div>

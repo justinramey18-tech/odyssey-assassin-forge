@@ -209,6 +209,9 @@ interface HomeScreenProps {
   onAutoOpenPartyDMHandled?: () => void;
   autoOpenSoloDM?: boolean;
   onAutoOpenSoloDMHandled?: () => void;
+  /** A new rider from "Become a Dragon Rider" is saved: open the Empyrean hub, which starts the first scene. */
+  autoOpenEmpyreanLaunch?: boolean;
+  onAutoOpenEmpyreanLaunchHandled?: () => void;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
     onUseConsumableByName?: (name: string, quantity?: number) => boolean;
@@ -318,6 +321,8 @@ export function HomeScreen({
   onAutoOpenPartyDMHandled,
   autoOpenSoloDM = false,
   onAutoOpenSoloDMHandled,
+  autoOpenEmpyreanLaunch = false,
+  onAutoOpenEmpyreanLaunchHandled,
   autoSyncCallbacks,
 }: HomeScreenProps) {
   // Default visibility: show everything if no filter provided
@@ -374,7 +379,7 @@ export function HomeScreen({
   const enterStoryVideoRef = useRef<HTMLVideoElement>(null);
   const enterStoryBackgroundRef = useRef<HTMLDivElement>(null);
   const [enterStoryVideoFailed, setEnterStoryVideoFailed] = useState(false);
-  const [empyreanScreenAutoOpen, setEmpyreanScreenAutoOpen] = useState<'manual' | null>(null);
+  const [empyreanScreenAutoOpen, setEmpyreanScreenAutoOpen] = useState<'manual' | 'launch' | null>(null);
   const [bgReady, setBgReady] = useState(false);
   const [stage, setStage] = useState(0);
   const sequenceStartedRef = useRef(false);
@@ -633,6 +638,15 @@ export function HomeScreen({
       onAutoOpenPartyDMHandled?.();
     }
   }, [autoOpenPartyDM, drawerContext, onAutoOpenPartyDMHandled]);
+
+  // A new rider from "Become a Dragon Rider": the hub opens and starts the first scene.
+  useEffect(() => {
+    if (autoOpenEmpyreanLaunch && drawerContext) {
+      setEmpyreanScreenAutoOpen('launch');
+      setShowEmpyreanScreen(true);
+      onAutoOpenEmpyreanLaunchHandled?.();
+    }
+  }, [autoOpenEmpyreanLaunch, drawerContext, onAutoOpenEmpyreanLaunchHandled]);
 
   // Auto-open Solo DM when selected from onboarding
   useEffect(() => {

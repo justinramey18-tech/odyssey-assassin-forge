@@ -22,6 +22,8 @@ export interface SoloMapOptions {
   travel: (action: 'launch' | 'sync' | 'cancel', extra?: Record<string, unknown>) => Promise<boolean>;
   /** What the server needs to write a journey encounter while the app is closed. */
   getJourneyContext: () => { dmContext: string; dmModel?: string };
+  /** Where a brand-new campaign's starter map puts the rider (default Basgiath). Read once, when the starter map is installed. */
+  getStartLocationId?: () => string | null;
 }
 
 function makeSoloStore(travelRef: { current: SoloMapOptions['travel'] }, ctxRef: { current: SoloMapOptions['getJourneyContext'] }): CampaignMapStore {
@@ -68,6 +70,7 @@ export function useSoloCampaignMap(opts: SoloMapOptions) {
 
   const travelRef = useRef(opts.travel); travelRef.current = opts.travel;
   const ctxRef = useRef(opts.getJourneyContext); ctxRef.current = opts.getJourneyContext;
+  const startRef = useRef(opts.getStartLocationId); startRef.current = opts.getStartLocationId;
   const store = useMemo(() => makeSoloStore(travelRef, ctxRef), []);
   const campaignId = opts.enabled && userId ? opts.campaignId : null;
   const map = usePartyCampaignMap(campaignId, userId, store);
@@ -89,7 +92,7 @@ export function useSoloCampaignMap(opts: SoloMapOptions) {
     if (!campaignId || loading || rawState || !hostUserId || hostUserId !== userId || triedRef.current === campaignId) return;
     triedRef.current = campaignId;
     (async () => {
-      const starter = buildEmpyreanStarterAtlas(campaignId);
+      const starter = buildEmpyreanStarterAtlas(campaignId, { startLocationId: startRef.current?.() ?? null });
       const { error } = await store.writeAtlas(campaignId, starter.atlas, null);
       if (!error) {
         await (supabase as any).from(SOLO_GUIDE_TABLE).insert(starter.guides.map(g => ({

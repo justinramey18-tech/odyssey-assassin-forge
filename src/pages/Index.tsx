@@ -103,6 +103,7 @@ import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
 import { resetAllAppData, repairXPData } from '@/lib/resetApp';
 import { shouldLandInPartyTable } from '@/lib/party-landing';
 import { readPendingAiCharacter, clearPendingAiCharacter, setWizardOpen } from '@/lib/creation-guard';
+import { applyPendingLaunch, readLaunch } from '@/lib/empyrean-onboarding';
 import { calculateMaxHP } from '@/lib/hpCalculation';
 import { scoreToModifier } from '@/lib/abilityScores/types';
 import { getConcentrationCheckDC } from '@/lib/magic/calculations';
@@ -263,6 +264,8 @@ const Index = () => {
 
   // App mode system
   const appMode = useAppMode();
+  const appModeRef = useRef(appMode);
+  appModeRef.current = appMode;
 
   const [showWizard, setShowWizard] = useState(true);
   // Keep the creation-guard's wizard-open flag in sync so the app knows not to
@@ -279,6 +282,8 @@ const Index = () => {
   const [openPartyChatRequested, setOpenPartyChatRequested] = useState(false);
   const [autoOpenPartyDM, setAutoOpenPartyDM] = useState(false);
   const [autoOpenSoloDM, setAutoOpenSoloDM] = useState(false);
+  // "Become a Dragon Rider": open the new rider's first Empyrean scene once the rider is saved.
+  const [autoOpenEmpyreanLaunch, setAutoOpenEmpyreanLaunch] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | null>(null);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [activeCloudSaveId, setActiveCloudSaveId] = useState<string | null>(() => {
@@ -2307,8 +2312,21 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
 
     setShowWizard(false);
-    // Show mode selection screen
-    setShowIntroSplash(true);
+    // A rider from "Become a Dragon Rider" goes straight to its first scene; others see the mode screen.
+    const pendingLaunch = readLaunch();
+    const empyreanLaunch = pendingLaunch?.stage === 'pending' && pendingLaunch.characterName === wizardState.name;
+    setShowIntroSplash(!empyreanLaunch);
+    // Once the rider is saved (or the save has failed and been reported), apply its campaign
+    // setup to it and open the first scene. Runs once.
+    let launched = false;
+    const openEmpyreanLaunch = () => {
+      if (launched || !empyreanLaunch) return;
+      launched = true;
+      if (applyPendingLaunch()) {
+        appModeRef.current.setAppMode('empyrean');
+        setAutoOpenEmpyreanLaunch(true);
+      }
+    };
     // Dispatch event so homebrew hooks re-initialize with saved content
     setTimeout(() => {
       window.dispatchEvent(new Event('odyssey-character-loaded'));
@@ -2324,6 +2342,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     const reportFailure = () => {
       if (settled) return;
       settled = true;
+      openEmpyreanLaunch();
       // Keep the pending backup on failure, so reopening the app re-applies
       // and re-saves the character.
       toast({
@@ -2349,6 +2368,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           clearPendingAiCharacter();
           isCreatingNewCharacter.current = false;
           console.log('[AICreation] Cloud save confirmed');
+          openEmpyreanLaunch();
         })
         .catch((err) => {
           console.error('[AICreation] Cloud save failed:', err);
@@ -3570,6 +3590,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
           onAutoOpenPartyDMHandled={() => setAutoOpenPartyDM(false)}
           autoOpenSoloDM={autoOpenSoloDM}
           onAutoOpenSoloDMHandled={() => setAutoOpenSoloDM(false)}
+          autoOpenEmpyreanLaunch={autoOpenEmpyreanLaunch}
+          onAutoOpenEmpyreanLaunchHandled={() => setAutoOpenEmpyreanLaunch(false)}
           autoSyncCallbacks={autoSyncCallbacks}
         />
         

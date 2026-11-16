@@ -118,6 +118,7 @@ import { removeScopedItem } from '@/lib/scoped-storage';
 import { useEmpyreanRules, type EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
 import { useSoloCampaignMap } from '@/hooks/use-solo-campaign-map';
 import { buildGameFacts, checkRisk, parseFightOffer, signetStrainCost, type FightView } from '@/lib/empyrean-rules-client';
+import { clearLaunch, readLaunch } from '@/lib/empyrean-onboarding';
 import { useSoloFight, type FightStart } from '@/hooks/use-solo-fight';
 import { SoloBattleScreen, buildFightSheet } from '@/components/empyrean/SoloBattleScreen';
 import { SoloFightSetupSheet } from '@/components/empyrean/SoloFightSetupSheet';
@@ -158,6 +159,8 @@ interface EmpyreanDMScreenProps {
   characterContext: CharacterContext;
   characterName: string;
   initialMessage?: string | null;
+  /** The opening message starts a brand-new campaign (any campaign open on this phone is set aside first). */
+  startFresh?: boolean;
   autoSyncCallbacks?: {
     onHPChange: (change: number, type: 'damage' | 'healing') => void;
     onUseConsumableByName?: (name: string, quantity?: number) => boolean;
@@ -269,6 +272,7 @@ export function EmpyreanDMScreen({
   characterContext,
   characterName,
   initialMessage,
+  startFresh = false,
   autoSyncCallbacks,
   embedded = false,
   swipeHandlers,
@@ -1090,7 +1094,21 @@ ${oocLines}`;
   const rulesTravelRef = useRef<EmpyreanRulesApi['travel']>(async () => false);
   const journeyContextRef = useRef<() => { dmContext: string; dmModel?: string }>(() => ({ dmContext: '' }));
   const fightResultRef = useRef<Record<string, any> | null>(null);
+  // A campaign the Empyrean Guide built carries where it starts and the random-events setting
+  // (read once from the launch note; the note is cleared once the setting is applied).
+  // Read when the screen opens: the hub marks the note 'open' just before it opens this screen.
+  const launchRef = useRef<ReturnType<typeof readLaunch>>(null);
+  const startPlaceRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const note = readLaunch();
+    if (note?.stage === 'open') {
+      launchRef.current = note;
+      startPlaceRef.current = note.campaign.startLocationId;
+    }
+  }, [open]);
   const soloMap = useSoloCampaignMap({
+    getStartLocationId: () => startPlaceRef.current,
     enabled: engineOn && open,
     campaignId: activeCampaignId,
     travel: (action, extra) => rulesTravelRef.current(action, extra),
@@ -1117,6 +1135,15 @@ ${oocLines}`;
     flying: soloMap.flying,
   });
   useEffect(() => { rulesRef.current = rules; rulesTravelRef.current = rules.travel; });
+
+  // The Empyrean Guide's random-events choice, applied once the new campaign's engine is on.
+  useEffect(() => {
+    const note = launchRef.current;
+    if (!note || note.stage !== 'open' || !rules.active || !rules.snapshot) return;
+    launchRef.current = null;
+    if (rules.snapshot.rules.eventLevel !== note.campaign.events) void rules.setEvents(note.campaign.events);
+    clearLaunch();
+  }, [rules.active, rules.snapshot, rules]);
 
   // ─── Solo fights (the server referees them in real time; see use-solo-fight) ───
   const [fightSetup, setFightSetup] = useState<'spar' | 'fight' | null>(null);
@@ -1321,6 +1348,11 @@ ${oocLines}`;
 
   // Auto-send initial message from prompt library
   useEffect(() => {
+    // A campaign the Empyrean Guide just built starts fresh, even if an older one is open here.
+    if (open && initialMessage && !initialSent && startFresh && messages.length > 0) {
+      newGame();
+      return;
+    }
     if (open && initialMessage && !initialSent && messages.length === 0) {
       const timer = setTimeout(() => {
         sendMessage(initialMessage);
@@ -1328,7 +1360,7 @@ ${oocLines}`;
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [open, initialMessage, initialSent, messages.length, sendMessage]);
+  }, [open, initialMessage, initialSent, messages.length, sendMessage, startFresh, newGame]);
 
   // Reset initialSent when screen closes
   useEffect(() => {
