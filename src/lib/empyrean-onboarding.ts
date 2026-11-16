@@ -12,7 +12,7 @@ import { EMPYREAN_CANON_GUIDES, EMPYREAN_CANON_GUIDE_IDS } from '@/lib/empyreanG
 import { BASGIATH_PLACES, CONTINENT_PLACES, STARTER_START_IDS } from '@/lib/empyreanCanon/continentMap';
 import { saveDragonNotes, saveEmpyreanDMConfig, saveEmpyreanOpeningScene, type CampaignFocus, type EmpyreanDMConfig } from '@/lib/empyreanDMPersona';
 import { DEFAULT_BOND, DEFAULT_TRUST, saveBondState, setIsUnbonded } from '@/lib/dragonBondState';
-import { setScopedItem } from '@/lib/scoped-storage';
+import { migrateToScoped, setScopedItem } from '@/lib/scoped-storage';
 
 // ── the values the app accepts (the server's prompt.ts lists the same ones; a test checks) ──
 export const DRAGON_COLOR_IDS = ['deep-red', 'deep-blue', 'deep-purple', 'deep-gold', 'onyx', 'dark-green', 'silver', 'dark-orange', 'brown'] as const;
@@ -289,6 +289,61 @@ export function setLaunchStage(stage: EmpyreanLaunch['stage']): void {
 
 export function clearLaunch(): void {
   try { localStorage.removeItem(EMPYREAN_LAUNCH_KEY); } catch { /* ignore */ }
+}
+
+// ── the rider's save id (CL-068) ──
+// Per-character settings are stored under "key::saveId". A new rider gets its save id only when
+// its first cloud save comes back, so the launch must wait for it: settings written before that
+// land under the bare key, and only the keys in scoped-keys.ts move to the save afterwards.
+const ACTIVE_SAVE_ID_KEY = 'odyssey-active-cloud-save-id';
+
+export function activeSaveId(): string | null {
+  try { return localStorage.getItem(ACTIVE_SAVE_ID_KEY); } catch { return null; }
+}
+
+/** Resolves with the save id once there is one, or with null after maxMs (the save failed). */
+export function waitForSaveId(maxMs = 20000, stepMs = 250): Promise<string | null> {
+  return new Promise(resolve => {
+    const start = Date.now();
+    const check = () => {
+      const id = activeSaveId();
+      if (id || Date.now() - start >= maxMs) { resolve(id); return; }
+      window.setTimeout(check, stepMs);
+    };
+    check();
+  });
+}
+
+/** The per-character settings applyEmpyreanSetup writes. */
+export const EMPYREAN_SETUP_KEYS = [
+  'empyrean-dm-config',
+  'empyrean-dragon-notes',
+  'empyrean-dragon-bond-state',
+  'empyrean-opening-scene',
+  'empyrean-unbonded-status',
+  'odyssey-app-mode',
+] as const;
+
+/**
+ * Repair for riders launched before the fix: their Empyrean setup was written under the bare keys
+ * and the rider (now saved) can't see it. Moves it to the rider when it is this rider's (same
+ * name) and the rider has no setup of its own. Never touches another rider's settings.
+ */
+export function adoptStrandedEmpyreanSetup(characterName: string): boolean {
+  const id = activeSaveId();
+  const name = (characterName || '').trim().toLowerCase();
+  if (!id || !name) return false;
+  try {
+    if (localStorage.getItem(`empyrean-dm-config::${id}`) !== null) return false;
+    const raw = localStorage.getItem('empyrean-dm-config');
+    if (!raw) return false;
+    const config = JSON.parse(raw) as Partial<EmpyreanDMConfig> | null;
+    if ((config?.characterName || '').trim().toLowerCase() !== name) return false;
+    for (const key of EMPYREAN_SETUP_KEYS) migrateToScoped(key);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** After the new rider is saved: apply the campaign setup to it. True when a launch is waiting. */

@@ -103,7 +103,7 @@ import { getPrestigeAbilityById } from '@/lib/prestigeTree/abilities';
 import { resetAllAppData, repairXPData } from '@/lib/resetApp';
 import { shouldLandInPartyTable } from '@/lib/party-landing';
 import { readPendingAiCharacter, clearPendingAiCharacter, setWizardOpen } from '@/lib/creation-guard';
-import { applyPendingLaunch, readLaunch } from '@/lib/empyrean-onboarding';
+import { adoptStrandedEmpyreanSetup, applyPendingLaunch, readLaunch, waitForSaveId } from '@/lib/empyrean-onboarding';
 import { calculateMaxHP, calculateMulticlassMaxHP } from '@/lib/hpCalculation';
 import { scoreToModifier } from '@/lib/abilityScores/types';
 import { getConcentrationCheckDC } from '@/lib/magic/calculations';
@@ -1591,6 +1591,12 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     }
   }, [autoSync.lastCloudSyncTime, lastCloudSyncTime]);
 
+  // A rider launched before CL-068 had its Empyrean setup stored before it had a save id; give it
+  // back to that rider (same name only). Re-checked after each cloud save, which sets the id.
+  useEffect(() => {
+    adoptStrandedEmpyreanSetup(character.name);
+  }, [character.name, lastCloudSyncTime]);
+
   // Load auto-save on mount with XP repair
   useEffect(() => {
     const saved = loadAutoSave();
@@ -2326,10 +2332,13 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     const openEmpyreanLaunch = () => {
       if (launched || !empyreanLaunch) return;
       launched = true;
-      if (applyPendingLaunch()) {
-        appModeRef.current.setAppMode('empyrean');
-        setAutoOpenEmpyreanLaunch(true);
-      }
+      // The setup is stored per character: wait until the rider has its save id (CL-068).
+      void waitForSaveId().then(() => {
+        if (applyPendingLaunch()) {
+          appModeRef.current.setAppMode('empyrean');
+          setAutoOpenEmpyreanLaunch(true);
+        }
+      });
     };
     // Dispatch event so homebrew hooks re-initialize with saved content
     setTimeout(() => {
