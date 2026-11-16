@@ -10,9 +10,10 @@ import {
 import { convertLegacyToAtlas, createChildMap, enterChild, type CampaignAtlas } from '@/lib/campaign-atlas';
 
 export const CONTINENT_MAP_IMAGE = '/maps/empyrean-continent.svg';
-export const BASGIATH_MAP_IMAGE = '/maps/basgiath-grounds.svg';
+/** Painted art of the grounds (CL-072). The older app-drawn plan stays at /maps/basgiath-grounds.svg. */
+export const BASGIATH_MAP_IMAGE = '/maps/basgiath-grounds-art.webp';
 export const CONTINENT_IMAGE_SIZE = { width: 1600, height: 1200 };
-export const BASGIATH_IMAGE_SIZE = { width: 1200, height: 900 };
+export const BASGIATH_IMAGE_SIZE = { width: 1448, height: 1086 };
 /** Claude's call: canon gives no scale. Basgiath to Samara is "a day's flight". */
 export const CONTINENT_WIDTH_MILES = 1400;
 export const BASGIATH_WIDTH_YARDS = 1800;
@@ -46,20 +47,20 @@ export const CONTINENT_ROADS: Array<[string, string, number]> = [
 ];
 
 export const BASGIATH_PLACES: StarterPlace[] = [
-  { id: 'courtyard', name: 'The Courtyard', kind: 'landmark', x: 0.53, y: 0.59, note: 'A teardrop-shaped yard inside the Citadel, big enough for the whole quadrant in formation. A stone dais stands beside the opening to the Parapet.' },
-  { id: 'parapet', name: 'The Parapet', kind: 'landmark', x: 0.62, y: 0.63, note: 'A narrow stone bridge high above the ravine, with no rail, and the only opening in the Citadel wall. Every candidate crosses it on Conscription Day or falls.' },
-  { id: 'rotunda', name: 'The Dragon Rotunda', kind: 'landmark', x: 0.44, y: 0.5, note: 'A domed hall with six pillars carved as dragons, one for each color. It joins the academic wing, the dorms, the commons and the gathering hall.' },
-  { id: 'academic-wing', name: 'Academic Wing', kind: 'other', x: 0.4, y: 0.42, note: 'Four floors of classrooms. The Battle Brief room is here, with its great wall map of the Continent, and the sparring gym with its black mats is on the top floor.' },
-  { id: 'barracks', name: 'First-Year Barracks', kind: 'other', x: 0.49, y: 0.41, note: 'Rows of beds for unbonded first-years, with no privacy. Private dorm rooms come only after a cadet bonds.' },
-  { id: 'gathering-hall', name: 'Gathering Hall and Commons', kind: 'other', x: 0.41, y: 0.61, note: 'Where cadets eat, and where they talk when no leadership is listening. Rumors start and end here.' },
-  { id: 'forge', name: 'The Forge', kind: 'other', x: 0.33, y: 0.47, note: 'Below the tunnel to the flight field and heated by dragonfire. Alloy is smelted here and daggers are made. It is not open to cadets.' },
-  { id: 'gauntlet', name: 'The Gauntlet', kind: 'landmark', x: 0.26, y: 0.56, note: 'A near-vertical obstacle course cut into the ridge. It leads up to the flight field, and first-years must finish it before Presentation.' },
-  { id: 'flight-field', name: 'The Flight Field', kind: 'landmark', x: 0.215, y: 0.36, note: 'A box canyon with peaks on three sides where dragons land and riders mount. Unbonded cadets and non-riders are not allowed here.' },
-  { id: 'vale', name: 'The Vale', kind: 'region', x: 0.5, y: 0.06, note: 'The dragons\' own valley behind the college, where eggs are laid and hatchlings are kept safe. Cadets never enter it. Trespassing is a quick way to die.' },
-  { id: 'infirmary', name: 'Healer Quadrant and Infirmary', kind: 'other', x: 0.755, y: 0.45, note: 'Reached from the Citadel by a covered bridge over the ravine. A long hall of beds; menders work here when the wound is worth their strength.' },
-  { id: 'archives', name: 'Scribe Quadrant and the Archives', kind: 'other', x: 0.72, y: 0.74, note: 'The kingdom\'s records, kept underground by the scribes. The Archives are sealed each evening by wards that harm anyone left inside.' },
-  { id: 'administration', name: 'Administration', kind: 'other', x: 0.59, y: 0.82, note: 'The command offices, looking out over the fields. The commanding general of Basgiath works here.' },
-  { id: 'lake', name: 'The Lake', kind: 'landmark', x: 0.84, y: 0.855, note: 'A quiet lake below the college where cadets swim on a free day. One of the few places a conversation is hard to overhear.' },
+  { id: 'courtyard', name: 'The Courtyard', kind: 'landmark', x: 0.54, y: 0.57, note: 'A teardrop-shaped yard inside the Citadel, big enough for the whole quadrant in formation. A stone dais stands beside the opening to the Parapet.' },
+  { id: 'parapet', name: 'The Parapet', kind: 'landmark', x: 0.655, y: 0.59, note: 'A narrow stone bridge high above the ravine, with no rail, and the only opening in the Citadel wall. Every candidate crosses it on Conscription Day or falls.' },
+  { id: 'rotunda', name: 'The Dragon Rotunda', kind: 'landmark', x: 0.425, y: 0.495, note: 'A domed hall with six pillars carved as dragons, one for each color. It joins the academic wing, the dorms, the commons and the gathering hall.' },
+  { id: 'academic-wing', name: 'Academic Wing', kind: 'other', x: 0.39, y: 0.41, note: 'Four floors of classrooms. The Battle Brief room is here, with its great wall map of the Continent, and the sparring gym with its black mats is on the top floor.' },
+  { id: 'barracks', name: 'First-Year Barracks', kind: 'other', x: 0.51, y: 0.385, note: 'Rows of beds for unbonded first-years, with no privacy. Private dorm rooms come only after a cadet bonds.' },
+  { id: 'gathering-hall', name: 'Gathering Hall and Commons', kind: 'other', x: 0.4, y: 0.615, note: 'Where cadets eat, and where they talk when no leadership is listening. Rumors start and end here.' },
+  { id: 'forge', name: 'The Forge', kind: 'other', x: 0.265, y: 0.465, note: 'Below the tunnel to the flight field and heated by dragonfire. Alloy is smelted here and daggers are made. It is not open to cadets.' },
+  { id: 'gauntlet', name: 'The Gauntlet', kind: 'landmark', x: 0.15, y: 0.58, note: 'A near-vertical obstacle course cut into the ridge. It leads up to the flight field, and first-years must finish it before Presentation.' },
+  { id: 'flight-field', name: 'The Flight Field', kind: 'landmark', x: 0.2, y: 0.28, note: 'A box canyon with peaks on three sides where dragons land and riders mount. Unbonded cadets and non-riders are not allowed here.' },
+  { id: 'vale', name: 'The Vale', kind: 'region', x: 0.5, y: 0.04, note: 'The dragons\' own valley behind the college, where eggs are laid and hatchlings are kept safe. Cadets never enter it. Trespassing is a quick way to die.' },
+  { id: 'infirmary', name: 'Healer Quadrant and Infirmary', kind: 'other', x: 0.84, y: 0.355, note: 'Reached from the Citadel by a covered bridge over the ravine. A long hall of beds; menders work here when the wound is worth their strength.' },
+  { id: 'archives', name: 'Scribe Quadrant and the Archives', kind: 'other', x: 0.8, y: 0.555, note: 'The kingdom\'s records, kept underground by the scribes. The Archives are sealed each evening by wards that harm anyone left inside.' },
+  { id: 'administration', name: 'Administration', kind: 'other', x: 0.59, y: 0.77, note: 'The command offices, looking out over the fields. The commanding general of Basgiath works here.' },
+  { id: 'lake', name: 'The Lake', kind: 'landmark', x: 0.855, y: 0.775, note: 'A quiet lake below the college where cadets swim on a free day. One of the few places a conversation is hard to overhear.' },
 ];
 
 const place = (p: StarterPlace): CampaignMapLocation => ({
@@ -107,7 +108,8 @@ export function buildEmpyreanStarterAtlas(campaignId: string, opts: { campaignMi
     locations: BASGIATH_PLACES.map(place), routes: [], currentLocationId: 'courtyard', travelScale: 'city', defaultPace: 'normal',
   });
   let n = 0;
-  grounds = { ...grounds, routes: suggestStreets(grounds, () => `path-${++n}`, 2) };
+  // The painted art shows the paths, so the app only draws a street when it is chosen or walked (CL-072).
+  grounds = { ...grounds, routes: suggestStreets(grounds, () => `path-${++n}`, 2).map(r => ({ ...r, overlayMode: 'background' as const })) };
 
   let atlas: CampaignAtlas = convertLegacyToAtlas(world, campaignId, 'The Continent', rootMapId);
   const withChild = createChildMap(atlas, rootMapId, 'basgiath', {

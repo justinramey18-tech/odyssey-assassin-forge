@@ -59,3 +59,22 @@ describe('Empyrean starter map', () => {
     expect(built.guides.every(g => g.content.length <= 30000 && g.name.length <= 120)).toBe(true);
   });
 });
+
+describe('Basgiath painted art (CL-072)', () => {
+  it('uses the painted grounds at their real size; the paths stay hidden until chosen; it survives a save', () => {
+    const built = buildEmpyreanStarterAtlas('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', { makeId });
+    const parsed = parseAtlas(JSON.parse(JSON.stringify(built.atlas)));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error('atlas did not parse');
+    const grounds = projectActive(parsed.value);
+    expect(grounds.imageUrl).toBe('/maps/basgiath-grounds-art.webp');
+    expect([grounds.imageNaturalWidth, grounds.imageNaturalHeight]).toEqual([1448, 1086]);
+    expect(grounds.mapCalibration?.imageWidth).toBe(1448);
+    expect(grounds.routes.length).toBeGreaterThan(0);
+    expect(grounds.routes.every(r => r.overlayMode === 'background')).toBe(true);
+    for (const p of BASGIATH_PLACES) {
+      expect(p.x).toBeGreaterThan(0.02); expect(p.x).toBeLessThan(0.98);
+      expect(p.y).toBeGreaterThan(0.02); expect(p.y).toBeLessThan(0.98);
+    }
+  });
+});
