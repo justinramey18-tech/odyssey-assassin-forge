@@ -117,7 +117,10 @@ import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { removeScopedItem } from '@/lib/scoped-storage';
 import { useEmpyreanRules, type EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
 import { useSoloCampaignMap } from '@/hooks/use-solo-campaign-map';
-import { buildGameFacts, checkRisk, signetStrainCost } from '@/lib/empyrean-rules-client';
+import { buildGameFacts, checkRisk, parseFightOffer, signetStrainCost, type FightView } from '@/lib/empyrean-rules-client';
+import { useSoloFight, type FightStart } from '@/hooks/use-solo-fight';
+import { SoloBattleScreen, buildFightSheet } from '@/components/empyrean/SoloBattleScreen';
+import { SoloFightSetupSheet } from '@/components/empyrean/SoloFightSetupSheet';
 import { EmpyreanCampSheet, EmpyreanEngineButtons } from '@/components/empyrean/EmpyreanCampSheet';
 import { CampaignMapPanel } from '@/components/ai-dm/CampaignMapPanel';
 
@@ -254,6 +257,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--BOND_AMENDS:.+?-->/g, '')
     .replace(/<!--DRAGON_BOND_FORMED-->/g, '')
     .replace(/<!--THRESHING_AUTHORIZED:.+?-->/g, '')
+    .replace(/<!--FIGHT:[^>]*?-->/gi, '')
     .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -543,6 +547,9 @@ UNBONDED RIDER RULES:
     const r = rulesRef.current;
     if (r?.active) r.storyReward('gold', netChange, 'Story'); else autoSyncCallbacks?.onGoldChange?.(netChange);
   }, [autoSyncCallbacks]);
+  // A fight's damage is applied by the app when the fight ends. The DM reply that narrates that
+  // result (the reply to a message carrying the FIGHT RESULT line) must not apply it a second time.
+  const storyMessagesRef = useRef<Array<{ role: string; content?: string | null }>>([]);
   const syncRestOccurred = useCallback((type: 'short' | 'long') => {
     if (rulesRef.current?.active) toast(`The story mentions a ${type} rest`, { description: 'Open Camp (the tent) to take it, so the clock and your wounds keep up.', icon: '⛺' });
     else autoSyncCallbacks?.onRestOccurred?.(type);
@@ -749,7 +756,9 @@ ${oocLines}`;
     onMessageComplete: (content: string) => {
       if (autoSync.autoSyncEnabled) {
         // Items the DM awards wait in the loot review instead of being dropped.
-        autoSync.extractAndApply(content, empyreanCharacterContext).then(result => {
+        const lastSent = [...storyMessagesRef.current].reverse().find(m => m.role === 'user');
+        const fightAlreadyApplied = String(lastSent?.content ?? '').includes('[FIGHT RESULT');
+        autoSync.extractAndApply(content, empyreanCharacterContext, { fightAlreadyApplied }).then(result => {
           if (result?.items_acquired?.length) {
             addPendingDmItems(result.items_acquired);
             toast('Loot to review', { description: 'Tap the bag at the top to accept or discard it.', icon: '🎒' });
@@ -898,6 +907,7 @@ ${oocLines}`;
       }
     },
   });
+  storyMessagesRef.current = messages;
 
   // ─── Loot review + bookmark ──────────────────────────────────────────────
   const [lootOpen, setLootOpen] = useState(false);
@@ -1079,6 +1089,7 @@ ${oocLines}`;
   const [mapOpen, setMapOpen] = useState(false);
   const rulesTravelRef = useRef<EmpyreanRulesApi['travel']>(async () => false);
   const journeyContextRef = useRef<() => { dmContext: string; dmModel?: string }>(() => ({ dmContext: '' }));
+  const fightResultRef = useRef<Record<string, any> | null>(null);
   const soloMap = useSoloCampaignMap({
     enabled: engineOn && open,
     campaignId: activeCampaignId,
@@ -1102,9 +1113,96 @@ ${oocLines}`;
     onDmPost: (id, content) => { if (isLoading) return false; addAssistantMessage(content, id); return true; },
     onDragonTrust: (delta, reason) => dragonBond.processQuestReward(0, delta, reason),
     onMapChanged: () => { void soloMap.map.reload(); },
+    onFightResult: (payload) => { fightResultRef.current = payload; },
     flying: soloMap.flying,
   });
   useEffect(() => { rulesRef.current = rules; rulesTravelRef.current = rules.travel; });
+
+  // ─── Solo fights (the server referees them in real time; see use-solo-fight) ───
+  const [fightSetup, setFightSetup] = useState<'spar' | 'fight' | null>(null);
+  // The DM reply whose offered fight has been fought (its Fight button goes away).
+  const [foughtOfferId, setFoughtOfferId] = useState<string | null>(null);
+  const soloFight = useSoloFight({
+    getContext: rules.context,
+    getSheet: () => buildFightSheet(characterContext, autoSyncCallbacks?.getCurrentHP?.() ?? characterContext?.maxHP ?? 10),
+    riderName: characterName,
+    resume: rules.active && !!rules.snapshot?.fightOpen,
+    onInbox: rules.absorbInbox,
+    onStrain: (amount) => setBurnoutLevel(prev => Math.min(maxBurnout, prev + amount)),
+  });
+  const startFight = async (input: FightStart): Promise<boolean> => {
+    const ok = await soloFight.start(input);
+    if (ok) { setFightSetup(null); setCampOpen(false); }
+    return ok;
+  };
+  // The rider dies: the save is marked fallen and the bond is cleared. Reached from failed death
+  // saves, and at once when the dragon is killed in a real fight (the bond takes the rider too).
+  const riderDies = () => {
+    setShowDeathSaves(false);
+    setBurnoutLevel(0);
+    setShowDeathTransition(true);
+    // 2-second black transition then memorial (or inline rebirth if flag off)
+    setTimeout(async () => {
+      if (EMPYREAN_FEATURE_FLAGS.showMemorialScreen) {
+        setShowDeathTransition(false);
+        setShowMemorial(true);
+        return;
+      }
+      // Memorial hidden — run rebirth logic inline (mirrors MemorialScreen.onBeginAgain)
+      const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
+      if (activeSaveId) {
+        try {
+          const { data: saveRow } = await supabase
+            .from('character_saves')
+            .select('extended_data')
+            .eq('id', activeSaveId)
+            .maybeSingle();
+          if (saveRow) {
+            const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
+            await supabase
+              .from('character_saves')
+              .update({
+                extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
+              })
+              .eq('id', activeSaveId);
+          }
+        } catch (e) {
+          console.error('[Death] Failed to mark save as fallen:', e);
+        }
+      }
+      saveSoloHP({ current: 0, max: 0 });
+      updateUnbondedStatus(true);
+      resetBondState();
+      if (config) {
+        const clearedConfig: EmpyreanDMConfig = {
+          ...config,
+          dragonName: '',
+          dragonColor: '',
+          signetType: '',
+        };
+        saveEmpyreanDMConfig(clearedConfig);
+        setConfig(clearedConfig);
+      }
+      localStorage.setItem('odyssey-unbonded-rebirth', 'true');
+      setShowDeathTransition(false);
+      toast('Your rider has fallen. Return to the hall to try again.', { duration: 4000 });
+      onClose();
+    }, 2000);
+  };
+  // The player left a finished fight. The sheet already has the HP and XP (the result came
+  // through the rules inbox); this hands the binding result line to the story and runs death.
+  const handleFightClosed = (view: FightView) => {
+    const result = fightResultRef.current;
+    fightResultRef.current = null;
+    void rules.refresh();
+    if (view.dragonDied) { riderDies(); return; }
+    if (view.lethal && view.dragon && view.outcome === 'victory') dragonBond.processCombatBond();
+    const line = typeof result?.line === 'string' && result.line
+      ? result.line
+      : `[FIGHT RESULT, binding: ${(view.outcome || 'ended').toUpperCase()}. ${view.rider.name} stands at ${Math.max(0, view.rider.hp)}/${view.rider.maxHp} HP. Narrate the aftermath from this; do not change who won, who is hurt, or any number.]`;
+    empyreanInputRef.current?.appendText(line);
+    if (view.riderDown) setTimeout(() => setShowDeathSaves(true), 400);
+  };
   // What the server needs to narrate a journey encounter with the app closed: the DM's own
   // instructions, the guides, and the recent story, capped.
   journeyContextRef.current = () => {
@@ -2450,6 +2548,23 @@ ${oocLines}`;
                         {whisperTrayEnabled && whispers.length > 0 && (
                           <WhisperTray whispers={whispers} onAutoRoll={handleWhisperAutoRoll} onOpenRoller={handleWhisperOpenRoller} />
                         )}
+                        {/* The DM offered a fight: the app runs it. Only on the latest reply, and only once. */}
+                        {rules.active && msgIndex === messages.length - 1 && !isLoading && !soloFight.fight && foughtOfferId !== message.id && (() => {
+                          const offer = parseFightOffer(message.content);
+                          if (!offer) return null;
+                          return (
+                            <Button
+                              onClick={() => { void startFight({ ...offer, arena: offer.lethal ? 'ground' : 'mat' }).then(ok => { if (ok) setFoughtOfferId(message.id); }); }}
+                              disabled={soloFight.busy || soloMap.flying}
+                              style={{ touchAction: 'manipulation' }}
+                              className="mt-2 w-full min-h-[52px] h-auto py-2 gap-2 text-base whitespace-normal"
+                              aria-label={`${offer.lethal ? 'Fight' : 'Spar with'} ${offer.foeName}`}
+                            >
+                              <Swords className="w-5 h-5 shrink-0" />
+                              <span>{offer.lethal ? 'Fight' : 'Spar'}: {offer.count > 1 ? `${offer.count} × ` : ''}{offer.foeName} <span className="text-xs opacity-80 capitalize">({offer.challenge})</span></span>
+                            </Button>
+                          );
+                        })()}
                         {sceneBusyId === message.id && !message.sceneImageUrl && (
                           <div className="mt-2 aspect-square w-full max-w-[320px] rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-center text-[11px] text-primary/80 gap-1.5">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Picturing the scene…
@@ -2902,7 +3017,30 @@ ${oocLines}`;
         dragonName={config?.dragonName}
         placeName={soloMap.place()?.name}
         onOpenMap={() => { setCampOpen(false); setMapOpen(true); }}
+        onFight={rules.active ? setFightSetup : undefined}
       />
+      <SoloFightSetupSheet
+        mode={fightSetup}
+        onOpenChange={(next) => { if (!next) setFightSetup(null); }}
+        bonded={!isUnbonded && !!config?.dragonName}
+        dragonName={config?.dragonName}
+        dragonBody={rules.snapshot?.dragonBody}
+        flying={soloMap.flying}
+        busy={soloFight.busy}
+        onStart={(input) => void startFight(input)}
+      />
+      {soloFight.fight && (
+        <SoloBattleScreen
+          fight={soloFight}
+          characterContext={characterContext}
+          bonded={!isUnbonded && !!config?.dragonName}
+          signetName={config?.signetType || undefined}
+          masteryRank={rules.snapshot?.mastery.rank ?? 0}
+          strainRoom={Math.max(0, maxBurnout - burnoutLevel)}
+          onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
+          onClosed={handleFightClosed}
+        />
+      )}
       {engineOn && (
         <CampaignMapPanel
           open={mapOpen}
@@ -3162,58 +3300,7 @@ ${oocLines}`;
             autoSyncCallbacks?.onHPChange(1, 'healing');
             setBurnoutLevel(7);
           }}
-          onDeath={() => {
-            setShowDeathSaves(false);
-            setBurnoutLevel(0);
-            setShowDeathTransition(true);
-            // 2-second black transition then memorial (or inline rebirth if flag off)
-            setTimeout(async () => {
-              if (EMPYREAN_FEATURE_FLAGS.showMemorialScreen) {
-                setShowDeathTransition(false);
-                setShowMemorial(true);
-                return;
-              }
-              // Memorial hidden — run rebirth logic inline (mirrors MemorialScreen.onBeginAgain)
-              const activeSaveId = localStorage.getItem('odyssey-active-cloud-save-id');
-              if (activeSaveId) {
-                try {
-                  const { data: saveRow } = await supabase
-                    .from('character_saves')
-                    .select('extended_data')
-                    .eq('id', activeSaveId)
-                    .maybeSingle();
-                  if (saveRow) {
-                    const existingExtended = (saveRow.extended_data as Record<string, unknown>) || {};
-                    await supabase
-                      .from('character_saves')
-                      .update({
-                        extended_data: { ...existingExtended, empyreanStatus: 'fallen' } as any,
-                      })
-                      .eq('id', activeSaveId);
-                  }
-                } catch (e) {
-                  console.error('[Death] Failed to mark save as fallen:', e);
-                }
-              }
-              saveSoloHP({ current: 0, max: 0 });
-              updateUnbondedStatus(true);
-              resetBondState();
-              if (config) {
-                const clearedConfig: EmpyreanDMConfig = {
-                  ...config,
-                  dragonName: '',
-                  dragonColor: '',
-                  signetType: '',
-                };
-                saveEmpyreanDMConfig(clearedConfig);
-                setConfig(clearedConfig);
-              }
-              localStorage.setItem('odyssey-unbonded-rebirth', 'true');
-              setShowDeathTransition(false);
-              toast('Your rider has fallen. Return to the hall to try again.', { duration: 4000 });
-              onClose();
-            }, 2000);
-          }}
+          onDeath={riderDies}
         />
       </Suspense>
 
