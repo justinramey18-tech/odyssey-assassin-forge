@@ -6,6 +6,7 @@
 // POST { action, campaignId, riderKey?, dragonName?, bonded?, sheet?, place?, ... }
 //   state | ack | rest | pass_time | check | signet_used | quest_payout | story_reward
 //   set_events | event_done | travel_launch | travel_sync | travel_cancel
+//   fight_start | fight_tick | fight_act | fight_clash | fight_close   (real-time solo fights, combat.ts)
 // Every reply carries the fresh snapshot: clock, rule state, mastery, unlocks, the rule half of
 // the GAME FACTS block, and the inbox (results the phone has not applied yet).
 
@@ -15,6 +16,7 @@ import { z } from 'npm:zod@3';
 import { askClaudeThenLovable } from '../_shared/claude.ts';
 import * as R from './rules.ts';
 import * as T from './travel.ts';
+import * as C from './combat.ts';
 
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -25,12 +27,29 @@ const PLANNER_MODEL = 'qwen-3-6-plus';
 
 const Body = z.object({
   action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward',
-    'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel']),
+    'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel',
+    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close']),
   campaignId: uuid,
   riderKey: z.string().min(1).max(80).default('local'),
   dragonName: z.string().max(80).optional(),
   bonded: z.boolean().optional(),
-  sheet: z.object({ level: z.number().optional(), maxHp: z.number().optional() }).optional(),
+  sheet: z.object({
+    level: z.number().optional(), maxHp: z.number().optional(), hp: z.number().optional(), ac: z.number().optional(),
+    attackBonus: z.number().nullable().optional(),
+    weapons: z.array(z.object({ name: z.string().max(80).optional(), damage: z.string().max(40).optional() })).max(8).optional(),
+  }).optional(),
+  foeKind: z.string().max(20).optional(),
+  foeName: z.string().max(60).optional(),
+  count: z.number().optional(),
+  lethal: z.boolean().optional(),
+  arena: z.enum(['mat', 'ground', 'air']).optional(),
+  move: z.object({
+    type: z.enum(['attack', 'signet', 'potion', 'flee', 'yield']), targetId: z.string().max(20).optional(), weapon: z.string().max(80).optional(),
+    intensity: z.number().optional(), strainRoom: z.number().optional(), dice: z.string().max(40).optional(), name: z.string().max(80).optional(),
+  }).optional(),
+  enemyId: z.string().max(20).optional(),
+  side: z.string().max(10).optional(),
+  tapAt: z.number().optional(),
   place: z.object({ name: z.string().max(120).optional(), kind: z.string().max(40).optional() }).optional(),
   ids: z.array(uuid).max(100).optional(),
   kind: z.string().max(20).optional(),
@@ -101,6 +120,8 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
     },
     mastery: R.masteryInfo(l.masteryXp),
     dragonAssist: R.dragonAssist(l.bond),
+    dragonBody: l.bonded && s.dragon && s.dragon.name === (b.dragonName || '') ? { hp: s.dragon.hp, maxHp: s.dragon.maxHp } : null,
+    fightOpen: !!C.cleanFight(s.fight),
     unlocks: R.unlockList(l.masteryXp, l.bond),
     facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling }),
     inbox: inbox || [],
@@ -143,6 +164,130 @@ function withUpkeep(l: Loaded, c: Change, minuteAfter: number): Change {
 
 const sha256 = async (text: string) =>
   Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))).map(x => x.toString(16).padStart(2, '0')).join('');
+
+// ── fights (real time; the phone checks in, the server's clock decides) ──
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+/** A check-in this close to the next due moment waits for it, so a blow lands when its countdown ends. */
+const EARLY_WINDOW_MS = 800;
+
+interface FightStep { state: R.CampaignState; reply: Record<string, unknown> }
+/** Read the campaign's rule state, change its fight, save (version-checked). Lean: no map, no rider reads. */
+async function fightMutate(
+  db: any, userId: string, b: Req, step: (state: R.CampaignState, fight: C.Fight | null, now: number) => Promise<FightStep | null> | FightStep | null,
+): Promise<Record<string, unknown>> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { data: row, error } = await db.from('empyrean_campaign_state').select('state, version')
+      .eq('user_id', userId).eq('campaign_id', b.campaignId).maybeSingle();
+    if (error) throw new Error('read_failed');
+    const state = R.normalizeState(row?.state);
+    const out = await step(state, C.cleanFight(state.fight), Date.now());
+    if (!out) return { ok: true, fight: null };
+    const { data, error: saveErr } = await db.rpc('empyrean_commit', {
+      _user_id: userId, _campaign_id: b.campaignId, _rider_key: b.riderKey, _expected_version: row?.version ?? 0, _state: out.state,
+    });
+    if (saveErr) throw new Error('commit_failed');
+    if (data?.ok) return out.reply;
+    if (data?.reason !== 'version') return { ok: false, error: 'Could not save. Try again.' };
+  }
+  return { ok: false, error: 'The fight was busy. Try again.' };
+}
+
+/** A finished fight pays out once: HP change, XP, wounds, the dragon's body, and ten minutes on the clock. */
+async function settleFight(db: any, userId: string, b: Req): Promise<void> {
+  const step = (clock: boolean): Step => l => {
+    const f = C.cleanFight(l.state.fight);
+    if (!f || f.status !== 'ended' || f.settled) return null;
+    const s0 = R.tick(l.state, l.minute);
+    const out = C.settle(f, rand);
+    let s: R.CampaignState = { ...s0, seq: s0.seq + 1, fight: { ...f, settled: true } };
+    if (f.dragon) s = { ...s, dragon: { name: f.dragon.name, hp: out.dragonHp ?? f.dragon.hp, maxHp: f.dragon.maxHp } };
+    const condition = out.condition;
+    if (condition) s = { ...s, conditions: [...s.conditions.filter(c => c.name !== condition.name), { id: `fight-${s.seq}`, name: condition.name, penalty: condition.penalty, untilMinute: l.minute + condition.minutes }].slice(-8) };
+    if (out.injury && s.injuries.length < 6) s = { ...s, injuries: [...s.injuries, { id: `fight-${s.seq}`, name: out.injury, severity: 1 }] };
+    const events = out.events.map(e => ({ ...e }));
+    // Sparring pays XP only for the first few matches of an in-game day.
+    if (!f.lethal) {
+      if (s.spars.n >= R.SPARS_REWARDED_PER_DAY) events[0].xp = 0;
+      else if (f.outcome === 'victory') s = { ...s, spars: { ...s.spars, n: s.spars.n + 1 } };
+    }
+    const xpDelta = Math.max(0, Math.min(out.masteryXp, R.MASTERY_DAILY_XP - s.signet.xpToday));
+    if (xpDelta) s = { ...s, signet: { ...s.signet, xpToday: s.signet.xpToday + xpDelta } };
+    return { state: s, events, xpDelta, advance: clock ? 10 : 0 };
+  };
+  // Time can't pass while a journey leg is running; the fight still settles.
+  const first = await mutate(db, userId, b, step(true));
+  if (!first.ok) await mutate(db, userId, b, step(false));
+}
+
+async function fightReply(db: any, userId: string, b: Req, reply: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const view = reply.fight as C.FightView | null | undefined;
+  if (!view || view.status !== 'ended') return reply;
+  await settleFight(db, userId, b);
+  const { data: row } = await db.from('empyrean_campaign_state').select('state').eq('user_id', userId).eq('campaign_id', b.campaignId).maybeSingle();
+  const { data: inbox } = await db.from('empyrean_rule_events').select('id, kind, reason, xp, gold, hp, payload, created_at')
+    .eq('user_id', userId).eq('campaign_id', b.campaignId).is('applied_at', null).order('created_at').limit(50);
+  const f = C.cleanFight(R.normalizeState(row?.state).fight);
+  return { ...reply, fight: f ? C.viewOf(f, Date.now()) : view, inbox: inbox || [] };
+}
+
+async function fightStart(db: any, userId: string, b: Req): Promise<Record<string, unknown>> {
+  const l = await load(db, userId, b);
+  if (l.traveling) return { ok: false, error: 'You are mid-flight. Stop on the Map first, then fight.' };
+  const open = C.cleanFight(l.state.fight);
+  if (open && open.status === 'active') return { ok: true, fight: C.viewOf(C.advance(open, Date.now(), rand), Date.now()) };
+  const sheet = b.sheet || {};
+  const arena = b.arena ?? 'ground';
+  const body = l.state.dragon && l.state.dragon.name === (b.dragonName || '') ? l.state.dragon : null;
+  if (l.bonded && arena !== 'mat' && body && body.hp <= 0) return { ok: false, error: 'Your dragon cannot fight.' };
+  return fightMutate(db, userId, b, (state, _fight, now) => {
+    const fight = C.startFight({
+      id: crypto.randomUUID(), riderName: (b.label || 'The rider').slice(0, 60),
+      level: sheet.level ?? 1, maxHp: sheet.maxHp ?? 10, hp: sheet.hp ?? sheet.maxHp ?? 10, ac: sheet.ac ?? 12,
+      attackBonus: sheet.attackBonus ?? null, weapons: sheet.weapons,
+      foeKind: b.foeKind, foeName: b.foeName, count: b.count ?? 1, challenge: b.challenge, lethal: b.lethal !== false, arena,
+      dragon: l.bonded && b.dragonName ? { name: b.dragonName, hp: body ? body.hp : null, bond: l.bond ?? 15 } : null,
+      masteryXp: l.masteryXp,
+    }, now, rand);
+    return { state: { ...state, fight }, reply: { ok: true, fight: C.viewOf(fight, now) } };
+  });
+}
+
+async function fightTick(db: any, userId: string, b: Req): Promise<Record<string, unknown>> {
+  return fightMutate(db, userId, b, async (state, fight, now0) => {
+    if (!fight) return null;
+    let now = now0;
+    const due = C.nextDueAt(fight);
+    if (Number.isFinite(due) && due > now && due - now <= EARLY_WINDOW_MS) { await sleep(due - now + 15); now = Date.now(); }
+    C.advance(fight, now, rand);
+    return { state: { ...state, fight }, reply: { ok: true, fight: C.viewOf(fight, now) } };
+  });
+}
+
+async function fightAct(db: any, userId: string, b: Req): Promise<Record<string, unknown>> {
+  const m = b.move;
+  if (!m) return { ok: false, error: 'Invalid request.' };
+  return fightMutate(db, userId, b, (state, fight, now) => {
+    if (!fight) return null;
+    C.advance(fight, now, rand);
+    const input: C.ActInput = m.type === 'attack' ? { type: 'attack', targetId: m.targetId || '', weapon: m.weapon }
+      : m.type === 'signet' ? { type: 'signet', targetId: m.targetId || '', intensity: m.intensity ?? 1, strainRoom: m.strainRoom ?? 0 }
+      : m.type === 'potion' ? { type: 'potion', dice: m.dice, name: m.name }
+      : { type: m.type };
+    const r = C.act(fight, now, input, rand);
+    const reply: Record<string, unknown> = r.ok
+      ? { ok: true, fight: C.viewOf(fight, now), strain: r.strain, usedPotion: r.usedPotion }
+      : { ok: false, error: (r as { error: string }).error, fight: C.viewOf(fight, now) };
+    return { state: { ...state, fight }, reply };
+  });
+}
+
+async function fightClash(db: any, userId: string, b: Req): Promise<Record<string, unknown>> {
+  return fightMutate(db, userId, b, (state, fight, now) => {
+    if (!fight) return null;
+    const r = C.clashTap(fight, now, b.enemyId || '', b.side, b.tapAt);
+    return { state: { ...state, fight }, reply: { ok: r.ok, index: r.index, quality: r.quality, fight: C.viewOf(fight, now) } };
+  });
+}
 
 // ── journeys ──
 async function planEncounter(dmContext: string, journey: string): Promise<T.Decision> {
@@ -366,6 +511,25 @@ Deno.serve(async (req) => {
   const { data: campaign } = await db.from('ai_dm_campaigns').select('id, user_id').eq('id', b.campaignId).maybeSingle();
   if (!campaign || campaign.user_id !== userId) return json(403, { error: 'That campaign is not yours.' });
   const sheet = R.normalizeSheet(b.sheet);
+
+  // Fights answer with the fight itself, not the full snapshot: they are called every few seconds.
+  if (b.action.startsWith('fight_')) {
+    try {
+      let reply: Record<string, unknown>;
+      if (b.action === 'fight_start') reply = await fightStart(db, userId, b);
+      else if (b.action === 'fight_tick') reply = await fightTick(db, userId, b);
+      else if (b.action === 'fight_act') reply = await fightAct(db, userId, b);
+      else if (b.action === 'fight_clash') reply = await fightClash(db, userId, b);
+      else {
+        reply = await fightMutate(db, userId, b, (state, fight) => (fight && fight.status === 'ended' && fight.settled
+          ? { state: { ...state, fight: null }, reply: { ok: true, fight: null } } : null));
+      }
+      return json(200, { serverNow: Date.now(), ...(await fightReply(db, userId, b, reply)) });
+    } catch (e) {
+      console.error('[empyrean-rules]', b.action, e instanceof Error ? e.message : e);
+      return json(503, { ok: false, error: 'The fight server could not be reached. Try again.' });
+    }
+  }
 
   try {
     let result: { ok: true; extra: Record<string, unknown> } | { ok: false; error: string } = { ok: true, extra: {} };

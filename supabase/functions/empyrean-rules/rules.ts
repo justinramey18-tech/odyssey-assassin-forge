@@ -47,6 +47,12 @@ export interface CampaignState {
   rewards: { day: number; xp: number; gold: number };
   lastCheck: { label: string; outcome: Outcome; minute: number } | null;
   travel: { dest: string | null; encounterDone: boolean };
+  /** The fight in progress or just finished (see combat.ts, which checks its shape). */
+  fight: unknown | null;
+  /** The dragon's body between fights; null until its first fight (then: full). */
+  dragon: { name: string; hp: number; maxHp: number } | null;
+  /** Rewarded sparring matches today. */
+  spars: { day: number; n: number };
 }
 export function freshState(): CampaignState {
   return {
@@ -55,6 +61,7 @@ export function freshState(): CampaignState {
     events: { level: 'normal', lastEventDay: 0, pending: null },
     signet: { xpDay: 1, xpToday: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
+    fight: null, dragon: null, spars: { day: 1, n: 0 },
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -85,6 +92,10 @@ export function normalizeState(raw: unknown): CampaignState {
     lastCheck: r.lastCheck && typeof r.lastCheck.label === 'string' && OUTCOMES.includes(r.lastCheck.outcome)
       ? { label: r.lastCheck.label.slice(0, 80), outcome: r.lastCheck.outcome, minute: int(r.lastCheck.minute) } : null,
     travel: { dest: typeof r.travel?.dest === 'string' ? r.travel.dest.slice(0, 200) : null, encounterDone: r.travel?.encounterDone === true },
+    fight: r.fight && typeof r.fight === 'object' ? r.fight : null,
+    dragon: r.dragon && Number.isFinite(Number(r.dragon.maxHp)) && Number(r.dragon.maxHp) > 0
+      ? { name: String(r.dragon.name ?? '').slice(0, 80), maxHp: clamp(int(r.dragon.maxHp), 1, 2000), hp: clamp(int(r.dragon.hp), 0, clamp(int(r.dragon.maxHp), 1, 2000)) } : null,
+    spars: { day: Math.max(1, int(r.spars?.day, 1)), n: Math.max(0, int(r.spars?.n)) },
   };
 }
 
@@ -102,6 +113,7 @@ export function tick(state: CampaignState, minute: number): CampaignState {
   if (s.restDay !== day) { s.restDay = day; s.shortRests = 0; }
   if (s.signet.xpDay !== day) s.signet = { xpDay: day, xpToday: 0 };
   if (s.rewards.day !== day) s.rewards = { day, xp: 0, gold: 0 };
+  if (s.spars.day !== day) s.spars = { day, n: 0 };
   return s;
 }
 
@@ -210,6 +222,13 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
   return { dc, total, outcome, parts, hp, strain, condition, injury, line, state: s, events };
 }
 
+/** A wounded dragon mends by a share of its full health (a long rest: half; a hunt: a quarter). */
+export function mendDragon(body: CampaignState['dragon'], share: number): CampaignState['dragon'] {
+  if (!body || body.hp <= 0) return body;
+  return { ...body, hp: Math.min(body.maxHp, body.hp + Math.ceil(body.maxHp * share)) };
+}
+export const SPARS_REWARDED_PER_DAY = 3;
+
 // ── rest and time ──
 export const SHORT_RESTS_PER_DAY = 2;
 export const LONG_REST_GAP = 12 * 60;
@@ -237,7 +256,7 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
   const wake = nextDawn(minute);
   const healed = s.injuries.filter(i => i.severity <= 1).map(i => i.name);
   s = {
-    ...s, seq, lastLongRestEnd: wake,
+    ...s, seq, lastLongRestEnd: wake, dragon: mendDragon(s.dragon, 0.5),
     injuries: s.injuries.map(i => ({ ...i, severity: i.severity - 1 })).filter(i => i.severity >= 1),
     conditions: s.conditions.filter(c => c.untilMinute > wake),
   };
@@ -260,7 +279,7 @@ export function passTime(state: CampaignState, minute: number, hours: number, ac
   const endDay = dayOf(end);
   let xpDelta = 0;
   let what = `${h} hour${h === 1 ? '' : 's'} pass`;
-  if (activity === 'hunt') { s = { ...s, needs: { ...s.needs, huntMetDay: endDay } }; what = `Your dragon hunts for ${h} hours and comes back fed`; }
+  if (activity === 'hunt') { s = { ...s, dragon: mendDragon(s.dragon, 0.25), needs: { ...s.needs, huntMetDay: endDay } }; what = `Your dragon hunts for ${h} hours and comes back fed`; }
   if (activity === 'fly') { s = { ...s, needs: { ...s.needs, flyMetDay: endDay } }; what = `You fly together for ${h} hour${h === 1 ? '' : 's'}`; }
   if (activity === 'train') { const u = signetUse(s, minute, 3); s = u.state; xpDelta = u.xpDelta; what = `You drill your signet for ${h} hours${xpDelta ? ` (+${xpDelta} Signet Mastery)` : ' (no more to learn today)'}`; }
   return { ok: true, state: { ...s, seq: s.seq + 1 }, advance: h * 60, xpDelta, summary: `${what}. It is now ${formatTime(end)}.` };
@@ -417,6 +436,8 @@ export function buildRuleFacts(state: CampaignState, f: FactsInput): string {
     const unmet = unmetNeeds(s, f.minute);
     if (unmet.length) lines.push(`The dragon's needs are overdue: ${unmet.map(n => (n === 'hunt' ? 'it has not hunted in days and is hungry and short-tempered' : 'it has not flown with its rider in days and is restless')).join('; ')}. Let it show.`);
   }
+  if (f.bonded && s.dragon && s.dragon.hp < s.dragon.maxHp) lines.push(`The dragon is wounded from a fight (${s.dragon.hp}/${s.dragon.maxHp}). It mends with long rests and hunting. Let it show.`);
+  lines.push('Fights: a real fight is run by the app, not by you. When blows are about to be traded, stop before the first one lands and end your reply with the hidden tag <!--FIGHT:kind|name|count|challenge|lethal--> (kind: cadet, rider, soldier, flier, wyvern, venin or beast; count 1 to 4; challenge: easy, moderate, hard or deadly; lethal: yes or no; example <!--FIGHT:wyvern|Wyvern|2|hard|yes-->). Never narrate hits, damage or who wins a fight yourself. When the player message carries a [FIGHT RESULT, binding: ...] line, narrate the aftermath from it and nothing that contradicts it. The app has already applied the HP and XP of that fight: do not award XP for it or restate HP totals.');
   if (s.lastCheck && f.minute - s.lastCheck.minute <= 120) lines.push(`Last check: ${s.lastCheck.label}: ${OUTCOME_LABEL[s.lastCheck.outcome]}.`);
   lines.push('Checks: when the player message carries an [APP RULING, binding: ...] line, that outcome and its consequence are final. Narrate them; never soften, reverse or re-roll them. Offer checks with a DC of 10, 15, 20 or 25.');
   lines.push('Rewards: you may award XP and gold in the story, but the app sets the final amounts. Never state exact XP or gold totals as fact.');
