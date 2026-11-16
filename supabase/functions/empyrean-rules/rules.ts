@@ -89,10 +89,10 @@ export function normalizeState(raw: unknown): CampaignState {
 }
 
 export interface RuleEvent { kind: string; reason?: string; xp?: number; gold?: number; hp?: number; payload?: Record<string, unknown>; idem_key: string }
-export interface Sheet { level: number; maxHp: number; conMod: number }
+export interface Sheet { level: number; maxHp: number }
 export function normalizeSheet(raw: unknown): Sheet {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, any>) : {};
-  return { level: clamp(int(r.level, 1), 1, 20), maxHp: clamp(int(r.maxHp, 10), 1, 999), conMod: clamp(int(r.conMod), -5, 10) };
+  return { level: clamp(int(r.level, 1), 1, 20), maxHp: clamp(int(r.maxHp, 10), 1, 999) };
 }
 
 /** Daily counters roll over and timed conditions end. Call before every rule. */
@@ -215,18 +215,19 @@ export const SHORT_RESTS_PER_DAY = 2;
 export const LONG_REST_GAP = 12 * 60;
 export type RestResult =
   | { ok: false; error: string }
-  | { ok: true; state: CampaignState; events: RuleEvent[]; advance: number; setMinute: number | null; heal: number; hpFull: boolean; strainDelta: number; strainReset: boolean; summary: string };
-export function rest(state: CampaignState, minute: number, kind: 'short' | 'long', sheet: Sheet, rand: Rand): RestResult {
+  | { ok: true; state: CampaignState; events: RuleEvent[]; advance: number; setMinute: number | null; strainDelta: number; strainReset: boolean; summary: string };
+export function rest(state: CampaignState, minute: number, kind: 'short' | 'long'): RestResult {
   let s = tick(state, minute);
   const seq = s.seq + 1;
   if (kind === 'short') {
     if (s.shortRests >= SHORT_RESTS_PER_DAY) return { ok: false, error: `You have already taken ${SHORT_RESTS_PER_DAY} short rests today.` };
-    const heal = Math.max(1, d(8, rand) + sheet.conMod + Math.floor(sheet.level / 2));
+    // Healing and ability refresh come from the character sheet's own short rest, applied on the
+    // phone when this event arrives, so a rest is never counted twice.
     s = { ...s, seq, shortRests: s.shortRests + 1 };
     return {
-      ok: true, state: s, advance: 60, setMinute: null, heal, hpFull: false, strainDelta: -2, strainReset: false,
-      summary: `Short rest: 1 hour passes, ${heal} HP back, Signet Strain eases by 2.`,
-      events: [{ kind: 'rest', reason: 'Short rest', hp: heal, idem_key: `rest:${seq}`, payload: { rest: 'short', strainDelta: -2 } }],
+      ok: true, state: s, advance: 60, setMinute: null, strainDelta: -2, strainReset: false,
+      summary: 'Short rest: 1 hour passes. You catch your breath and Signet Strain eases by 2.',
+      events: [{ kind: 'rest', reason: 'Short rest', idem_key: `rest:${seq}`, payload: { rest: 'short', strainDelta: -2 } }],
     };
   }
   if (minute - s.lastLongRestEnd < LONG_REST_GAP) {
@@ -241,9 +242,9 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
     conditions: s.conditions.filter(c => c.untilMinute > wake),
   };
   return {
-    ok: true, state: tick(s, wake), advance: 0, setMinute: wake, heal: 0, hpFull: true, strainDelta: 0, strainReset: true,
-    summary: `Long rest: you wake at ${formatTime(wake)}. HP full, Signet Strain cleared${healed.length ? `, healed: ${healed.join(', ')}` : ''}.`,
-    events: [{ kind: 'rest', reason: 'Long rest', idem_key: `rest:${seq}`, payload: { rest: 'long', hpFull: true, strainReset: true, cooldownsReset: true, healed } }],
+    ok: true, state: tick(s, wake), advance: 0, setMinute: wake, strainDelta: 0, strainReset: true,
+    summary: `Long rest: you wake at ${formatTime(wake)}, fully rested, Signet Strain cleared${healed.length ? `, healed: ${healed.join(', ')}` : ''}.`,
+    events: [{ kind: 'rest', reason: 'Long rest', idem_key: `rest:${seq}`, payload: { rest: 'long', strainReset: true, healed } }],
   };
 }
 

@@ -8,7 +8,7 @@ import { REWARD_RANGES } from '@/lib/empyrean-quest-hub';
 import { campaignDay, formatCampaignTime } from '@/lib/campaign-map';
 
 const seq = (...values: number[]): Rand => { let i = 0; return () => values[Math.min(i++, values.length - 1)]; };
-const sheet = { level: 4, maxHp: 30, conMod: 2 };
+const sheet = { level: 4, maxHp: 30 };
 const at = (day: number, hour: number) => (day - 1) * DAY + hour * 60;
 
 describe('clock', () => {
@@ -98,24 +98,25 @@ describe('checks', () => {
 describe('rest and time', () => {
   it('allows two short rests a day', () => {
     let s = freshState();
-    const a = rest(s, at(1, 10), 'short', sheet, seq(0.5));
-    expect(a.ok && a.heal).toBe(5 + 2 + 2);
+    const a = rest(s, at(1, 10), 'short');
+    expect(a.ok && a.advance).toBe(60);
+    expect(a.ok && a.events[0]).toMatchObject({ kind: 'rest', payload: { rest: 'short', strainDelta: -2 } });
     if (a.ok) s = a.state;
-    const b = rest(s, at(1, 11), 'short', sheet, seq(0.5));
+    const b = rest(s, at(1, 11), 'short');
     if (b.ok) s = b.state;
-    expect(rest(s, at(1, 12), 'short', sheet, seq(0.5)).ok).toBe(false);
-    expect(rest(s, at(2, 8), 'short', sheet, seq(0.5)).ok).toBe(true);
+    expect(rest(s, at(1, 12), 'short').ok).toBe(false);
+    expect(rest(s, at(2, 8), 'short').ok).toBe(true);
   });
   it('a long rest runs to dawn, heals injuries a step, and cannot be chained', () => {
     const s = { ...freshState(), injuries: [{ id: 'a', name: 'Cut', severity: 1 }, { id: 'b', name: 'Break', severity: 3 }] };
-    const r = rest(s, at(1, 21), 'long', sheet, seq(0.5));
+    const r = rest(s, at(1, 21), 'long');
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.setMinute).toBe(at(2, 6));
-    expect(r.hpFull && r.strainReset).toBe(true);
+    expect(r.strainReset).toBe(true);
     expect(r.state.injuries).toEqual([{ id: 'b', name: 'Break', severity: 2 }]);
-    expect(rest(r.state, at(2, 7), 'long', sheet, seq(0.5)).ok).toBe(false);
-    expect(rest(r.state, at(2, 18), 'long', sheet, seq(0.5)).ok).toBe(true);
+    expect(rest(r.state, at(2, 7), 'long').ok).toBe(false);
+    expect(rest(r.state, at(2, 18), 'long').ok).toBe(true);
   });
   it('passing time can feed or fly the dragon, or train', () => {
     expect(passTime(freshState(), 0, 2, 'hunt', true).ok).toBe(false);

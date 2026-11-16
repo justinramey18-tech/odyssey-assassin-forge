@@ -30,7 +30,7 @@ const Body = z.object({
   riderKey: z.string().min(1).max(80).default('local'),
   dragonName: z.string().max(80).optional(),
   bonded: z.boolean().optional(),
-  sheet: z.object({ level: z.number().optional(), maxHp: z.number().optional(), conMod: z.number().optional() }).optional(),
+  sheet: z.object({ level: z.number().optional(), maxHp: z.number().optional() }).optional(),
   place: z.object({ name: z.string().max(120).optional(), kind: z.string().max(40).optional() }).optional(),
   ids: z.array(uuid).max(100).optional(),
   kind: z.string().max(20).optional(),
@@ -386,11 +386,11 @@ Deno.serve(async (req) => {
         break;
       case 'rest':
         result = await mutate(db, userId, b, l => {
-          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short', sheet, rand);
+          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short');
           if (!r.ok) return { error: (r as { error: string }).error };
           const after = r.setMinute ?? l.minute + r.advance;
           const state = R.rollEvent(r.state, after, b.place?.kind, false, rand);
-          return withUpkeep(l, { state, events: r.events, advance: r.advance, setMinute: r.setMinute, extra: { summary: r.summary, rest: { heal: r.heal, hpFull: r.hpFull, strainDelta: r.strainDelta, strainReset: r.strainReset } } }, after);
+          return withUpkeep(l, { state, events: r.events, advance: r.advance, setMinute: r.setMinute, extra: { summary: r.summary } }, after);
         });
         break;
       case 'pass_time':
