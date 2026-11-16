@@ -16,7 +16,7 @@ import { CombatPrimerStep } from './steps/CombatPrimerStep';
 import { SummaryStep } from './steps/SummaryStep';
 import { WizardState, QUICK_START_DEFAULTS } from './types';
 import { Button } from '@/components/ui/button';
-import { Skull, Zap, Settings2, Cloud, Sparkles, LogOut } from 'lucide-react';
+import { Skull, Zap, Settings2, Cloud, Sparkles, LogOut, Flame } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import wizardBackground from '@/assets/wizard-background.jpg';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -102,6 +102,15 @@ export function CharacterWizard({
       navigate('/ai-create');
     } catch {
       window.location.assign('/ai-create');
+    }
+  }, [navigate]);
+
+  // "Become a Dragon Rider": the Empyrean Guide builds a solo rider, dragon and campaign.
+  const handleDragonRider = useCallback(() => {
+    try {
+      navigate('/empyrean-create');
+    } catch {
+      window.location.assign('/empyrean-create');
     }
   }, [navigate]);
 
@@ -337,7 +346,26 @@ export function CharacterWizard({
               <p className="text-[10px] text-muted-foreground pl-13">
                 Answer questions and get a custom character built for you
               </p>
-            </button>
+            </Button>
+
+            {/* Become a Dragon Rider (solo Empyrean) */}
+            <Button variant="outline"
+              {...pressProps(handleDragonRider)}
+              className="w-full h-auto min-h-[48px] block whitespace-normal p-4 rounded-lg border-2 border-primary/40 bg-background/50 hover:border-primary/70 hover:bg-primary/5 transition-all text-left group"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                  <Flame className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-display font-bold text-foreground">Become a Dragon Rider</p>
+                  <p className="text-xs text-muted-foreground">Fourth Wing solo campaign</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground pl-13">
+                A guide builds your rider, dragon and campaign with you, then the story begins
+              </p>
+            </Button>
 
             {/* Load from Cloud */}
             {onLoadCloud && (

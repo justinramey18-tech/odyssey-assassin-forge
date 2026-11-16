@@ -1,3 +1,4 @@
+- [x] Rider onboarding 4/5: add the guide screen, /empyrean-create entrance and fifth start card; both requested screen tests passed. First-scene launch awaits step 5.
 - [x] Rider onboarding 3/5: add phone setup, draft chat and optional outpost starts; all 27 requested tests passed. Screens await later steps.
 - [x] Rider onboarding 2/5: add the protected guide function and prompt; verify limits and deploy only empyrean-onboarding. Screens await later steps.
 - [x] Rider onboarding 1/5: extract shared character rules and restrict the existing Empyrean creator to party sessions; deploy only ai-creation-assistant.

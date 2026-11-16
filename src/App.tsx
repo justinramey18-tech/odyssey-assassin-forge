@@ -20,6 +20,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Features = lazy(() => import("./pages/Features"));
 const CharacterRoster = lazy(() => import("./pages/CharacterRoster"));
 const AICreationAssistant = lazy(() => import("./pages/AICreationAssistant"));
+const EmpyreanOnboarding = lazy(() => import("./pages/EmpyreanOnboarding"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ const App = () => {
                 <Route path="/roster" element={<CharacterRoster />} />
                 <Route path="/features" element={<Features />} />
                 <Route path="/ai-create" element={<AICreationAssistant />} />
+                <Route path="/empyrean-create" element={<EmpyreanOnboarding />} />
 
                 <Route path="/install" element={<Install />} />
                 <Route path="/auth" element={<Auth />} />
