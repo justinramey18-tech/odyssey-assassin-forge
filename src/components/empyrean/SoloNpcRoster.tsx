@@ -51,7 +51,7 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
   onFight?: (entry: RosterEntry) => void;
   onSpar?: (entry: RosterEntry) => void;
   /** The urge meter's switches (D-40): the table-wide one and one per NPC. */
-  urge?: { enabled: boolean; perNpc: Record<string, Talkativeness>; setEnabled: (v: boolean) => void; setNpc: (key: string, talk: Talkativeness) => void; learned?: Record<string, number>; reset?: () => void };
+  urge?: { enabled: boolean; perNpc: Record<string, Talkativeness>; setEnabled: (v: boolean) => void; setNpc: (key: string, talk: Talkativeness) => void; learned?: Record<string, number>; reset?: () => void; judge?: boolean; setJudge?: (on: boolean) => void; huddles?: boolean; setHuddles?: (on: boolean) => void };
 }) {
   const [query, setQuery] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -176,10 +176,28 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
                 <Button variant={urge.enabled ? 'default' : 'outline'} onClick={() => urge.setEnabled(!urge.enabled)} style={TOUCH} className="min-h-[48px] shrink-0">{urge.enabled ? 'On' : 'Off'}</Button>
               </div>
             )}
+            {urge?.setHuddles && (
+              <div className="rounded-lg border border-border/40 p-3 flex items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm">NPCs talk among themselves</span>
+                  <span className="block text-[11px] text-muted-foreground">Two people on stage can start a conversation you can join. Tap Enough on the table to end one.</span>
+                </span>
+                <Button variant={urge.huddles !== false ? 'default' : 'outline'} onClick={() => urge.setHuddles?.(urge.huddles === false)} style={TOUCH} className="min-h-[48px] shrink-0">{urge.huddles !== false ? 'On' : 'Off'}</Button>
+              </div>
+            )}
+            {urge?.setJudge && (
+              <div className="rounded-lg border border-border/40 p-3 flex items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm">Read between the lines</span>
+                  <span className="block text-[11px] text-muted-foreground">An AI reads your table lines for sarcasm, veiled threats and whose side you take. Off keeps the plain word triggers and memories.</span>
+                </span>
+                <Button variant={urge.judge !== false ? 'default' : 'outline'} onClick={() => urge.setJudge?.(urge.judge === false)} style={TOUCH} className="min-h-[48px] shrink-0">{urge.judge !== false ? 'On' : 'Off'}</Button>
+              </div>
+            )}
             {urge?.reset && (
               <div className="space-y-1">
                 <Button variant="outline" onClick={() => urge.reset?.()} style={TOUCH} className="w-full min-h-[48px] text-xs">Reset how chatty everyone is</Button>
-                <p className="text-[11px] text-muted-foreground">NPCs learn from you: sealing a line they offered makes them speak up more, deleting it or waving them off makes them quieter. This puts everyone back to how they started. Your per-person choices stay.</p>
+                <p className="text-[11px] text-muted-foreground">NPCs learn from you: sealing a line they offered makes them speak up more, deleting it or waving them off makes them quieter. It also clears what they have learned about when you like them talking among themselves. This puts everyone back to how they started. Your per-person choices stay.</p>
               </div>
             )}
 

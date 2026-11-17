@@ -2993,6 +2993,10 @@ ${oocLines}`;
           onInviteNpc={liveTable.inviteNpc}
           onHushNpc={liveTable.hushNpc}
           onOpenStateChange={liveTable.setTableOpen}
+          huddle={liveTable.huddle}
+          onHuddleEnough={liveTable.huddleEnough}
+          onHuddleSeal={liveTable.huddleSeal}
+          onTypingChange={liveTable.setTyping}
         />
       </div>
 

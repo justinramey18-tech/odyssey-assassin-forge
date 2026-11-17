@@ -263,6 +263,14 @@ interface RoundChatDrawerProps {
   onHushNpc?: (npcId: string) => void;
   /** Told whenever the table opens or closes (the urge meter only runs while it's open). */
   onOpenStateChange?: (open: boolean) => void;
+  /** Solo huddles: NPCs talking among themselves (or the last one, while its lines can still be sealed). */
+  huddle?: { active: boolean; names: string[]; heat: number; canSeal: boolean } | null;
+  /** "Enough": end the huddle. */
+  onHuddleEnough?: () => void;
+  /** Tick every line of the huddle for the DM. */
+  onHuddleSeal?: () => void;
+  /** Told while the rider has words in the text box (a huddle waits for them to finish). */
+  onTypingChange?: (typing: boolean) => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -1140,6 +1148,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   onInviteNpc,
   onHushNpc,
   onOpenStateChange,
+  huddle,
+  onHuddleEnough,
+  onHuddleSeal,
+  onTypingChange,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -1177,6 +1189,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const [editDraft, setEditDraft] = useState('');
 
   const [text, setText] = useState('');
+  // Solo huddles: the NPCs hold their next line while the rider is typing.
+  const typingNotifyRef = useRef(onTypingChange);
+  typingNotifyRef.current = onTypingChange;
+  useEffect(() => { typingNotifyRef.current?.(open && text.trim().length > 0); }, [text, open]);
   const [inCharacter, setInCharacter] = useState(true);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   // The table is always full screen while open. Deriving it (instead of setting it in an
@@ -2057,6 +2073,42 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
                 {/* The input field (reply chip, text box, picture + send, actions banner). */}
                 <div className="space-y-1.5">
+
+                {/* Solo huddles: NPCs talking among themselves. Anything the rider sends joins in. */}
+                {huddle && (onHuddleEnough || onHuddleSeal) && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-2 py-1.5" role="status">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-cinzel text-primary truncate">
+                        {huddle.names.length > 1 ? `${huddle.names.slice(0, -1).join(', ')} and ${huddle.names[huddle.names.length - 1]}` : huddle.names.join('')} {huddle.active ? 'are talking' : 'were talking'}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {huddle.active ? `Heat ${huddle.heat} of 5. Say something to join in.` : 'Seal it to hand the conversation to the DM.'}
+                      </p>
+                    </div>
+                    {huddle.canSeal && onHuddleSeal && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onHuddleSeal}
+                        style={{ touchAction: 'manipulation' }}
+                        className="shrink-0 min-h-[48px] px-3 rounded-lg border-primary/50 bg-primary/10 text-primary text-[11px] font-cinzel"
+                      >
+                        Seal conversation
+                      </Button>
+                    )}
+                    {huddle.active && onHuddleEnough && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onHuddleEnough}
+                        style={{ touchAction: 'manipulation' }}
+                        className="shrink-0 min-h-[48px] px-3 rounded-lg border-border/25 bg-background/30 text-foreground/80 text-[11px] font-cinzel"
+                      >
+                        Enough
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                 {/* Live NPCs: pick who you are talking to. The host can also speak as an NPC. */}
                 {inCharacter && npcs && (stageNpcs.length > 0 || (canManageNpcs && onOpenNpcRoster)) && (
