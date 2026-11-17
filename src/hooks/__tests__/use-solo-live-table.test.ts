@@ -18,7 +18,7 @@ vi.mock('@/integrations/supabase/client', () => {
   };
 });
 
-import { heardLine, stageFromStory, tableHeard, useSoloLiveTable, SOLO_CHAOS_LEVEL } from '@/hooks/use-solo-live-table';
+import { heardLine, isWhisper, stageFromStory, tableHeard, useSoloLiveTable, SOLO_CHAOS_LEVEL, WHISPER_MARK } from '@/hooks/use-solo-live-table';
 import { linesToKeep } from '@/hooks/use-arena-round-chat';
 import { buildRoster, type RosterEntry } from '@/lib/solo-npcs';
 import { CANON_ERAS } from '@/lib/empyreanCanon/castNpcs';
@@ -337,5 +337,210 @@ describe('urge meter: NPCs speak on their own', () => {
     expect(b.result.current.urge.perNpc['jack-barlowe']).toBe('chatty');
     const other = setupUrge({ story: '', storageKey: 'solo-live-table:camp-other' });
     expect(other.result.current.urge.perNpc['jack-barlowe']).toBeUndefined();
+  });
+});
+
+describe('urge upgrades: memory, whispers, taste, rank, questions, energy', () => {
+  const rosterEntry = (key: string): RosterEntry => {
+    const found = roster.find(e => e.key === key);
+    if (!found) throw new Error(`The canon roster has no ${key}`);
+    return found;
+  };
+  const jackE = rosterEntry('jack-barlowe');
+  const trinaE = rosterEntry('trina');
+  const violetE = rosterEntry('violet-sorrengail');
+  const lilithE = rosterEntry('lilith-sorrengail');
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_700_000_000_000);
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  function setupUp(over: { story: string; storageKey?: string; reply?: (name: string, n: number) => string }) {
+    const asked: Array<{ name: string; mind: string }> = [];
+    const voiceNPC = vi.fn(async (name: string | string[], _line: string, _s?: unknown, mind?: string) => {
+      asked.push({ name: String(name), mind: mind || '' });
+      await new Promise(r => setTimeout(r, 5));
+      return over.reply ? over.reply(String(name), asked.length) : `**${name}:** "Answer ${asked.length}."`;
+    });
+    const hook = renderHook(() => useSoloLiveTable({
+      userId: 'rider', riderName: 'Xeyle', npcs: fakeNpcs(roster), latestDmText: over.story,
+      voiceNPC, sendToDm: vi.fn(async () => true), busy: false, storageKey: over.storageKey,
+    }));
+    return { ...hook, asked };
+  }
+  const settle = () => new Promise(r => setTimeout(r, 40));
+
+  it('meter levels are remembered per campaign and fade after an hour away', async () => {
+    const story = `${trinaE.name} waits by the gate.`;
+    const first = setupUp({ story, storageKey: 'solo-live-table:camp-levels' });
+    act(() => first.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await first.result.current.postRiderLine('Thank you, Trina, that was truly brave', true); });
+    await waitFor(() => expect(first.result.current.tells['trina']).toBeTruthy());
+    first.unmount();
+
+    const back = setupUp({ story, storageKey: 'solo-live-table:camp-levels' });
+    await waitFor(() => expect(back.result.current.tells['trina']).toBeTruthy());
+    back.unmount();
+    const other = setupUp({ story, storageKey: 'solo-live-table:camp-other-levels' });
+    await settle();
+    expect(other.result.current.tells['trina']).toBeUndefined();
+    other.unmount();
+
+    vi.setSystemTime(Date.now() + 3_700_000);
+    const late = setupUp({ story, storageKey: 'solo-live-table:camp-levels' });
+    await settle();
+    expect(late.result.current.tells['trina']).toBeUndefined();
+  });
+
+  it('a whisperer whispers: marked, unheard by the others, and nobody reacts to it', async () => {
+    const h = setupUp({
+      story: `${violetE.name} and ${jackE.name} stand by the mat.`,
+      reply: (name, n) => (n === 1 ? `**Violet:** "Jack is a useless coward, keep clear of him."` : `**${name}:** "Answer ${n}."`),
+    });
+    act(() => { h.result.current.setTableOpen(true); h.result.current.urge.setNpc('jack-barlowe', 'chatty'); });
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Violet, you are brilliant, tell me about the scribes', true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.asked[0].name).toBe('Violet Sorrengail');
+    await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id === 'violet-sorrengail')).toBe(true));
+    const whisper = h.result.current.chat.messages.find(m => m.npc_id === 'violet-sorrengail');
+    expect(whisper?.content).toContain(WHISPER_MARK);
+    expect(whisper ? isWhisper(whisper) : false).toBe(true);
+    // Jack was insulted by name in the whisper, but he never heard it.
+    await settle();
+    expect(h.asked.length).toBe(1);
+    expect(tableHeard(h.result.current.chat.messages, undefined, 'jack-barlowe')).not.toContain('useless coward');
+    expect(tableHeard(h.result.current.chat.messages, undefined, 'violet-sorrengail')).toContain('useless coward');
+    await act(async () => { await h.result.current.onSendToNpcs('Jack, what are you staring at', ['jack-barlowe']); });
+    await waitFor(() => expect(h.asked.length).toBe(2));
+    expect(h.asked[1].mind).not.toContain('useless coward');
+  });
+
+  it('learned taste: sealing an offered line makes them chattier, deleting it or a hush quieter, and reset clears it', async () => {
+    const h = setupUp({ story: `${jackE.name} smirks from the doorway.`, storageKey: 'solo-live-table:camp-taste' });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Jack, you are useless', true); });
+    await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id === 'jack-barlowe')).toBe(true));
+    const first = h.result.current.chat.messages.find(m => m.npc_id === 'jack-barlowe');
+    expect(first).toBeDefined();
+    await act(async () => { await h.result.current.chat.toggleSelected(first?.id ?? ''); });
+    await waitFor(() => expect(h.result.current.urge.learned['jack-barlowe']).toBeCloseTo(0.95));
+    // Unsealing and sealing again does not count twice.
+    await act(async () => { await h.result.current.chat.toggleSelected(first?.id ?? ''); });
+    await act(async () => { await h.result.current.chat.toggleSelected(first?.id ?? ''); });
+    expect(h.result.current.urge.learned['jack-barlowe']).toBeCloseTo(0.95);
+
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Jack, you are pathetic', true); });
+    await waitFor(() => expect(h.result.current.chat.messages.filter(m => m.npc_id === 'jack-barlowe').length).toBe(2));
+    const second = h.result.current.chat.messages.filter(m => m.npc_id === 'jack-barlowe')[1];
+    await act(async () => { await h.result.current.chat.deleteMessage(second.id); });
+    await waitFor(() => expect(h.result.current.urge.learned['jack-barlowe']).toBeCloseTo(1.045));
+    act(() => h.result.current.hushNpc('jack-barlowe'));
+    expect(h.result.current.urge.learned['jack-barlowe']).toBeCloseTo(1.15, 2);
+    h.unmount();
+
+    const back = setupUp({ story: `${jackE.name} smirks from the doorway.`, storageKey: 'solo-live-table:camp-taste' });
+    expect(back.result.current.urge.learned['jack-barlowe']).toBeCloseTo(1.15, 2);
+    act(() => back.result.current.urge.setNpc('jack-barlowe', 'chatty'));
+    act(() => back.result.current.urge.reset());
+    expect(back.result.current.urge.learned).toEqual({});
+    expect(back.result.current.urge.perNpc['jack-barlowe']).toBe('chatty');
+  });
+
+  it('clearing the whole table teaches nothing', async () => {
+    const h = setupUp({ story: `${jackE.name} smirks from the doorway.` });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Jack, you are useless', true); });
+    await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id === 'jack-barlowe')).toBe(true));
+    await act(async () => { await h.result.current.chat.clearAllMessages(); });
+    await settle();
+    expect(h.result.current.urge.learned).toEqual({});
+  });
+
+  it('rank: a cadet who would speak holds back while the General is on stage', async () => {
+    const line = 'Trina, you fool';
+    const alone = setupUp({ story: `${trinaE.name} waits by the gate, a dagger at her hip.` });
+    act(() => alone.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await alone.result.current.postRiderLine(line, true); });
+    await waitFor(() => expect(alone.asked.length).toBe(1));
+    alone.unmount();
+
+    const watched = setupUp({ story: `${trinaE.name} waits by the gate, a dagger at her hip. ${lilithE.name} watches.` });
+    act(() => watched.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await watched.result.current.postRiderLine(line, true); });
+    await settle();
+    expect(watched.asked.length).toBe(0);
+    expect(watched.result.current.tells['trina']).toBeTruthy();
+  });
+
+  it('an ignored question makes the NPC press; a plain answer does not', async () => {
+    for (const asks of [true, false]) {
+      const h = setupUp({
+        story: `${trinaE.name} waits by the gate.`,
+        reply: (name, n) => (n === 1 && asks ? `**Trina:** "Where were you last night?"` : `**${name}:** "Answer ${n}."`),
+      });
+      act(() => h.result.current.setTableOpen(true));
+      await act(async () => { await h.result.current.onSendToNpcs('Trina, good morning', ['trina']); });
+      await waitFor(() => expect(h.asked.length).toBe(1));
+      await settle();
+      vi.setSystemTime(Date.now() + 50_000);
+      for (const text of ['I look at the sky', 'I check my boots', 'I hum a tune', 'I stretch my arms']) {
+        await act(async () => { await h.result.current.postRiderLine(text, true); });
+      }
+      await settle();
+      if (asks) {
+        expect(h.asked.length).toBe(2);
+        expect(h.asked[1].mind).toContain('you asked a question and it was ignored');
+      } else {
+        expect(h.asked.length).toBe(1);
+      }
+      h.unmount();
+    }
+  });
+
+  it('answering the question (by name) clears it', async () => {
+    const h = setupUp({
+      story: `${trinaE.name} waits by the gate.`,
+      reply: (name, n) => (n === 1 ? `**Trina:** "Where were you last night?"` : `**${name}:** "Answer ${n}."`),
+    });
+    act(() => h.result.current.setTableOpen(true));
+    await act(async () => { await h.result.current.onSendToNpcs('Trina, good morning', ['trina']); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    await settle();
+    await act(async () => { await h.result.current.onSendToNpcs('Trina, I was asleep', ['trina']); });
+    await waitFor(() => expect(h.asked.length).toBe(2));
+    await settle();
+    vi.setSystemTime(Date.now() + 50_000);
+    for (const text of ['I look at the sky', 'I check my boots', 'I hum a tune', 'I stretch my arms']) {
+      await act(async () => { await h.result.current.postRiderLine(text, true); });
+    }
+    await settle();
+    expect(h.asked.length).toBe(2);
+  });
+
+  it('table energy: after a tense DM post a small nudge is enough to speak', async () => {
+    const line = 'Thank you, Trina';
+    const calm = setupUp({ story: `${trinaE.name} waits by the gate.` });
+    act(() => calm.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await calm.result.current.postRiderLine(line, true); });
+    await settle();
+    expect(calm.asked.length).toBe(0);
+    calm.unmount();
+
+    const tense = setupUp({ story: `${trinaE.name} waits by the gate. Blood on the stones, a scream, and someone is dead.` });
+    act(() => tense.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await tense.result.current.postRiderLine(line, true); });
+    await waitFor(() => expect(tense.asked.length).toBe(1));
   });
 });

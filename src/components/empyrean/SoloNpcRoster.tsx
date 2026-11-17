@@ -51,7 +51,7 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
   onFight?: (entry: RosterEntry) => void;
   onSpar?: (entry: RosterEntry) => void;
   /** The urge meter's switches (D-40): the table-wide one and one per NPC. */
-  urge?: { enabled: boolean; perNpc: Record<string, Talkativeness>; setEnabled: (v: boolean) => void; setNpc: (key: string, talk: Talkativeness) => void };
+  urge?: { enabled: boolean; perNpc: Record<string, Talkativeness>; setEnabled: (v: boolean) => void; setNpc: (key: string, talk: Talkativeness) => void; learned?: Record<string, number>; reset?: () => void };
 }) {
   const [query, setQuery] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -174,6 +174,12 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
                   <span className="block text-[11px] text-muted-foreground">On stage, when something moves them. Tune each person on their Mind screen.</span>
                 </span>
                 <Button variant={urge.enabled ? 'default' : 'outline'} onClick={() => urge.setEnabled(!urge.enabled)} style={TOUCH} className="min-h-[48px] shrink-0">{urge.enabled ? 'On' : 'Off'}</Button>
+              </div>
+            )}
+            {urge?.reset && (
+              <div className="space-y-1">
+                <Button variant="outline" onClick={() => urge.reset?.()} style={TOUCH} className="w-full min-h-[48px] text-xs">Reset how chatty everyone is</Button>
+                <p className="text-[11px] text-muted-foreground">NPCs learn from you: sealing a line they offered makes them speak up more, deleting it or waving them off makes them quieter. This puts everyone back to how they started. Your per-person choices stay.</p>
               </div>
             )}
 
