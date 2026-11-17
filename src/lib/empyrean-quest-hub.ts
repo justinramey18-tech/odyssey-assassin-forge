@@ -6,6 +6,7 @@
 import {
   applyQuestProgress,
   questFromOffer,
+  questTitle,
   rewardSummary,
   toStored,
   withQuestEvent,
@@ -237,6 +238,105 @@ function crOf(q: Quest): QuestCR {
   return q.challengeRating ?? 'moderate';
 }
 
+/**
+ * The XP and gold a quest pays: its listed reward kept inside its challenge's range (a missing
+ * one uses the middle). The Quest Hub shows these numbers and the rules server pays exactly them.
+ */
+export function questRewards(q: Quest): { xp: number; gold: number } {
+  const range = REWARD_RANGES[crOf(q)];
+  return { xp: clampReward(q.xpReward, range.xp), gold: clampReward(q.goldReward, range.gold) };
+}
+
+/** The quest with its listed reward replaced by what it really pays (same object when nothing changes). */
+export function withQuestRewards(q: Quest): Quest {
+  const { xp, gold } = questRewards(q);
+  return q.xpReward === xp && q.goldReward === gold ? q : { ...q, xpReward: xp, goldReward: gold };
+}
+
+// ─── Payouts the rules server has not confirmed yet ─────────────────────────
+
+/** Kept in quest_flags under this reserved key (skipped by every quest list). */
+export const PAYOUTS_KEY = '__empyrean_quest_payouts__';
+
+/** A finished quest's XP and gold, sent to the rules server (once per quest key on the server). */
+export interface HubPayout {
+  questKey: string;
+  challenge: QuestCR;
+  title: string;
+  xp: number;
+  gold: number;
+}
+
+/**
+ * What became of a payout sent to the rules server.
+ * paid: the server took it (the reward arrives through its inbox, once).
+ * off: the engine is off, nothing was sent: pay on the phone.
+ * refused: the server answered no and recorded nothing: pay on the phone.
+ * unconfirmed: sent, no answer. It may be recorded, so it waits and is sent again; never paid on the phone.
+ */
+export type QuestPayResult = 'paid' | 'off' | 'refused' | 'unconfirmed';
+
+export function hubPayout(q: Quest): HubPayout {
+  const { xp, gold } = questRewards(q);
+  return { questKey: q.key, challenge: crOf(q), title: questTitle(q), xp, gold };
+}
+
+/** Payouts sent but never answered. Retried until the server answers; never paid on the phone. */
+export function normalizePendingPayouts(raw: unknown): HubPayout[] {
+  const list = (raw as { pending?: unknown } | null)?.pending;
+  if (!Array.isArray(list)) return [];
+  const out: HubPayout[] = [];
+  for (const p of list.slice(0, 20)) {
+    const key = typeof p?.questKey === 'string' ? p.questKey.slice(0, 150) : '';
+    if (!key || out.some(o => o.questKey === key)) continue;
+    const challenge: QuestCR = ['easy', 'moderate', 'hard', 'deadly'].includes(p?.challenge) ? p.challenge : 'moderate';
+    const range = REWARD_RANGES[challenge];
+    out.push({
+      questKey: key, challenge, title: String(p?.title ?? key).slice(0, 120),
+      xp: clampReward(p?.xp, range.xp), gold: clampReward(p?.gold, range.gold),
+    });
+  }
+  return out;
+}
+
+export function storedPendingPayouts(pending: HubPayout[]): Record<string, unknown> {
+  // status 'unknown' keeps panels that count quest_flags by status from treating this as a quest.
+  return { status: 'unknown', pending: pending.slice(0, 20), updated_at: new Date().toISOString() };
+}
+
+// ─── What progress has unlocked (Camp) and what the DM is told ───────────────
+
+export interface HubUnlock { id: string; label: string; source: string; unlocked: boolean }
+
+/** Quest Hub unlocks for Camp's "Unlocked by your progress" list. */
+export function hubUnlocks(hub: HubState): HubUnlock[] {
+  const signet = rankInfo('signet', hub.points.signet);
+  const list: HubUnlock[] = [
+    { id: 'q-signet-3', label: 'Signet Strain limit +1', source: `Quest Hub: Signet rank 3 (${hubCategory('signet').ranks[2]})`, unlocked: signet.index >= 2 },
+    { id: 'q-signet-5', label: 'Signet Strain limit +1 more', source: `Quest Hub: Signet rank 5 (${hubCategory('signet').ranks[4]})`, unlocked: signet.index >= 4 },
+  ];
+  // Harder offers per category: what is open, plus the next one where the rider has started earning standing.
+  for (const cat of HUB_CATEGORIES) {
+    const r = rankInfo(cat.id, hub.points[cat.id]);
+    const steps: HubUnlock[] = [
+      { id: `q-${cat.id}-hard`, label: `Hard ${cat.label} quests are offered`, source: `Quest Hub: ${cat.label} rank 2 (${cat.ranks[1]})`, unlocked: r.index >= 1 },
+      { id: `q-${cat.id}-deadly`, label: `Deadly ${cat.label} quests are offered`, source: `Quest Hub: ${cat.label} rank 4 (${cat.ranks[3]})`, unlocked: r.index >= 3 },
+    ];
+    const next = steps.find(u => !u.unlocked);
+    list.push(...steps.filter(u => u.unlocked || (u === next && r.points > 0)));
+  }
+  return list;
+}
+
+/** One GAME FACTS line: the rider's standing (renown) in each category they have earned any. */
+export function standingFactsLine(hub: HubState): string {
+  const earned = HUB_CATEGORIES
+    .map(cat => ({ cat, r: rankInfo(cat.id, hub.points[cat.id]) }))
+    .filter(x => x.r.points > 0)
+    .map(x => `${x.cat.label}: ${x.r.name} (rank ${x.r.index + 1} of 5)`);
+  if (!earned.length) return '';
+  return `Standing at Basgiath (earned through finished quests): ${earned.join('; ')}. Let instructors, leaders and other cadets react to it; it never changes a roll.`;
+}
 // ─── Applying the story extractor's results ──────────────────────────────────
 
 export interface QuestPayout {
@@ -299,7 +399,7 @@ export function planQuestUpdates(
     const category = isHubCategory(offer.category)
       ? offer.category
       : classifyQuest(quest.title ?? quest.key, quest.description, (quest.stages ?? []).map(s => s.text));
-    const withCat: Quest = { ...quest, category };
+    const withCat: Quest = withQuestRewards({ ...quest, category });
     known.add(withCat.key);
     plan.offered.push(withCat);
     plan.upserts.push({ key: withCat.key, stored: toStored(withCat) });
@@ -320,8 +420,8 @@ export function planQuestUpdates(
       hubChanged = true;
       const after = rankInfo(category, points[category]);
       if (after.index > before.index) plan.rankUps.push({ category, from: before.name, to: after.name });
-      const xp = Number(next.xpReward) > 0 ? Math.floor(Number(next.xpReward)) : 0;
-      const gold = Number(next.goldReward) > 0 ? Math.floor(Number(next.goldReward)) : 0;
+      next = withQuestRewards(next);
+      const { xp, gold } = questRewards(next);
       plan.payouts.push({ quest: next, category, xp, gold, points: earned });
       const extras: string[] = [`+${earned} ${hubCategory(category).label} standing`];
       if (category === 'dragon') {

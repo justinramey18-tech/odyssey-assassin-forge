@@ -7,7 +7,13 @@ import {
   classifyQuest,
   currentQuest,
   emptyHubState,
+  hubPayout,
+  hubUnlocks,
   normalizeHubState,
+  normalizePendingPayouts,
+  questRewards,
+  standingFactsLine,
+  storedPendingPayouts,
   parseSeekReply,
   planQuestUpdates,
   questCategory,
@@ -198,5 +204,59 @@ describe('currentQuest', () => {
     expect(currentQuest([a, b])?.key).toBe('b');
     expect(currentQuest([a, b, m])?.key).toBe('m');
     expect(currentQuest([{ ...a, status: 'offered' }])).toBeNull();
+  });
+});
+
+describe('quest rewards: what the card shows is what the server pays', () => {
+  it("keeps a listed reward inside its challenge's range; a missing one uses the middle", () => {
+    expect(questRewards(active({ key: 'a', xpReward: 500, goldReward: 30 }))).toEqual({ xp: 300, gold: 30 });
+    expect(questRewards(active({ key: 'b', challengeRating: 'deadly', xpReward: 100 }))).toEqual({ xp: 500, gold: 250 });
+    expect(questRewards(active({ key: 'c', challengeRating: undefined }))).toEqual({ xp: 200, gold: 38 });
+  });
+  it('a DM offer is stored with the real reward, and the payout and its log line use it', () => {
+    const offered = planQuestUpdates([], emptyHubState(), [{ title: 'Survive Basgiath', stages: ['Day one'], xp_reward: 500, challenge_rating: 'moderate' } as any], []);
+    expect(offered.offered[0]).toMatchObject({ xpReward: 300 });
+    // A quest stored before this change (500 XP listed) still pays and logs 300.
+    const done = planQuestUpdates([active({ key: 'old', xpReward: 500, goldReward: 15 })], emptyHubState(), [], [{ key: 'old', status: 'completed' }]);
+    expect(done.payouts[0]).toMatchObject({ xp: 300, gold: 15 });
+    const stored = done.upserts[0].stored as { xpReward: number; events: Array<{ text: string }> };
+    expect(stored.xpReward).toBe(300);
+    expect(stored.events.at(-1)?.text).toContain('300 XP, 15 gold');
+    expect(hubPayout(normalizeQuest('old', stored))).toEqual({ questKey: 'old', challenge: 'moderate', title: 'old', xp: 300, gold: 15 });
+  });
+  it('keeps unanswered payouts (clamped, one per quest) under a reserved key', () => {
+    const list = normalizePendingPayouts({ pending: [
+      { questKey: 'a', challenge: 'hard', title: 'A', xp: 9999, gold: 50 },
+      { questKey: 'a', challenge: 'hard', title: 'dup', xp: 300, gold: 50 },
+      { questKey: '', xp: 10 },
+      { questKey: 'b', challenge: 'nope', xp: 150, gold: 20 },
+    ] });
+    expect(list).toEqual([
+      { questKey: 'a', challenge: 'hard', title: 'A', xp: 600, gold: 50 },
+      { questKey: 'b', challenge: 'moderate', title: 'b', xp: 150, gold: 20 },
+    ]);
+    expect(normalizePendingPayouts(storedPendingPayouts(list))).toEqual(list);
+    expect(normalizeQuestMap({ __empyrean_quest_payouts__: storedPendingPayouts(list) })).toEqual([]);
+  });
+});
+
+describe('progress unlocks and standing', () => {
+  it('lists the Signet strain raises always, and harder offers only where standing has been earned', () => {
+    const fresh = hubUnlocks(emptyHubState());
+    expect(fresh.map(u => [u.id, u.unlocked])).toEqual([['q-signet-3', false], ['q-signet-5', false]]);
+    const hub = normalizeHubState({ points: { signet: 9, combat: 2, missions: 16 } });
+    const list = hubUnlocks(hub);
+    expect(list.find(u => u.id === 'q-signet-3')?.unlocked).toBe(true);
+    expect(list.find(u => u.id === 'q-signet-5')?.unlocked).toBe(false);
+    expect(list.filter(u => u.id.startsWith('q-combat')).map(u => [u.id, u.unlocked])).toEqual([['q-combat-hard', false]]);
+    expect(list.filter(u => u.id.startsWith('q-missions')).map(u => [u.id, u.unlocked])).toEqual([['q-missions-hard', true], ['q-missions-deadly', true]]);
+    expect(list.some(u => u.id.startsWith('q-academics'))).toBe(false);
+  });
+  it('tells the DM the standing the rider has earned, and nothing before any', () => {
+    expect(standingFactsLine(emptyHubState())).toBe('');
+    const line = standingFactsLine(normalizeHubState({ points: { combat: 8, personal: 1 } }));
+    expect(line).toContain('Combat & Training: Duelist (rank 3 of 5)');
+    expect(line).toContain('Personal: Stranger (rank 1 of 5)');
+    expect(line).not.toContain('Academics');
   });
 });
