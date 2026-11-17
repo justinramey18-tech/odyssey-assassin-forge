@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { stripTableTalkTags } from '@/lib/tts-utils';
 import { Message, CharacterContext } from '@/components/oracle/types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -300,8 +301,13 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     }
   }, [campaignSummary]);
 
-  const sendMessage = useCallback(async (content: string, overrideHistory?: Message[]) => {
-    if (!content.trim() || isLoading) return;
+  const sendMessage = useCallback(async (
+    content: string,
+    overrideHistory?: Message[],
+    /** Solo Live Table hand-off: the Live Table rules for the DM, and drop the sent text from the story if no reply comes back. */
+    opts?: { liveTable?: Record<string, unknown>; dropUserOnFail?: boolean },
+  ): Promise<boolean> => {
+    if (!content.trim() || isLoading) return false;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -353,6 +359,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_venice_key: loadApiKey('venice') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
           narrationStylePrompt: buildNarrationStyleBlock(loadNarrationStyle()) || undefined,
+          liveTable: opts?.liveTable || undefined,
           ...(() => {
             const cs = loadCombatSettings();
             const feats: string[] = [];
@@ -478,7 +485,10 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
       // After successful response, parse whispers and clean the narrative
       if (assistantContent) {
-        const { narrative, whispers } = parseWhispers(assistantContent);
+        const parsedReply = parseWhispers(assistantContent);
+        const whispers = parsedReply.whispers;
+        // A Live Table hand-off may open with a [TABLE] aside: keep the words, drop the markers.
+        const narrative = opts?.liveTable ? stripTableTalkTags(parsedReply.narrative).trim() : parsedReply.narrative;
 
         // Update the assistant message with clean narrative + whispers metadata
         setMessages(prev =>
@@ -527,9 +537,15 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
             } catch { /* non-blocking */ }
           })();
         }
+        return true;
       }
+      if (opts?.dropUserOnFail) setMessages(prev => prev.filter(m => m.id !== userMessage.id && (m.role !== 'assistant' || m.content)));
+      return false;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
+      if (opts?.dropUserOnFail && !assistantContent) {
+        setMessages(prev => prev.filter(m => m.id !== userMessage.id && (m.role !== 'assistant' || m.content)));
+      }
+      if (error instanceof Error && error.name === 'AbortError') return false;
 
       console.error('AI DM error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to get response');
@@ -537,6 +553,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       if (!assistantContent) {
         setMessages(prev => prev.filter(m => m.role !== 'assistant' || m.content));
       }
+      return false;
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;

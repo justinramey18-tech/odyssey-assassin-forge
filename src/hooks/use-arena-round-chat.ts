@@ -1,7 +1,8 @@
 // Arena practice: the real Live Table contract, kept entirely on this phone.
 // The real useRoundChat runs with no party (so it reads and writes nothing) and
 // supplies the full return type; local state is layered over it.
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { useRoundChat, DEFAULT_ROUND_STYLE, type RoundChatMessage, type RoundChatReaction, type RoundStyle } from '@/hooks/use-round-chat';
 import { stripActionCard } from '@/lib/roundChatActionCard';
 import { parseReply } from '@/lib/chatReply';
@@ -25,12 +26,54 @@ export type ArenaRoundChatApi = RoundChatApi & {
   appendLine: (line: ArenaAppendLine) => string;
 };
 
-export function useArenaRoundChat(userId: string | undefined, characterName: string, roundId: string): ArenaRoundChatApi {
+/** Lines kept on the phone for a saved table: every unsent line, plus the latest sent ones. */
+export function linesToKeep(lines: RoundChatMessage[], sentToKeep = 40): RoundChatMessage[] {
+  const sent = lines.filter((m) => m.consumed);
+  const keepSent = new Set(sent.slice(-sentToKeep).map((m) => m.id));
+  return lines.filter((m) => !m.consumed || keepSent.has(m.id)).slice(-300);
+}
+
+function readSaved(key: string | undefined): { messages: RoundChatMessage[]; reactions: RoundChatReaction[] } {
+  if (!key) return { messages: [], reactions: [] };
+  try {
+    const raw = getScopedItem(key);
+    const data = raw ? JSON.parse(raw) : null;
+    return {
+      messages: Array.isArray(data?.messages) ? data.messages : [],
+      reactions: Array.isArray(data?.reactions) ? data.reactions : [],
+    };
+  } catch {
+    return { messages: [], reactions: [] };
+  }
+}
+
+/**
+ * storageKey (optional, solo Empyrean): keep the table on this phone under that key, so
+ * unsent lines and NPC answers survive leaving the screen. Without it (the Arena) nothing is saved.
+ */
+export function useArenaRoundChat(userId: string | undefined, characterName: string, roundId: string, storageKey?: string): ArenaRoundChatApi {
   const base = useRoundChat(null, userId, characterName, roundId);
   const me = userId || 'arena-player';
   const [style, setStyle] = useState<RoundStyle>({ ...DEFAULT_ROUND_STYLE, mode: 'live' });
-  const [messages, setMessages] = useState<RoundChatMessage[]>([]);
-  const [reactions, setReactions] = useState<RoundChatReaction[]>([]);
+  const [messages, setMessages] = useState<RoundChatMessage[]>(() => readSaved(storageKey).messages);
+  const [reactions, setReactions] = useState<RoundChatReaction[]>(() => readSaved(storageKey).reactions);
+  // A different key (another campaign) loads that table; saving waits until it has loaded.
+  const loadedKeyRef = useRef<string | undefined>(storageKey);
+  useEffect(() => {
+    if (loadedKeyRef.current === storageKey) return;
+    const saved = readSaved(storageKey);
+    loadedKeyRef.current = storageKey;
+    setMessages(saved.messages);
+    setReactions(saved.reactions);
+  }, [storageKey]);
+  useEffect(() => {
+    if (!storageKey || loadedKeyRef.current !== storageKey) return;
+    try {
+      const kept = linesToKeep(messages);
+      const ids = new Set(kept.map((m) => m.id));
+      setScopedItem(storageKey, JSON.stringify({ messages: kept, reactions: reactions.filter((r) => ids.has(r.message_id)) }));
+    } catch { /* storage full or blocked: the table still works for this visit */ }
+  }, [storageKey, messages, reactions]);
   const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
   const [orderOverride, setOrderOverride] = useState<string[]>([]);
   const roundRef = useRef(roundId);
