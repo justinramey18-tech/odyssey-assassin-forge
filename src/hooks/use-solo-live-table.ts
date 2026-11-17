@@ -17,6 +17,12 @@
 //   the rider and the whisperer; sealing an unprompted line makes that NPC chattier, deleting it or
 //   hushing them quieter; cadets hold back while an officer or command is on stage; an ignored
 //   question makes the NPC press; a tense DM post lowers everyone's bar for five minutes.
+// - Tier 3 (2026-11-17): a rider line that touches something an NPC remembers adds urge; an AI judge
+//   (solo-npc "judge", reports only) reads lines the word lists made little of.
+// - Huddles (src/lib/npc-huddle.ts): two NPCs on stage start talking among themselves and the rider
+//   is a third voice in it. The urge meter picks who speaks next; heat, stances and steam move with
+//   what is said; tension, old ground, appetite and pace are kept on the phone per campaign.
+//   Nothing here writes saved data: memories and attitude still change only through Send to DM.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
@@ -28,7 +34,14 @@ import {
   URGE_LINE_MODEL, URGE_RULES, addReasons, freshUrge, pickWakes, resetUrge, scoreLine,
   silenceReasons, spotlightBonus, urgeStanding, whyBlock, type NpcUrgeState, type Talkativeness,
   URGE_TUNING, asksQuestion, energyScale, ignoredQuestionReasons, learnTaste, mentionsAny, rankFromRole, rankScale, tableEnergy,
+  URGE_TIER3, judgeReasons, memoryMatch, memoryReason, needsJudge, type JudgedLine,
 } from '@/lib/npc-urge';
+import {
+  HUDDLE_RULES, addPressure, afterNpcLine, afterRiderLine, applyRead, freshTaste, joinHuddle, learnPace, leaveHuddle,
+  pauseMs, readTaste, readySpark,
+  type Huddle, type HuddleEnd, type HuddleNpc, type HuddleTaste, type PairPressure,
+} from '@/lib/npc-huddle';
+import { askJudge, type JudgeAsk } from '@/lib/solo-judge';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { formatReply, parseReply } from '@/lib/chatReply';
 import { stripActionCard } from '@/lib/roundChatActionCard';
@@ -72,8 +85,11 @@ export interface SoloLiveTableContext {
 }
 
 /** The urge meter's switches, kept on this phone per campaign. */
-export interface UrgeSettings { enabled: boolean; perNpc: Record<string, Talkativeness>; /** Learned taste per NPC: a threshold factor (below 1 = chattier). */ learned: Record<string, number> }
-const DEFAULT_URGE_SETTINGS: UrgeSettings = { enabled: true, perNpc: {}, learned: {} };
+export interface UrgeSettings { enabled: boolean; perNpc: Record<string, Talkativeness>; /** Learned taste per NPC: a threshold factor (below 1 = chattier). */ learned: Record<string, number>; /** The AI judge reads lines the word lists made little of. Missing = on. */ judge?: boolean; /** NPCs may start talking among themselves. Missing = on. */ huddles?: boolean }
+const DEFAULT_URGE_SETTINGS: UrgeSettings = { enabled: true, perNpc: {}, learned: {}, judge: true, huddles: true };
+
+/** What the Live Table shows about a huddle: the one running, or the last one while its lines can still be sealed. */
+export interface HuddleView { active: boolean; names: string[]; heat: number; canSeal: boolean }
 
 /** A whispered line: only the rider and the whisperer hear it. */
 export const WHISPER_MARK = '🤫';
@@ -82,11 +98,15 @@ export function isWhisper(m: Pick<RoundChatMessage, 'content' | 'npc_id'>): bool
 }
 
 /** Meter levels kept on the phone, and which table lines were unprompted (for learning). */
-interface UrgeLevels { states: Record<string, NpcUrgeState>; unprompted: string[] }
+interface UrgeLevels { states: Record<string, NpcUrgeState>; unprompted: string[]; /** Unprompted lines already learned from. */ learnedIds: string[]; /** The DM post the table energy was read from, and when. */ energy: { sig: string; at: number } | null }
+/** Engine reasons that say nothing about what the line meant: they never count as "the lists caught it". */
+const PLAIN_REASONS = new Set(['your name came up', 'the talk keeps passing you by']);
+/** Enough of a DM post to tell it from the next one. */
+const energySig = (text: string) => `${text.length}:${text.slice(0, 48)}`;
 const LEVELS_MAX_AGE_MS = 3_600_000;
 
 function readUrgeLevels(key: string | undefined): UrgeLevels {
-  if (!key) return { states: {}, unprompted: [] };
+  if (!key) return { states: {}, unprompted: [], learnedIds: [], energy: null };
   try {
     const raw = getScopedItem(key);
     const data = raw ? JSON.parse(raw) as Partial<UrgeLevels> : null;
@@ -97,9 +117,15 @@ function readUrgeLevels(key: string | undefined): UrgeLevels {
         states[k] = { urge: v.urge, at: v.at, lastSpokeAt: v.lastSpokeAt, reasons: Array.isArray(v.reasons) ? v.reasons : [] };
       }
     }
-    return { states, unprompted: Array.isArray(data?.unprompted) ? data.unprompted.filter(x => typeof x === 'string').slice(-60) : [] };
+    const energy = data?.energy && typeof data.energy.sig === 'string' && typeof data.energy.at === 'number' ? { sig: data.energy.sig, at: data.energy.at } : null;
+    return {
+      states,
+      unprompted: Array.isArray(data?.unprompted) ? data.unprompted.filter(x => typeof x === 'string').slice(-60) : [],
+      learnedIds: Array.isArray(data?.learnedIds) ? data.learnedIds.filter(x => typeof x === 'string').slice(-60) : [],
+      energy,
+    };
   } catch {
-    return { states: {}, unprompted: [] };
+    return { states: {}, unprompted: [], learnedIds: [], energy: null };
   }
 }
 
@@ -113,6 +139,8 @@ function readUrgeSettings(key: string | undefined): UrgeSettings {
       enabled: (data as UrgeSettings).enabled !== false,
       perNpc: typeof (data as UrgeSettings).perNpc === 'object' && (data as UrgeSettings).perNpc ? (data as UrgeSettings).perNpc : {},
       learned: typeof (data as UrgeSettings).learned === 'object' && (data as UrgeSettings).learned ? (data as UrgeSettings).learned : {},
+      judge: (data as UrgeSettings).judge !== false,
+      huddles: (data as UrgeSettings).huddles !== false,
     };
   } catch {
     return DEFAULT_URGE_SETTINGS;
@@ -159,7 +187,7 @@ export function tableNpcsFor(roster: RosterEntry[], stage: string[]) {
     .map(e => ({ id: e.key, name: e.name, portrait_url: castPortrait(e.key) ?? null, on_stage: stage.includes(e.key) && e.status !== 'dead', archived: false }));
 }
 
-export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check, paused = false }: {
+export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check, paused = false, judge = askJudge, huddleTimeScale = 1 }: {
   userId: string | undefined;
   riderName: string;
   npcs: SoloNpcs;
@@ -175,6 +203,10 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   check?: (input: { d20: number; modifier: number; dc: number | null; risk: ReturnType<typeof checkRisk>; label: string }) => Promise<RulesCheck | null>;
   /** Freezes the urge meter (a fight is open, say). */
   paused?: boolean;
+  /** The AI judge (tests pass their own). */
+  judge?: (ask: JudgeAsk) => Promise<JudgedLine | null>;
+  /** Shrinks the pauses between huddle lines (tests). */
+  huddleTimeScale?: number;
 }) {
   const chat = useArenaRoundChat(userId, riderName, 'solo-live-table', storageKey);
   const me = userId || 'arena-player';
@@ -194,6 +226,8 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   npcsRef.current = npcs;
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
+  const judgeRef = useRef(judge);
+  judgeRef.current = judge;
   const sceneRunningRef = useRef(sceneRunning);
   sceneRunningRef.current = sceneRunning;
   const dmSendingRef = useRef(false);
@@ -280,9 +314,17 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     setUrgeSettings(next);
     if (urgeKey) { try { setScopedItem(urgeKey, JSON.stringify(next)); } catch { /* best effort */ } }
   }, [urgeKey]);
-  const setUrgeEnabled = useCallback((enabled: boolean) => saveUrgeSettings({ ...urgeSettingsRef.current, enabled }), [saveUrgeSettings]);
+  const setUrgeEnabled = useCallback((enabled: boolean) => {
+    saveUrgeSettings({ ...urgeSettingsRef.current, enabled });
+    if (!enabled) endHuddleRef.current('interrupted');
+  }, [saveUrgeSettings]);
   const setNpcTalkativeness = useCallback((key: string, talk: Talkativeness) => {
     saveUrgeSettings({ ...urgeSettingsRef.current, perNpc: { ...urgeSettingsRef.current.perNpc, [key]: talk } });
+  }, [saveUrgeSettings]);
+  const setJudgeEnabled = useCallback((on: boolean) => saveUrgeSettings({ ...urgeSettingsRef.current, judge: on }), [saveUrgeSettings]);
+  const setHuddlesEnabled = useCallback((on: boolean) => {
+    saveUrgeSettings({ ...urgeSettingsRef.current, huddles: on });
+    if (!on) endHuddleRef.current('interrupted');
   }, [saveUrgeSettings]);
   const talkFor = useCallback((key: string): Talkativeness => urgeSettingsRef.current.perNpc[key] ?? 'normal', []);
   /** The rider liked (sealed) or disliked (deleted, hushed) an unprompted line: that NPC's bar moves. */
@@ -295,7 +337,18 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
 
   // The drawer reports open/closed; the meter only wakes anyone while the table is open.
   const tableOpenRef = useRef(false);
-  const setTableOpen = useCallback((open: boolean) => { tableOpenRef.current = open; }, []);
+  const endHuddleRef = useRef<(end: HuddleEnd) => void>(() => {});
+  const partingLineRef = useRef<(key: string, h: Huddle) => void>(() => {});
+  const setTableOpen = useCallback((open: boolean) => {
+    tableOpenRef.current = open;
+    if (!open) endHuddleRef.current('interrupted');
+  }, []);
+  // The drawer reports typing: a huddle waits for the rider to finish their line.
+  const typingRef = useRef({ since: 0, last: 0 });
+  const setTyping = useCallback((typing: boolean) => {
+    const now = Date.now();
+    typingRef.current = typing ? { since: typingRef.current.since || now, last: now } : { since: 0, last: 0 };
+  }, []);
 
   const urgeRef = useRef<Record<string, NpcUrgeState>>({});
   // Kept on the phone per campaign: meter levels (they fade while away) and which lines were unprompted.
@@ -303,31 +356,96 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   const levelsKeyRef = useRef(levelsKey);
   const savedLevelsRef = useRef<Record<string, NpcUrgeState>>({});
   const unpromptedIdsRef = useRef<Set<string>>(new Set());
+  // Unprompted lines as last seen on the table (sealed or not), and the ones already learned from.
+  const seenUnpromptedRef = useRef<Map<string, { selected: boolean; npc: string }>>(new Map());
+  const learnedIdsRef = useRef<Set<string>>(new Set());
+  // The latest DM post's energy, and when it arrived (kept, so reopening the app does not restart the clock).
+  const energyRef = useRef<{ energy: ReturnType<typeof tableEnergy>; at: number; sig: string }>({ energy: 'normal', at: 0, sig: '' });
+  const savedEnergyRef = useRef<{ sig: string; at: number } | null>(null);
   const levelsLoadedRef = useRef(false);
   if (!levelsLoadedRef.current || levelsKeyRef.current !== levelsKey) {
     const loaded = readUrgeLevels(levelsKey);
     savedLevelsRef.current = loaded.states;
     unpromptedIdsRef.current = new Set(loaded.unprompted);
+    learnedIdsRef.current = new Set(loaded.learnedIds);
+    savedEnergyRef.current = loaded.energy;
     if (levelsLoadedRef.current) urgeRef.current = {};
     levelsLoadedRef.current = true;
     levelsKeyRef.current = levelsKey;
   }
   const saveLevels = useCallback(() => {
-    savedLevelsRef.current = { ...savedLevelsRef.current, ...urgeRef.current };
+    const now = Date.now();
+    const merged: Record<string, NpcUrgeState> = {};
+    // NPCs long gone from the stage are dropped here, not only on the next load.
+    for (const [k, v] of Object.entries({ ...savedLevelsRef.current, ...urgeRef.current })) {
+      if (urgeRef.current[k] || now - v.at < LEVELS_MAX_AGE_MS) merged[k] = v;
+    }
+    savedLevelsRef.current = merged;
     const key = levelsKeyRef.current;
     if (!key) return;
     try {
-      setScopedItem(key, JSON.stringify({ states: savedLevelsRef.current, unprompted: Array.from(unpromptedIdsRef.current).slice(-60) }));
+      setScopedItem(key, JSON.stringify({
+        states: merged,
+        unprompted: Array.from(unpromptedIdsRef.current).slice(-60),
+        learnedIds: Array.from(learnedIdsRef.current).slice(-60),
+        energy: energyRef.current.sig ? { sig: energyRef.current.sig, at: energyRef.current.at } : null,
+      }));
     } catch { /* best effort */ }
   }, []);
-  // Unprompted lines as last seen on the table (sealed or not), and the ones already learned from.
-  const seenUnpromptedRef = useRef<Map<string, { selected: boolean; npc: string }>>(new Map());
-  const learnedIdsRef = useRef<Set<string>>(new Set());
   // An NPC's open question to the rider, and how many rider lines have passed it by.
   const questionsRef = useRef<Record<string, { at: number; missed: number }>>({});
-  // The latest DM post's energy, and when it arrived.
-  const energyRef = useRef<{ energy: ReturnType<typeof tableEnergy>; at: number }>({ energy: 'normal', at: 0 });
-  useEffect(() => { energyRef.current = { energy: tableEnergy(latestDmText), at: Date.now() }; }, [latestDmText]);
+  useEffect(() => {
+    const sig = energySig(latestDmText);
+    const saved = savedEnergyRef.current;
+    energyRef.current = { energy: tableEnergy(latestDmText), at: saved && saved.sig === sig ? saved.at : Date.now(), sig };
+    savedEnergyRef.current = null;
+  }, [latestDmText]);
+  // A memory that just triggered rests a while before it can trigger again (per NPC).
+  const usedMemoriesRef = useRef<Record<string, Record<string, number>>>({});
+  const lastJudgeAtRef = useRef(0);
+  const memoryFor = useCallback((key: string, text: string, memories: string[], names: string[], now: number): string | null => {
+    const hit = memoryMatch(text, memories, [...names, riderName]);
+    if (!hit) return null;
+    const used = usedMemoriesRef.current[key] ?? {};
+    if (now - (used[hit.memory] ?? 0) < URGE_TIER3.memoryRestMs) return null;
+    usedMemoriesRef.current[key] = { ...used, [hit.memory]: now };
+    return hit.memory;
+  }, [riderName]);
+
+  // ── Huddles ──
+  const huddleKey = storageKey ? `${storageKey}:huddle` : undefined;
+  const huddleKeyRef = useRef<string | undefined>(undefined);
+  const tasteRef = useRef<HuddleTaste>(freshTaste());
+  const tasteLoadedRef = useRef(false);
+  if (!tasteLoadedRef.current || huddleKeyRef.current !== huddleKey) {
+    let raw: unknown = null;
+    try { raw = huddleKey ? JSON.parse(getScopedItem(huddleKey) || 'null') : null; } catch { raw = null; }
+    tasteRef.current = readTaste(raw);
+    tasteLoadedRef.current = true;
+    huddleKeyRef.current = huddleKey;
+  }
+  const saveTaste = useCallback((next: HuddleTaste) => {
+    tasteRef.current = next;
+    const key = huddleKeyRef.current;
+    if (key) { try { setScopedItem(key, JSON.stringify(next)); } catch { /* best effort */ } }
+  }, []);
+  const huddleRef = useRef<Huddle | null>(null);
+  const pressureRef = useRef<Record<string, PairPressure>>({});
+  const lastHuddleAtRef = useRef(0);
+  const huddleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const huddleSeqRef = useRef(0);
+  /** The last line in the huddle (an NPC's or the rider's), and when it landed. */
+  const huddleLastRef = useRef<{ id: string | null; name: string; text: string; at: number; byRider: boolean } | null>(null);
+  /** Every line of the current or last huddle, for "Seal this conversation". */
+  const huddleLinesRef = useRef<{ id: string; pair: [string, string]; ids: string[]; liked: boolean } | null>(null);
+  const [huddleInfo, setHuddleInfo] = useState<{ active: boolean; names: string[]; heat: number; ids: string[] } | null>(null);
+  const showHuddle = useCallback(() => {
+    const h = huddleRef.current;
+    const lines = huddleLinesRef.current;
+    if (!h && !lines) { setHuddleInfo(null); return; }
+    const names = (h ? h.members : lines ? [...lines.pair] : []).map(k => npcsRef.current.entry(k)?.name.trim().split(/\s+/)[0] || k);
+    setHuddleInfo({ active: !!h, names, heat: h?.heat ?? 0, ids: lines ? [...lines.ids] : [] });
+  }, []);
   /** Learned taste × rank × table energy: what multiplies this NPC's threshold right now. */
   const scaleFor = useCallback((key: string, now: number): number => {
     const roster = npcsRef.current;
@@ -340,6 +458,19 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     return (urgeSettingsRef.current.learned[key] ?? 1)
       * rankScale(rankFromRole(own?.mind.role, own?.name), others)
       * energyScale(energyRef.current.energy, now - energyRef.current.at);
+  }, []);
+  /** An NPC as the huddle rules see it. */
+  const huddleNpc = useCallback((key: string): HuddleNpc | null => {
+    const e = npcsRef.current.entry(key);
+    return e && e.status !== 'dead' ? { key, name: e.name, temperament: temperamentFor(key), attitude: e.attitude } : null;
+  }, []);
+  /** Someone of higher rank than this NPC is on stage. */
+  const outranked = useCallback((key: string): boolean => {
+    const roster = npcsRef.current;
+    const own = roster.entry(key);
+    const others = Object.keys(urgeRef.current).filter(k => k !== key).map(k => roster.entry(k))
+      .filter((e): e is RosterEntry => !!e && e.status !== 'dead').map(e => rankFromRole(e.mind.role, e.name));
+    return rankScale(rankFromRole(own?.mind.role, own?.name), others) > 1;
   }, []);
   const [tells, setTells] = useState<Record<string, string>>({});
   const lastRiderLineRef = useRef('');
@@ -384,22 +515,36 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const next: Record<string, NpcUrgeState> = {};
     for (const key of stage) next[key] = urgeRef.current[key] ?? savedLevelsRef.current[key] ?? freshUrge(now);
     urgeRef.current = next;
+    // A huddle member the story moved away leaves it; with fewer than two it ends.
+    const h = huddleRef.current;
+    if (h) {
+      let left: Huddle | null = h;
+      const gone = h.members.filter(key => !stage.includes(key));
+      for (const key of gone) if (left) left = leaveHuddle(left, key);
+      if (gone.length && h.npcLines > 0) partingLineRef.current(gone[0], h);
+      if (!left) endHuddleRef.current('interrupted');
+      else if (left !== h) { huddleRef.current = left; showHuddle(); }
+    }
     refreshTells();
-  }, [stage, refreshTells]);
+  }, [stage, refreshTells, showHuddle]);
 
   // processHeardLine and speakUnprompted call each other (a wake makes a line, a line can wake
   // one reaction), so each reaches the other through a ref.
   const speakUnpromptedRef = useRef<(key: string, triggerText: string, allowReaction: boolean) => void>(() => {});
-  const processHeardLineRef = useRef<(text: string, speaker: 'rider' | 'npc', speakerKey: string | undefined, speakerName: string | undefined, addressed: string[], maxWakes: number) => void>(() => {});
+  const processHeardLineRef = useRef<(text: string, speaker: 'rider' | 'npc', speakerKey: string | undefined, speakerName: string | undefined, addressed: string[], maxWakes: number, lineId?: string | null) => void>(() => {});
+  const scheduleHuddleTurnRef = useRef<(ms: number) => void>(() => {});
+  const startHuddleRef = useRef<(pair: [string, string], kind: Huddle['kind'], about: string) => boolean>(() => false);
 
   /** Score a heard line for everyone on stage; maybe wake somebody (capped). */
-  const processHeardLine = useCallback((text: string, speaker: 'rider' | 'npc', speakerKey: string | undefined, speakerName: string | undefined, addressed: string[], maxWakes: number) => {
+  const processHeardLine = useCallback((text: string, speaker: 'rider' | 'npc', speakerKey: string | undefined, speakerName: string | undefined, addressed: string[], maxWakes: number, lineId?: string | null) => {
     // Any line breaks the silence, even while the meter is off or frozen.
     idleAccumRef.current = 0;
     silenceStepsCountedRef.current = 0;
     if (!urgeSettingsRef.current.enabled || pausedRef.current || sceneRunningRef.current) return;
     const now = Date.now();
     const era = npcsRef.current.era;
+    // The most the word lists made of this line for anyone (a bare name, or being passed by, does not count).
+    let bestListPts = 0;
     for (const [key, s] of Object.entries(urgeRef.current)) {
       const e = npcsRef.current.entry(key);
       if (!e || e.status === 'dead') continue;
@@ -410,6 +555,12 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         temperament: temperamentFor(key),
         addressed: addressed.includes(key),
       });
+      bestListPts = Math.max(bestListPts, reasons.filter(r => !PLAIN_REASONS.has(r.text)).reduce((sum, r) => sum + r.pts, 0));
+      // Something they remember about the rider (free word match; the judge can find subtler ones).
+      if (speaker === 'rider' && !addressed.includes(key)) {
+        const memory = memoryFor(key, text, e.memories, names, now);
+        if (memory) { reasons.push(memoryReason(memory)); bestListPts = Math.max(bestListPts, URGE_TIER3.memoryPts); }
+      }
       if (speaker === 'rider' && !addressed.includes(key) && key !== speakerKey) {
         const bonus = spotlightBonus(s, now);
         if (bonus) reasons.push({ pts: bonus, text: 'you have been quiet a long while' });
@@ -426,16 +577,92 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       }
       if (reasons.length) urgeRef.current[key] = addReasons(s, reasons, now);
     }
-    if (maxWakes > 0 && tableOpenRef.current) {
+
+    const huddle = huddleRef.current;
+    const open = tableOpenRef.current;
+    let woken = 0;
+    /** Wake whoever is ready (capped). In a huddle its members never wake: a whisperer may still whisper, anyone else steps into the huddle. */
+    const wake = (budget: number) => {
+      if (budget <= 0 || !tableOpenRef.current) return;
+      const h = huddleRef.current;
       const candidates = Object.entries(urgeRef.current)
-        .filter(([key]) => !addressed.includes(key) && key !== speakerKey)
+        .filter(([key]) => !addressed.includes(key) && key !== speakerKey && !(h && h.members.includes(key)))
         .map(([key, state]) => ({ key, state, temperament: temperamentFor(key), talk: talkFor(key), scale: scaleFor(key, now) }));
-      for (const key of pickWakes(candidates, now, maxWakes)) {
-        speakUnpromptedRef.current(key, text, speaker === 'rider');
+      for (const key of pickWakes(candidates, now, budget)) {
+        woken += 1;
+        const joiner = h && temperamentFor(key).intent !== 'whisper' ? huddleNpc(key) : null;
+        if (h && joiner) {
+          if (h.members.length < HUDDLE_RULES.maxMembers) { huddleRef.current = joinHuddle(huddleRef.current ?? h, joiner); showHuddle(); }
+        } else {
+          speakUnpromptedRef.current(key, text, speaker === 'rider' && !h);
+        }
+      }
+    };
+
+    if (huddle && speaker === 'rider') {
+      // The rider cut in: they are a third voice, and whoever they named answers first.
+      const named = huddle.members.filter(k => addressed.includes(k) || mentionsAny(text, namesByKeyRef.current[k] ?? []));
+      const last = huddleLastRef.current;
+      if (last && !last.byRider) saveTaste(learnPace(tasteRef.current, now - last.at));
+      huddleRef.current = afterRiderLine(huddle, { named });
+      huddleLastRef.current = { id: lineId ?? null, name: riderName || 'The rider', text, at: now, byRider: true };
+      if (lineId && huddleLinesRef.current) huddleLinesRef.current.ids.push(lineId);
+      showHuddle();
+      // A Talk-to answer is already on its way from that member; otherwise the huddle answers.
+      if (!huddle.members.some(k => addressed.includes(k))) scheduleHuddleTurnRef.current(HUDDLE_RULES.afterRiderMs);
+    } else if (!huddle && open && urgeSettingsRef.current.huddles !== false && !dmSendingRef.current) {
+      // Sparks: this line may push a pair into talking among themselves.
+      const stageNpcs = Object.keys(urgeRef.current)
+        .filter(k => talkFor(k) !== 'spoken-to')
+        .map(k => huddleNpc(k)).filter((n): n is HuddleNpc => !!n);
+      pressureRef.current = addPressure(pressureRef.current, { text, speaker, speakerKey, stage: stageNpcs, era, now }, tasteRef.current);
+      const tense = energyScale(energyRef.current.energy, now - energyRef.current.at) < 1;
+      const spark = maxWakes > 0 || speaker === 'npc' ? readySpark(pressureRef.current, tasteRef.current, { now, lastHuddleAt: lastHuddleAtRef.current, tense }) : null;
+      if (spark && startHuddleRef.current(spark.pair, spark.kind, spark.about)) {
+        refreshTells();
+        return;
+      }
+    }
+
+    wake(maxWakes);
+
+    // The judge: lines the lists made little of, and every line the rider throws into a huddle.
+    const inHuddle = !!huddleRef.current && speaker === 'rider';
+    const stageNames = Object.keys(urgeRef.current).flatMap(k => namesByKeyRef.current[k] ?? []);
+    const judgeDue = inHuddle || (now - lastJudgeAtRef.current >= URGE_TIER3.judgeGapMs && needsJudge(text, bestListPts, stageNames));
+    if (speaker === 'rider' && urgeSettingsRef.current.judge !== false && open && judgeDue) {
+      lastJudgeAtRef.current = now;
+      const keys = (inHuddle && huddleRef.current ? huddleRef.current.members : Object.keys(urgeRef.current)).filter(k => !addressed.includes(k) || inHuddle);
+      const asked = keys.map(k => npcsRef.current.entry(k)).filter((e): e is RosterEntry => !!e && e.status !== 'dead').slice(0, 8);
+      const huddleId = huddleRef.current?.id ?? null;
+      if (asked.length) {
+        const memoriesByKey: Record<string, string[]> = {};
+        for (const e of asked) memoriesByKey[e.key] = e.memories.slice(-8);
+        void judgeRef.current({
+          riderName: riderName || 'the rider', line: text.slice(0, 600), heard: tableHeard(linesRef.current, lineId ?? undefined).slice(-1500), huddle: inHuddle,
+          npcs: asked.map(e => ({ key: e.key, name: e.name, personality: e.mind.personality, attitude: e.attitude, memories: memoriesByKey[e.key] })),
+        }).then(judged => {
+          if (!judged || !urgeSettingsRef.current.enabled || urgeSettingsRef.current.judge === false || pausedRef.current) return;
+          const at = Date.now();
+          for (const item of judged.items) {
+            const s = urgeRef.current[item.key];
+            if (!s || addressed.includes(item.key)) continue;
+            const r = judgeReasons(item, temperamentFor(item.key), memoriesByKey[item.key] ?? []);
+            if (r.length) urgeRef.current[item.key] = addReasons(s, r, at);
+          }
+          const h = huddleRef.current;
+          if (h && h.id === huddleId) {
+            huddleRef.current = applyRead(h, { sidesWith: judged.sidesWith, tone: judged.tone });
+            showHuddle();
+          } else if (!h && !huddleId) {
+            wake(maxWakes - woken);
+          }
+          refreshTells();
+        }).catch(() => undefined);
       }
     }
     refreshTells();
-  }, [refreshTells, talkFor, scaleFor]);
+  }, [refreshTells, talkFor, scaleFor, memoryFor, huddleNpc, showHuddle, saveTaste, riderName]);
   processHeardLineRef.current = processHeardLine;
 
   /** An NPC speaks on its own (a wake, or the rider tapping the tell). Runs in the same queue as answers. */
@@ -471,7 +698,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       const now = Date.now();
       const dt = Math.max(0, now - lastTickAtRef.current);
       lastTickAtRef.current = now;
-      if (!urgeSettingsRef.current.enabled || pausedRef.current) return;
+      if (!urgeSettingsRef.current.enabled || pausedRef.current) { endHuddleRef.current('interrupted'); return; }
       const idle = tableOpenRef.current && !busyRef.current && !sceneRunningRef.current && !dmSendingRef.current;
       if (idle) {
         idleAccumRef.current += dt;
@@ -486,7 +713,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
             if (r.length) urgeRef.current[key] = addReasons(s, r, now);
           }
         }
-        if (now - lastTickWakeRef.current > URGE_RULES.tickWakeGapMs) {
+        if (!huddleRef.current && now - lastTickWakeRef.current > URGE_RULES.tickWakeGapMs) {
           const candidates = Object.entries(urgeRef.current)
             .map(([key, state]) => ({ key, state, temperament: temperamentFor(key), talk: talkFor(key), scale: scaleFor(key, now) }));
           const woke = pickWakes(candidates, now, 1);
@@ -530,8 +757,12 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     urgeRef.current = fresh;
     savedLevelsRef.current = {};
     questionsRef.current = {};
+    usedMemoriesRef.current = {};
+    pressureRef.current = {};
+    endHuddleRef.current('interrupted');
+    saveTaste(freshTaste());
     refreshTells();
-  }, [saveUrgeSettings, refreshTells]);
+  }, [saveUrgeSettings, refreshTells, saveTaste]);
 
   // Learning from what the rider does with unprompted lines: sealing one = liked, deleting one = not.
   useEffect(() => {
@@ -563,7 +794,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const id = await chat.postLine(content, inCharacter);
     if (id && inCharacter) {
       lastRiderLineRef.current = content;
-      processHeardLineRef.current(content, 'rider', undefined, undefined, [], URGE_RULES.maxWakesPerLine);
+      processHeardLineRef.current(content, 'rider', undefined, undefined, [], URGE_RULES.maxWakesPerLine, id);
     }
     return id;
   }, [chat]);
@@ -582,15 +813,25 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       if (spoken) {
         if (asksQuestion(npcLineForDm(spoken.text))) questionsRef.current[key] = { at: Date.now(), missed: 0 };
         processHeardLineRef.current(spoken.text, 'npc', key, e.name, keys, 0);
+        // A huddle member answered the rider directly: the huddle carries on from that answer.
+        const h = huddleRef.current;
+        if (h && h.members.includes(key)) {
+          const said = npcLineForDm(spoken.text).replace(/\s+/g, ' ').trim().slice(0, LINE_CHARS);
+          huddleRef.current = afterNpcLine(h, key, said);
+          huddleLastRef.current = { id: spoken.id, name: e.name, text: said, at: Date.now(), byRider: false };
+          if (huddleLinesRef.current?.id === h.id) huddleLinesRef.current.ids.push(spoken.id);
+          showHuddle();
+          scheduleHuddleTurnRef.current(pauseMs(tasteRef.current, false));
+        }
       }
     }
-  }), [enqueue, npcs, riderName, speak]);
+  }), [enqueue, npcs, riderName, speak, showHuddle]);
 
   const onSendToNpcs = useCallback(async (content: string, npcIds: string[]) => {
     const id = await chat.postLine(content, true);
     if (!id) return false;
     lastRiderLineRef.current = content;
-    processHeardLineRef.current(content, 'rider', undefined, undefined, npcIds, URGE_RULES.maxWakesPerLine);
+    processHeardLineRef.current(content, 'rider', undefined, undefined, npcIds, URGE_RULES.maxWakesPerLine, id);
     void answer(id, content, npcIds);
     return true;
   }, [chat, answer]);
@@ -599,7 +840,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const id = await chat.postLine(`${content}\n\n${result.rollBlockText}`, true);
     if (!id) return false;
     lastRiderLineRef.current = content;
-    processHeardLineRef.current(content, 'rider', undefined, undefined, [npcId], URGE_RULES.maxWakesPerLine);
+    processHeardLineRef.current(content, 'rider', undefined, undefined, [npcId], URGE_RULES.maxWakesPerLine, id);
     void answer(id, content, [npcId], result);
     return true;
   }, [chat, answer]);
@@ -658,6 +899,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     if (cast.length < 2) { toast.info('Pick 2 or 3 NPCs on stage.'); return false; }
     const total = Math.min(4, Math.max(2, Math.round(turns) || 3));
     const startedAt = new Date().toISOString();
+    endHuddleRef.current('interrupted');
     setSceneRunning(true);
     sceneRunningRef.current = true;
     void enqueue(async () => {
@@ -713,6 +955,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     };
     sendingRef.current = true;
     dmSendingRef.current = true;
+    endHuddleRef.current('interrupted');
     setDmSending(true);
     try {
       const replied = await sendToDm(full, liveTable);
@@ -729,6 +972,6 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     chat, tableNpcs, thinking, dmSending, sceneRunning, callOver, onSendToNpcs, onNpcSocialCheck, onStartScene, onSendToDMNow, onSpeakAsNpc, onRegenerateNpcLine, onNpcRoll, onNpcJoin,
     // Urge meter (D-40)
     postRiderLine, tells, inviteNpc, hushNpc, setTableOpen,
-    urge: { enabled: urgeSettings.enabled, perNpc: urgeSettings.perNpc, learned: urgeSettings.learned, setEnabled: setUrgeEnabled, setNpc: setNpcTalkativeness, reset: resetUrgeLearning },
+    urge: { enabled: urgeSettings.enabled, perNpc: urgeSettings.perNpc, learned: urgeSettings.learned, setEnabled: setUrgeEnabled, setNpc: setNpcTalkativeness, reset: resetUrgeLearning, judge: urgeSettings.judge !== false, setJudge: setJudgeEnabled, huddles: urgeSettings.huddles !== false, setHuddles: setHuddlesEnabled },
   };
 }
