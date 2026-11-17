@@ -34,8 +34,10 @@ export function useChatAvatars(partyId: string | null, userId: string | undefine
       }
     }
 
-    const { data } = await (supabase.from('player_chat_avatars') as any)
-      .select('user_id, ic_url, ooc_url, ooc_name');
+    if (!partyId && !userId) { setAvatars({}); setOocNames({}); return; }
+    let query = (supabase.from('player_chat_avatars') as any).select('user_id, ic_url, ooc_url, ooc_name');
+    if (!partyId) query = query.eq('user_id', userId);
+    const { data } = await query;
     const names: Record<string, string> = {};
     for (const row of (data || []) as Array<{ user_id: string; ic_url: string | null; ooc_url: string | null; ooc_name: string | null }>) {
       next[row.user_id] = {

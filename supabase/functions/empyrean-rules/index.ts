@@ -101,7 +101,7 @@ async function load(db: any, userId: string, b: Req): Promise<Loaded> {
   const bond = bonded && Number.isFinite(Number(dragon.data?.bond)) ? Number(dragon.data.bond) : null;
   return {
     state: R.normalizeState(cs.data?.state), version: cs.data?.version ?? 0, envelope, mapUpdatedAt: map.data?.updated_at ?? null,
-    node, minute: T.currentMinute(envelope, Date.now()), traveling: T.isFlying(node),
+    node, minute: T.currentMinute(envelope, Date.now()), traveling: T.isTraveling(node),
     masteryXp: rider.data?.signet_xp ?? 0, bond, bonded,
   };
 }
@@ -159,7 +159,7 @@ async function mutate(db: any, userId: string, b: Req, step: Step): Promise<{ ok
     });
     if (error) { console.error('[empyrean-rules] commit', error.message); return { ok: false, error: 'Could not save. Try again.' }; }
     if (data?.ok) return { ok: true, extra: out.extra || {} };
-    if (data?.reason === 'traveling') return { ok: false, error: "You can't do that in the middle of a flight. Land or stop first." };
+    if (data?.reason === 'traveling') return { ok: false, error: "You can't do that during a journey. Stop on the Map first." };
     if (data?.reason === 'no_map') return { ok: false, error: 'Open the map once so the campaign clock can start.' };
     if (data?.reason !== 'version') return { ok: false, error: 'Could not save. Try again.' };
   }
@@ -245,7 +245,7 @@ async function fightReply(db: any, userId: string, b: Req, reply: Record<string,
 
 async function fightStart(db: any, userId: string, b: Req): Promise<Record<string, unknown>> {
   const l = await load(db, userId, b);
-  if (l.traveling) return { ok: false, error: 'You are mid-flight. Stop on the Map first, then fight.' };
+  if (l.traveling) return { ok: false, error: 'You are traveling. Stop on the Map first, then fight.' };
   const open = C.cleanFight(l.state.fight);
   if (open && open.status === 'active') return { ok: true, fight: C.viewOf(C.advance(open, Date.now(), rand), Date.now()) };
   const sheet = b.sheet || {};

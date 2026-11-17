@@ -16,7 +16,7 @@ const json = (status: number, body: Record<string, unknown>) =>
 const uuid = z.string().uuid();
 const short = z.string().max(400).optional();
 const Body = z.object({
-  mode: z.enum(['player-portrait', 'npc-portrait', 'dm-scene', 'solo-scene']),
+  mode: z.enum(['player-portrait', 'npc-portrait', 'dm-scene', 'solo-scene', 'solo-portrait']),
   prompt: z.string().min(1).max(4000).optional(),
   partyId: uuid.optional(),
   npcId: uuid.optional(),
@@ -29,7 +29,7 @@ const Body = z.object({
   }).optional(),
 });
 
-const FOLDERS = { 'player-portrait': 'player-portraits', 'npc-portrait': 'npc-portraits', 'dm-scene': 'dm-scenes', 'solo-scene': 'solo-scenes' } as const;
+const FOLDERS = { 'player-portrait': 'player-portraits', 'npc-portrait': 'npc-portraits', 'dm-scene': 'dm-scenes', 'solo-scene': 'solo-scenes', 'solo-portrait': 'player-portraits' } as const;
 /** Solo scene images per signed-in user per 24 hours (the Venice key is paid). */
 const SOLO_DAILY_CAP = 30;
 
@@ -113,12 +113,13 @@ Deno.serve(async (req) => {
   const parsed = Body.safeParse(raw);
   if (!parsed.success) return json(400, { error: parsed.error.flatten().fieldErrors });
   const { mode, prompt, partyId, npcId, messageId, scene: soloScene, character } = parsed.data;
-  const isSolo = mode === 'solo-scene';
-  const soloFolder = `generated/solo/${userId}/${FOLDERS['solo-scene']}`;
+  const isSolo = mode === 'solo-scene' || mode === 'solo-portrait';
+  const soloFolder = `generated/solo/${userId}/${FOLDERS[mode]}`;
 
   if (isSolo) {
     // Solo: signed-in only, scene text required, capped per day.
-    if (!soloScene) return json(400, { error: 'scene is required for solo scene images.' });
+    if (mode === 'solo-scene' && !soloScene) return json(400, { error: 'scene is required for solo scene images.' });
+    if (mode === 'solo-portrait' && !prompt) return json(400, { error: 'Prompt is required.' });
     const { data: recent } = await db.storage.from(BUCKET).list(soloFolder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
     const since = Date.now() - 24 * 60 * 60 * 1000;
     const today = (recent || []).filter((f: any) => f?.created_at && new Date(f.created_at).getTime() > since).length;
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
   }
 
   let finalPrompt = '';
-  if (mode === 'dm-scene' || isSolo) {
+  if (mode === 'dm-scene' || mode === 'solo-scene') {
     let scene = '';
     let continuity = '';
     if (isSolo) {

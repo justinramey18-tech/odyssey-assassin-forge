@@ -575,6 +575,8 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     npcMind?: string,
     /** Solo Live Table: answer without adding anything to the story feed; resolves to the reply text. */
     offFeed?: boolean,
+    /** Solo table controls may follow the otherwise unchanged two-line dialogue. */
+    tableControls?: string,
   ): Promise<string | undefined> => {
     if (!playerMessage.trim() || isLoading) return;
     const feed: typeof setMessages = offFeed ? () => {} : setMessages;
@@ -645,7 +647,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           user_xai_key: loadApiKey('xai') || undefined,
           user_venice_key: loadApiKey('venice') || undefined,
           coreRulesInGuides: coreRulesInGuides || undefined,
-          npcVoicingContext: npcMind ? `${npcMind}\n\n${npcVoicingPrompt}` : npcVoicingPrompt,
+          npcVoicingContext: `${npcMind ? `${npcMind}\n\n` : ''}${npcVoicingPrompt}${tableControls ? `\n\nEXCEPTION TO THE STOP/NO-TAGS RULE ABOVE: ${tableControls}` : ''}`,
           npcVoicingStrict: names.length === 1 ? true : undefined,
           maxTokens: names.length === 1 ? 260 : names.length > 1 ? 500 : undefined,
           ...(() => {

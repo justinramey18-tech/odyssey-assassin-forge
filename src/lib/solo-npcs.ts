@@ -10,7 +10,7 @@ import {
 import type { FightChallenge, FoeKind } from '@/lib/empyrean-rules-client';
 
 export type NpcStatus = 'met' | 'knocked_out' | 'dead' | 'hidden';
-export const MAX_MEMORIES = 12;
+export const MAX_MEMORIES = 50;
 
 export interface SoloNpcRow {
   id?: string;

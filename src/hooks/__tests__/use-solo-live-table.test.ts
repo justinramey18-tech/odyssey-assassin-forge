@@ -120,6 +120,41 @@ describe('solo Live Table hook', () => {
     expect(answers[0].content.startsWith('[reply:')).toBe(true);
   });
 
+  it('speaking as an NPC uses its identity and regeneration replaces the original line', async () => {
+    const { result, asked } = setup();
+    await act(async () => { expect(await result.current.onSpeakAsNpc('I am here.', a.key)).toBe(true); });
+    expect(result.current.chat.messages[0].npc_id).toBe(a.key);
+    expect(result.current.chat.messages[0].user_id).toBe(`npc:${a.key}`);
+    await act(async () => { await result.current.onSendToNpcs('Hello?', [a.key]); });
+    await waitFor(() => expect(result.current.chat.messages).toHaveLength(3));
+    const original = result.current.chat.messages[2];
+    act(() => result.current.onRegenerateNpcLine(original.id, a.key));
+    await waitFor(() => expect(asked).toHaveLength(2));
+    await waitFor(() => expect(result.current.chat.messages.find(m => m.id === original.id)?.content).toContain('Answer 2'));
+    expect(result.current.chat.messages).toHaveLength(3);
+  });
+
+  it('accepting a solo NPC offer adds a local acceptance and removes the used offer', async () => {
+    const { result } = setup();
+    let id = '';
+    await act(async () => { id = result.current.chat.appendLine({ content: 'Come with me.\n⟪JOIN⟫{"to":"rider","name":"Xeyle"}⟪/JOIN⟫', characterName: a.name, npcId: a.key }); });
+    await act(async () => { await result.current.onNpcJoin(id, a.key); });
+    expect(result.current.chat.messages.find(m => m.id === id)?.content).not.toContain('⟪JOIN⟫');
+    expect(result.current.chat.messages.at(-1)?.content).toContain(`Xeyle accepts ${a.name}'s offer`);
+  });
+
+  it('an NPC-requested roll posts a check card with the final roll and gets an answer', async () => {
+    const { result, asked } = setup();
+    const request = { to: 'rider', name: 'Xeyle', check: 'Insight', save: false, dc: 12 };
+    let id = '';
+    await act(async () => { id = result.current.chat.appendLine({ content: `Look closer.\n⟪ROLL⟫${JSON.stringify(request)}⟪/ROLL⟫`, characterName: a.name, npcId: a.key }); });
+    await act(async () => { await result.current.onNpcRoll(id, a.key, request); });
+    await waitFor(() => expect(asked).toHaveLength(1));
+    const player = result.current.chat.messages.find(m => !m.npc_id);
+    expect(player?.content).toContain('"replyTo":"' + id + '"');
+    expect(player?.content).toContain('"dc":12');
+  });
+
   it('an answer waits while the DM is writing, then goes', async () => {
     const { result, asked, rerender } = setup({ busy: true });
     await act(async () => { await result.current.onSendToNpcs('Hello?', [a.key]); });

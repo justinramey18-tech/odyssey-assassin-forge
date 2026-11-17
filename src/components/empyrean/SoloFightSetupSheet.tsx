@@ -88,7 +88,7 @@ export function SoloFightSetupSheet({ mode, onOpenChange, bonded, dragonName, dr
                 : dragonBody ? `${dragon} fights beside you on its own (${dragonBody.hp}/${dragonBody.maxHp} HP).` : `${dragon} fights beside you on its own.`}
             </p>
           )}
-          {flying && <p className="text-xs text-destructive">You are mid-flight. Stop the journey on the Map first.</p>}
+          {flying && <p className="text-xs text-destructive">You are traveling. Stop the journey on the Map first.</p>}
 
           <Button disabled={busy || flying || dragonOut} style={TOUCH} className="w-full min-h-[52px] text-base gap-2"
             onClick={() => onStart({ foeKind: foe, ...(preset ? { foeName: preset.foeName } : {}), count, challenge, lethal: !spar, arena: spar ? 'mat' : 'ground' })}>

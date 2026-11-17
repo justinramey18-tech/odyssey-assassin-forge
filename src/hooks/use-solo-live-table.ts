@@ -20,6 +20,12 @@ import { npcLineForDm } from '@/lib/live-npcs';
 import type { RoundChatMessage } from '@/hooks/use-round-chat';
 import type { SocialCheckResult } from '@/lib/npcSocialChecks';
 import type { SoloNpcs } from '@/hooks/use-solo-npcs';
+import { parseNpcJoin, parseNpcRoll, keepNpcRoll, buildRollAnswer, rollModifier, type NpcRollRequest } from '@/lib/live-npcs';
+import type { CharacterContext } from '@/components/oracle/types';
+import { rollD20, awaitLatestD20Reveal } from '@/lib/rollD20';
+import { soloRollLine } from '@/lib/solo-table-actions';
+import { checkRisk, type RulesCheck } from '@/lib/empyrean-rules-client';
+import { resolveOddsForContext } from '@/lib/diceOdds';
 
 const MAX_STAGE = 8;
 /** How many recent table lines an NPC hears, and their size. */
@@ -34,7 +40,7 @@ const WAIT_FOR_DM_MS = 180_000;
 type VoiceFn = (
   names: string | string[], line: string,
   social?: { skill: SocialCheckResult['skill']; opposingSkillLabel: string; playerTotal: number; npcTotal: number; outcome: SocialCheckResult['outcome']; rollBlockText?: string },
-  mind?: string, offFeed?: boolean,
+  mind?: string, offFeed?: boolean, tableControls?: string,
 ) => Promise<string | undefined>;
 
 /** The Live Table rules for the DM (ai-dm `liveTable`), for a solo hand-off. */
@@ -86,7 +92,7 @@ export function tableNpcsFor(roster: RosterEntry[], stage: string[]) {
     .map(e => ({ id: e.key, name: e.name, portrait_url: castPortrait(e.key) ?? null, on_stage: stage.includes(e.key) && e.status !== 'dead', archived: false }));
 }
 
-export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey }: {
+export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check }: {
   userId: string | undefined;
   riderName: string;
   npcs: SoloNpcs;
@@ -98,6 +104,8 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   busy: boolean;
   /** Where this campaign's table is kept on the phone. */
   storageKey?: string;
+  characterContext?: CharacterContext;
+  check?: (input: { d20: number; modifier: number; dc: number | null; risk: ReturnType<typeof checkRisk>; label: string }) => Promise<RulesCheck | null>;
 }) {
   const chat = useArenaRoundChat(userId, riderName, 'solo-live-table', storageKey);
   const me = userId || 'arena-player';
@@ -154,10 +162,13 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
         toast.error(`${e.name} didn't answer`, { description: 'The DM is still writing. Try again in a moment.' });
         return null;
       }
+      const controls = `
+
+SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, append ⟪ROLL⟫{"to":${JSON.stringify(me)},"name":${JSON.stringify(riderName)},"check":"Insight","save":false,"dc":12}⟪/ROLL⟫, using the appropriate existing skill, save and difficulty. Only if you willingly offer to accompany the rider, append ⟪JOIN⟫{"to":${JSON.stringify(me)},"name":${JSON.stringify(riderName)}}⟪/JOIN⟫. These optional control markers follow the dialogue; never add one merely because controls exist.`;
       const reply = await voiceRef.current(e.name, said, social ? {
         skill: social.skill, opposingSkillLabel: social.opposingSkillLabel, playerTotal: social.playerRoll.total,
         npcTotal: social.npcRoll.total, outcome: social.outcome, rollBlockText: social.rollBlockText,
-      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true);
+      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true, controls);
       const text = (reply || '').trim();
       if (!text) {
         toast.error(`${e.name} didn't answer`, { description: 'Try again in a moment.' });
@@ -174,7 +185,7 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
     } finally {
       setThinking(prev => prev.filter(x => x.key !== t.key));
     }
-  }, [chat, mindFor, waitUntilFree]);
+  }, [chat, mindFor, waitUntilFree, me, riderName]);
 
   const answer = useCallback((lineId: string, line: string, keys: string[], social?: SocialCheckResult) => enqueue(async () => {
     for (const key of keys) {
@@ -202,6 +213,53 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
     void answer(id, content, [npcId], result);
     return true;
   }, [chat, answer]);
+
+  const onSpeakAsNpc = useCallback(async (content: string, npcId: string) => {
+    const e = npcs.entry(npcId);
+    if (!e || e.status === 'dead' || e.status === 'hidden') return false;
+    chat.appendLine({ content, characterName: e.name, npcId, userId: `npc:${npcId}` });
+    return true;
+  }, [chat, npcs]);
+
+  const onRegenerateNpcLine = useCallback((messageId: string, npcId: string | null) => {
+    const original = linesRef.current.find(m => m.id === messageId && !m.consumed);
+    const e = npcId ? npcs.entry(npcId) : undefined;
+    if (!original || !e) return;
+    const parentId = parseReply(original.content).replyToId;
+    const parent = linesRef.current.find(m => m.id === parentId);
+    if (!parent) return;
+    void enqueue(async () => {
+      const replacement = await speak(e, parseReply(parent.content).body, tableHeard(linesRef.current, messageId), 'answer', parent.id);
+      if (!replacement) return;
+      await chat.editMessage(messageId, keepNpcRoll(formatReply(parent.id, replacement.text), original.content));
+      await chat.deleteMessage(replacement.id);
+    });
+  }, [chat, npcs, enqueue, speak]);
+
+  const onNpcRoll = useCallback(async (lineId: string, npcId: string | null, request: NpcRollRequest) => {
+    const line = linesRef.current.find(m => m.id === lineId && !m.consumed);
+    const e = npcId ? npcs.entry(npcId) : undefined;
+    const marker = line ? parseNpcRoll(parseReply(line.content).body).roll : null;
+    if (!line || !e || marker?.to !== me || !Number.isFinite(request.dc)) return;
+    const modifier = rollModifier(characterContext, request);
+    const d20 = rollD20({ context: request.save ? 'save' : 'skill' });
+    await awaitLatestD20Reveal();
+    const content = buildRollAnswer({ characterName: riderName, npcName: e.name, npcLineId: lineId, request, d20: d20.kept, modifier });
+    const ruled = await soloRollLine(content, { kind: 'test', rolls: d20.rolls, kept: d20.kept, die: 20, modifier, total: d20.kept + modifier, rollMode: d20.mode, mode: resolveOddsForContext(request.save ? 'save' : 'skill') }, request.dc, checkRisk(request.check), request.check, check);
+    await onSendToNpcs(ruled, [e.key]);
+  }, [characterContext, check, me, npcs, onSendToNpcs, riderName]);
+
+  const onNpcJoin = useCallback(async (lineId: string, npcId: string | null) => {
+    const line = linesRef.current.find(m => m.id === lineId && !m.consumed);
+    const e = npcId ? npcs.entry(npcId) : undefined;
+    if (!line || !e || e.status === 'dead' || e.status === 'hidden') return;
+    const offer = parseNpcJoin(parseReply(line.content).body);
+    if (offer.join?.to !== me) return;
+    await npcs.setStatus(e.key, 'met');
+    callOver(e.key);
+    await chat.editMessage(lineId, formatReply(parseReply(line.content).replyToId, offer.body));
+    await chat.postLine(`${riderName} accepts ${e.name}'s offer to accompany them.`, true);
+  }, [chat, npcs, me, riderName, callOver]);
 
   /** "Let them talk": 2 or 3 NPCs on stage talk to each other for 2 to 4 lines, in the order picked. Any rider line stops it. */
   const onStartScene = useCallback(async (npcIds: string[], topic: string, turns: number): Promise<boolean> => {
@@ -273,5 +331,5 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
     }
   }, [chat, sendToDm, busy]);
 
-  return { chat, tableNpcs, thinking, dmSending, sceneRunning, callOver, onSendToNpcs, onNpcSocialCheck, onStartScene, onSendToDMNow };
+  return { chat, tableNpcs, thinking, dmSending, sceneRunning, callOver, onSendToNpcs, onNpcSocialCheck, onStartScene, onSendToDMNow, onSpeakAsNpc, onRegenerateNpcLine, onNpcRoll, onNpcJoin };
 }

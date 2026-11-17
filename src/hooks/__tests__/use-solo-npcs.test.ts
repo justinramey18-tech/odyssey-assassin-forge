@@ -50,6 +50,17 @@ describe('useSoloNpcs (D-38)', () => {
     expect(opts.body.scene).toContain('PLAYER (Kylar Stern): I hold my ground.');
   });
 
+  it('saves a replacement memory at the 50-memory limit even when attitude does not change', async () => {
+    h.rows = [{ id: 'x', campaign_id: CAMPAIGN, npc_key: 'dain-aetos', name: 'Dain Aetos', attitude: 0, memories: Array.from({ length: 50 }, (_, i) => `Memory ${i}`), status: 'met' }];
+    h.invoke.mockResolvedValue({ data: { memories: [{ key: 'dain-aetos', memory: 'Newest memory', attitudeChange: 0 }] }, error: null });
+    const { result } = renderHook(() => useSoloNpcs({ campaignId: CAMPAIGN, riderName: 'Kylar', enabled: true }));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    act(() => result.current.onStory('Dain Aetos waits at the gate.', 'I wait.'));
+    await waitFor(() => expect(result.current.entry('dain-aetos')?.memories.at(-1)).toBe('Newest memory'));
+    expect(result.current.entry('dain-aetos')?.memories).toHaveLength(50);
+    expect(h.rows[0].memories).not.toContain('Memory 0');
+  });
+
   it('a post naming nobody on the roster costs nothing', async () => {
     const { result } = renderHook(() => useSoloNpcs({ campaignId: CAMPAIGN, riderName: 'Kylar', enabled: true }));
     await waitFor(() => expect(result.current.ready).toBe(true));

@@ -152,7 +152,7 @@ export function useSoloNpcs({ campaignId, riderName, enabled }: { campaignId: st
           const row = rowsRef.current.find(r => r.npc_key === m.key && r.id) ?? current.get(m.key);
           if (!row) continue;
           const next = withMemory(row, m.memory, m.attitudeChange);
-          if (next.attitude !== row.attitude || next.memories.length !== row.memories.length) await store(next);
+          if (next.attitude !== row.attitude || next.memories !== row.memories) await store(next);
         }
       } catch (err) { console.warn('[SoloNpcs] remember failed', err); }
     })();

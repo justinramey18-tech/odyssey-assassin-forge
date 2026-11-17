@@ -91,7 +91,7 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
           <SheetTitle className="font-cinzel text-primary flex items-center gap-2"><img src={EMPYREAN_SCENE_ART.flameDagger} alt="" aria-hidden className="w-7 h-7" /> Camp</SheetTitle>
           <SheetDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-foreground/80">
             <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {snap.clock} ({snap.timeOfDay})</span>
-            {placeName && <span className="flex items-center gap-1"><Compass className="w-3.5 h-3.5" /> {flying ? 'In flight' : placeName}</span>}
+            {placeName && <span className="flex items-center gap-1"><Compass className="w-3.5 h-3.5" /> {flying ? 'Traveling' : placeName}</span>}
           </SheetDescription>
         </SheetHeader>
 
@@ -127,7 +127,7 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
 
           <Section icon={<BedDouble className="w-4 h-4 text-primary" />} title="Rest">
             {flying ? (
-              <p className="text-xs text-muted-foreground">You can't rest in the middle of a flight. Land or stop the journey on the Map first.</p>
+              <p className="text-xs text-muted-foreground">You can't rest during a journey. Stop on the Map first.</p>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" disabled={busy || r.shortRestsLeft <= 0 || !snap.hasMap} onClick={() => void rules.rest('short')} style={TOUCH} className="min-h-[56px] flex-col gap-0.5 h-auto py-2">

@@ -40,13 +40,14 @@ function Row({ e, onOpen }: { e: RosterEntry; onOpen: () => void }) {
   );
 }
 
-export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onFight }: {
+export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onFight, onSpar }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   npcs: SoloNpcs;
   riderName: string;
   onTalk: (name: string) => void;
   onFight?: (entry: RosterEntry) => void;
+  onSpar?: (entry: RosterEntry) => void;
 }) {
   const [query, setQuery] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -115,6 +116,9 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
               <Button disabled={selected.status === 'dead'} onClick={() => { onTalk(selected.name); close(false); }} style={TOUCH} className="min-h-[52px] gap-2"><MessageCircle className="w-4 h-4" /> Talk</Button>
               <Button variant="outline" disabled={!onFight || !selected.fight || selected.status === 'dead'} onClick={() => { onFight?.(selected); close(false); }} style={TOUCH} className="min-h-[52px] gap-2"><Swords className="w-4 h-4" /> Fight</Button>
             </div>
+            {onSpar && selected.fight && ['cadet', 'rider'].includes(selected.fight.kind) && (
+              <Button variant="outline" disabled={selected.status === 'dead' || selected.status === 'knocked_out'} onClick={() => { onSpar(selected); close(false); }} style={TOUCH} className="w-full min-h-[52px] gap-2"><Swords className="w-4 h-4" /> Spar with {selected.name}</Button>
+            )}
             {!selected.fight && <p className="text-[11px] text-muted-foreground">{selected.name} won't fight.</p>}
 
             <div className="space-y-2">

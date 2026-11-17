@@ -45,16 +45,18 @@ describe('the solo roster (D-38)', () => {
     expect(parseMention('@Dain hey', names)).toBeNull();
   });
 
-  it('memories: one step at a time, no repeats, the last 12 kept', () => {
+  it('memories: one step at a time, no repeats, the last 50 kept', () => {
     let r = row('dain-aetos', { attitude: 3 });
     r = withMemory(r, 'A', 1);
     expect(r.attitude).toBe(3);
     r = withMemory(r, 'A', -5);
     expect(r.memories).toEqual(['A']);
     expect(r.attitude).toBe(2);
-    for (let i = 0; i < 20; i++) r = withMemory(r, `m${i}`, 0);
-    expect(r.memories).toHaveLength(MAX_MEMORIES);
-    expect(r.memories.at(-1)).toBe('m19');
+    for (let i = 0; i < 60; i++) r = withMemory(r, `m${i}`, 0);
+    expect(MAX_MEMORIES).toBe(50);
+    expect(r.memories).toHaveLength(50);
+    expect(r.memories[0]).toBe('m10');
+    expect(r.memories.at(-1)).toBe('m59');
   });
 
   it('a new row starts met, with the NPC\'s attitude', () => {

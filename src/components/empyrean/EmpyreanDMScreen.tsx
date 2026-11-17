@@ -117,6 +117,8 @@ import { DMHandoffBar } from '@/components/ai-dm/DMHandoffBar';
 import { RoundChatDrawer, type RoundChatDrawerHandle } from '@/components/ai-dm/RoundChatDrawer';
 import { useSoloLiveTable } from '@/hooks/use-solo-live-table';
 import { useSoloNpcs, type SoloNpcs } from '@/hooks/use-solo-npcs';
+import { useChatAvatars } from '@/hooks/use-chat-avatars';
+import { soloRollLine, soloPortraitPrompt } from '@/lib/solo-table-actions';
 import { SoloNpcRoster } from '@/components/empyrean/SoloNpcRoster';
 import type { RosterEntry } from '@/lib/solo-npcs';
 import { EmpyreanLootReview, usePendingDmItems } from '@/components/empyrean/EmpyreanLootReview';
@@ -1151,7 +1153,7 @@ ${oocLines}`;
     onDragonTrust: (delta, reason) => dragonBond.processQuestReward(0, delta, reason),
     onMapChanged: () => { void soloMap.map.reload(); },
     onFightResult: (payload) => { fightResultRef.current = payload; },
-    flying: soloMap.flying,
+    flying: soloMap.traveling,
     getStrainLimit: () => maxBurnout,
     onStrainLimit: () => dragonBond.processRecklessStrain(),
   });
@@ -1406,6 +1408,7 @@ ${oocLines}`;
   }, []);
   // The rider's own in-character picture, shown on their side of solo battles.
   const [riderPortrait, setRiderPortrait] = useState<string | null>(null);
+  const chatAvatars = useChatAvatars(null, liveUserId);
   const fightOpen = !!soloFight.fight;
   useEffect(() => {
     if (!fightOpen || !liveUserId) return;
@@ -1425,6 +1428,8 @@ ${oocLines}`;
     userId: liveUserId,
     riderName: characterName,
     npcs: soloNpcs,
+    characterContext,
+    check: rules.active ? rules.check : undefined,
     latestDmText,
     voiceNPC,
     sendToDm: (prompt, liveTableRules) => {
@@ -2955,6 +2960,26 @@ ${oocLines}`;
           npcs={liveTable.tableNpcs}
           npcThinking={liveTable.thinking}
           onSendToNpcs={liveTable.onSendToNpcs}
+          avatars={chatAvatars.avatars}
+          oocNames={chatAvatars.oocNames}
+          onSetOocName={chatAvatars.setOocName}
+          onUploadAvatar={liveUserId ? async (kind, file) => {
+            try { await chatAvatars.uploadAvatar(kind, file); toast.success('Picture updated'); }
+            catch (err) { toast.error(err instanceof Error ? err.message : 'Picture upload failed'); }
+          } : undefined}
+          portraitPrompt={soloPortraitPrompt(characterContext)}
+          onGeneratePortrait={liveUserId ? async (prompt) => {
+            try {
+              const { data, error } = await supabase.functions.invoke('venice-image-generate', { body: { mode: 'solo-portrait', prompt } });
+              if (error || typeof data?.imageUrl !== 'string') throw new Error('Portrait generation failed');
+              await chatAvatars.setAvatarUrl('ic', data.imageUrl);
+              return true;
+            } catch (err) { toast.error(err instanceof Error ? err.message : 'Portrait generation failed'); return false; }
+          } : undefined}
+          onSpeakAsNpc={liveTable.onSpeakAsNpc}
+          onRegenerateNpcLine={liveTable.onRegenerateNpcLine}
+          onNpcRoll={liveTable.onNpcRoll}
+          onNpcJoin={liveTable.onNpcJoin}
           characterContext={characterContext}
           onNpcSocialCheck={liveTable.onNpcSocialCheck}
           canManageNpcs
@@ -3175,15 +3200,20 @@ ${oocLines}`;
           setNpcFight({ key: e.key, foeKind: e.fight.kind, foeName: e.name, challenge: e.fight.challenge });
           setFightSetup('fight');
         } : undefined}
+        onSpar={rules.active ? (e) => {
+          if (!e.fight) return;
+          setNpcFight({ key: e.key, foeKind: e.fight.kind, foeName: e.name, challenge: e.fight.challenge });
+          setFightSetup('spar');
+        } : undefined}
       />
       <SoloFightSetupSheet
         mode={fightSetup}
-        preset={fightSetup === 'fight' ? npcFight : null}
+        preset={fightSetup ? npcFight : null}
         onOpenChange={(next) => { if (!next) { setFightSetup(null); setNpcFight(null); } }}
         bonded={!isUnbonded && !!config?.dragonName}
         dragonName={config?.dragonName}
         dragonBody={rules.snapshot?.dragonBody}
-        flying={soloMap.flying}
+        flying={soloMap.traveling}
         busy={soloFight.busy}
         onStart={(input) => void startFight(input)}
       />
@@ -3198,7 +3228,7 @@ ${oocLines}`;
           strainRoom={Math.max(0, maxBurnout - burnoutLevel)}
           onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
           dragonColor={config?.dragonColor}
-          riderPortrait={riderPortrait}
+          riderPortrait={(liveUserId ? chatAvatars.avatars[liveUserId]?.ic : null) || riderPortrait}
           onClosed={handleFightClosed}
         />
       )}
@@ -3567,6 +3597,14 @@ ${oocLines}`;
                 handleAppendPrompt(message);
                 setDiceRollerOpen(false);
                 setDiceRollerWhisperText(null);
+              }}
+              onRoll={(roll, message, label) => {
+                const hint = diceRollerHint;
+                const whisper = diceRollerWhisperText || label;
+                setDiceRollerOpen(false);
+                setDiceRollerWhisperText(null);
+                void soloRollLine(message, roll, hint?.dc, checkRisk(whisper), label, rulesRef.current?.active ? rulesRef.current.check : undefined)
+                  .then(handleAppendPrompt);
               }}
               disabled={isLoading}
             />
