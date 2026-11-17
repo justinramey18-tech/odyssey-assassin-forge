@@ -91,6 +91,8 @@ import { EMPYREAN_SESSION_GUIDES, EMPYREAN_LORE_GUIDES, EMPYREAN_TONE_GUIDES } f
 import { DM_MODELS } from '@/lib/dm-models';
 import { useSpotify } from '@/hooks/use-spotify';
 import { resolveResponseModePrompt } from '@/lib/dm-response-modes';
+import { liveNpcDmGuide, soloHandoffFormat } from '@/lib/live-npc-tandem';
+import { SoloSceneCard } from '@/components/empyrean/SoloSceneCard';
 import { useResponseMode } from '@/hooks/use-response-mode';
 import { EmpyreanAutopilotGuide } from '@/components/empyrean/EmpyreanAutopilotGuide';
 import CampaignBuilderChat from '@/components/ai-dm/CampaignBuilderChat';
@@ -262,6 +264,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--THRESHING_AUTHORIZED:.+?-->/g, '')
     .replace(/<!--FIGHT:[^>]*?-->/gi, '')
     .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
+    .replace(/<!--LIVE:[^>]*?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -668,6 +671,8 @@ The following facts about the character or the moment are known to you but not s
 
 ${oocLines}`;
     }
+    // How the DM and the live NPC system work together (hidden LIVE directions, leaving room for the table).
+    persona += `\n\n${liveNpcDmGuide(config.characterName || characterName)}`;
     return persona;
   }, [config, characterName, dragonNotes, dragonBond.bondState, dragonBond.bondState.totalChatExchanges, isUnbonded, threshingAuthorized, activeOOCNotes, gameFacts]);
 
@@ -1434,7 +1439,13 @@ ${oocLines}`;
     voiceNPC,
     sendToDm: (prompt, liveTableRules) => {
       setRecapDismissed(true);
-      return sendMessage(prepareForDmRef.current(prompt), undefined, { liveTable: { ...liveTableRules }, dropUserOnFail: true });
+      // The table's note to the DM stays in the app's own instructions; a real scene hand-off asks for a full-length reply.
+      const { dmNotes, ...rules } = liveTableRules;
+      return sendMessage(prepareForDmRef.current(prompt), undefined, {
+        liveTable: { ...rules },
+        dropUserOnFail: true,
+        responseModePrompt: rules.hasInCharacter ? soloHandoffFormat(characterName, dmNotes ?? '') : undefined,
+      });
     },
     busy: isLoading,
     storageKey: `solo-live-table:${activeCampaignId || 'none'}`,
@@ -1444,6 +1455,12 @@ ${oocLines}`;
   // At full Signet Strain the rider can't act: the table locks like the old message box did.
   const tableLocked = !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout;
   useEffect(() => { if (tableLocked) liveTableRef.current?.close(); }, [tableLocked]);
+  // Portraits for the story feed's table lines, by NPC name.
+  const npcPortraitsByName = useMemo(() => {
+    const map: Record<string, string | undefined> = {};
+    for (const n of liveTable.tableNpcs) map[n.name.toLowerCase()] = n.portrait_url ?? undefined;
+    return map;
+  }, [liveTable.tableNpcs]);
 
   // Send the opening message (a campaign the Empyrean Guide just built, the saved opening scene,
   // or a prompt from the library) once the chat is empty. A fresh start clears an older story
@@ -2685,7 +2702,12 @@ ${oocLines}`;
                       </>
                     );
                   })() : (
-                    <p className="text-sm whitespace-pre-wrap">{stripAllMetaTags(message.content)}</p>
+                    <SoloSceneCard
+                      content={stripAllMetaTags(message.content)}
+                      riderName={characterName}
+                      riderPortrait={liveUserId ? chatAvatars.avatars[liveUserId]?.ic : undefined}
+                      npcPortraits={npcPortraitsByName}
+                    />
                   )}
                 </div>
               </div>

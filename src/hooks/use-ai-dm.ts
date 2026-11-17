@@ -305,7 +305,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     content: string,
     overrideHistory?: Message[],
     /** Solo Live Table hand-off: the Live Table rules for the DM, and drop the sent text from the story if no reply comes back. */
-    opts?: { liveTable?: Record<string, unknown>; dropUserOnFail?: boolean },
+    opts?: { liveTable?: Record<string, unknown>; dropUserOnFail?: boolean; /** Replaces the length preset for this one reply (a solo hand-off asks for a full scene). */ responseModePrompt?: string },
   ): Promise<boolean> => {
     if (!content.trim() || isLoading) return false;
 
@@ -350,7 +350,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           campaignSummary: campaignSummary || undefined,
           worldStatePrompt: worldStatePrompt || undefined,
           dmPersonaPrompt: dmPersonaPrompt || undefined,
-          responseModePrompt: responseModePrompt || undefined,
+          responseModePrompt: opts?.responseModePrompt || responseModePrompt || undefined,
           model: selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
