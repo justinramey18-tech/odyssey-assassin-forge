@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { ATTITUDE_WORDS, CANON_ERAS, CANON_ERA_LABELS, CAST_GROUP_LABELS, type CanonEra } from '@/lib/empyreanCanon/castNpcs';
 import type { NpcStatus, RosterEntry } from '@/lib/solo-npcs';
 import type { SoloNpcs } from '@/hooks/use-solo-npcs';
+import { castPortrait } from '@/lib/empyreanCanon/castPortraits';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 const ERA_SHORT: Record<CanonEra, string> = { fw: 'Year 1', if: 'Year 2', os: 'Year 3' };
@@ -27,7 +28,8 @@ function Row({ e, onOpen }: { e: RosterEntry; onOpen: () => void }) {
   return (
     <Button variant="outline" type="button" onClick={onOpen} style={TOUCH}
       className="w-full h-auto min-h-[52px] flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-border/40 bg-card/40 text-left active:bg-muted/50">
-      <span className="min-w-0">
+      {castPortrait(e.key) && <img src={castPortrait(e.key)} alt="" loading="lazy" width={768} height={1024} className="w-10 h-12 rounded-md object-cover object-top shrink-0" />}
+      <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium truncate">{e.name}</span>
         <span className="block text-[11px] text-muted-foreground truncate">{e.mind.role || CAST_GROUP_LABELS[e.group as keyof typeof CAST_GROUP_LABELS] || 'Your NPC'}</span>
       </span>
@@ -77,6 +79,7 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
               <SheetTitle className="font-cinzel text-primary text-xl">{selected.name}</SheetTitle>
               <SheetDescription className="text-foreground/80">{selected.mind.role || 'Your NPC'}</SheetDescription>
             </SheetHeader>
+            {castPortrait(selected.key) && <img src={castPortrait(selected.key)} alt={selected.name} loading="lazy" width={768} height={1024} className="w-full max-w-xs mx-auto rounded-lg border border-border/40" />}
 
             <div className="rounded-lg border border-border/40 p-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
