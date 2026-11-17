@@ -6,7 +6,9 @@ import { prodigyStrainDiscount, type ProdigyTier } from '@/lib/empyreanClasses/p
 
 export type RulesAction =
   | 'state' | 'ack' | 'rest' | 'pass_time' | 'check' | 'signet_used' | 'quest_payout' | 'story_reward'
-  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief';
+  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain';
+/** Ways Signet Strain moves besides channels, checks, rests and fights (the server sets the amounts). */
+export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export type FightAction = 'fight_start' | 'fight_tick' | 'fight_act' | 'fight_clash' | 'fight_close';
 export type EventLevel = 'off' | 'rare' | 'normal';
 export type CheckRisk = 'physical' | 'mental' | 'signet';
@@ -60,6 +62,10 @@ export interface RulesSnapshot {
   unlocks: Array<{ id: string; label: string; source: string; unlocked: boolean }>;
   /** The Prodigy (D-37): its Ascension tier (0 for other riders) and Battle Briefs left today. */
   prodigy?: { tier: number; briefsLeft: number };
+  /** Signet Strain as the server keeps it (absent from an older server: then the phone keeps its own). */
+  strain?: number;
+  /** What a signet channel cost (the answer to signet_used). */
+  strainCost?: number;
   facts: string;
   inbox: RulesInboxEvent[];
 }
@@ -71,6 +77,8 @@ export interface RulesContext {
   bonded: boolean;
   sheet?: { level?: number; maxHp?: number; hp?: number; ac?: number; attackBonus?: number | null; weapons?: Array<{ name: string; damage: string }>; riderClass?: string | null };
   place?: { name?: string; kind?: string };
+  /** The rider's Signet Strain limit as the phone works it out (bond tier, Quest Hub rank, Prodigy). */
+  strainLimit?: number;
 }
 
 /** null when the server could not be reached at all (offline, signed out, not deployed). */
@@ -113,6 +121,8 @@ export interface FightView {
 export interface FightReply {
   ok: boolean; error?: string; serverNow?: number; fight?: FightView | null; inbox?: RulesInboxEvent[];
   strain?: number; usedPotion?: boolean; index?: number; quality?: ClashQuality;
+  /** Signet Strain after this move, as the server keeps it (absent from an older server). */
+  strainNow?: number;
 }
 export interface FightOffer { foeKind: FoeKind; foeName: string; count: number; challenge: FightChallenge; lethal: boolean }
 

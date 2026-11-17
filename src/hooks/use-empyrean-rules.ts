@@ -8,7 +8,7 @@ import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { currentRiderKey } from '@/lib/dragon-record';
 import {
   callRules, type CheckRisk, type EventLevel, type PassActivity, type RulesAction, type RulesCheck,
-  type RulesContext, type RulesInboxEvent, type RulesSnapshot,
+  type RulesContext, type RulesInboxEvent, type RulesSnapshot, type StrainReason,
 } from '@/lib/empyrean-rules-client';
 
 const APPLIED_KEY = 'empyrean-rules-applied';
@@ -44,6 +44,10 @@ export interface EmpyreanRulesOptions {
   onFightResult?: (payload: Record<string, any>) => void;
   /** Poll faster while a journey is under way. */
   flying: boolean;
+  /** The rider's Signet Strain limit right now (sent with every call; the server keeps strain under it). */
+  getStrainLimit?: () => number;
+  /** The server pushed strain up to the limit (a reckless rise): costs bond once (D-30). */
+  onStrainLimit?: (reason: string) => void;
 }
 
 export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
@@ -65,12 +69,14 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     return {
       campaignId: o.campaignId, riderKey: currentRiderKey(), dragonName: o.bonded ? o.dragonName || undefined : undefined,
       bonded: o.bonded, sheet: o.getSheet(), place: o.getPlace(),
+      ...(o.getStrainLimit ? { strainLimit: o.getStrainLimit() } : {}),
     };
   }, []);
 
-  const applyOne = useCallback((e: RulesInboxEvent): boolean => {
+  const applyOne = useCallback((e: RulesInboxEvent, strainOnServer = false): boolean => {
     const o = optsRef.current;
     const p = e.payload || {};
+    if (e.kind === 'strain_limit') { o.onStrainLimit?.(e.reason || 'Signet Strain hit its limit'); return true; }
     if (e.kind === 'dm_post') return typeof p.content === 'string' && p.content.trim() ? o.onDmPost(e.id, p.content) : true;
     // The sheet's handler adds the number it is given: damage goes in negative, healing positive.
     if (e.hp < 0) o.onHPChange(e.hp, 'damage');
@@ -78,9 +84,12 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     if (e.xp > 0) o.onAddXP(e.xp, e.reason || 'Empyrean');
     if (e.gold !== 0) o.onGoldChange(e.gold);
     if (e.kind === 'rest') o.onSheetRest(p.rest === 'long' ? 'long' : 'short');
-    if (p.strainReset === true) o.onStrain('reset');
-    else if (typeof p.strainDelta === 'number' && p.strainDelta !== 0) o.onStrain(p.strainDelta);
-    if (typeof p.strain === 'number' && p.strain > 0) o.onStrain(p.strain);
+    // When the server keeps strain, its number arrives with the snapshot; the changes are not applied again here.
+    if (!strainOnServer) {
+      if (p.strainReset === true) o.onStrain('reset');
+      else if (typeof p.strainDelta === 'number' && p.strainDelta !== 0) o.onStrain(p.strainDelta);
+      if (typeof p.strain === 'number' && p.strain > 0) o.onStrain(p.strain);
+    }
     if (e.kind === 'dragon_need' && typeof p.trust === 'number') o.onDragonTrust(p.trust, e.reason || "The dragon's needs went unmet");
     if (e.kind === 'quest_payout' || e.kind === 'story_xp' || e.kind === 'story_gold') {
       const bits = [e.xp ? `${e.xp} XP` : '', e.gold > 0 ? `${e.gold} gold` : '', e.gold < 0 ? `${-e.gold} gold spent` : ''].filter(Boolean);
@@ -98,6 +107,7 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
   const applyInbox = useCallback(async (snap: RulesSnapshot, ctx: RulesContext) => {
     if (applyingRef.current || !snap.inbox?.length) return;
     applyingRef.current = true;
+    const strainOnServer = typeof snap.strain === 'number';
     try {
       const done: string[] = [];
       let mapTouched = false;
@@ -110,7 +120,7 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
         } else {
           appliedRef.current = [...appliedRef.current, e.id].slice(-300);
           setScopedItem(APPLIED_KEY, JSON.stringify(appliedRef.current));
-          try { applyOne(e); } catch (err) { console.error('[empyrean-rules] apply failed', err); }
+          try { applyOne(e, strainOnServer); } catch (err) { console.error('[empyrean-rules] apply failed', err); }
           done.push(e.id);
           continue;
         }
@@ -178,6 +188,8 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
       return snap?.ok && snap.check ? snap.check : null;
     },
     signetUsed: (intensity: number) => { void run('signet_used', { intensity }, true); },
+    /** Move Signet Strain for one of the fixed reasons (the server sets the amount and keeps the number). */
+    strain: (reason: StrainReason, extra: { messageId?: string; channeled?: boolean; amount?: number } = {}) => { void run('strain', { reason, ...extra }, true); },
     /** A Prodigy's Battle Brief: the binding line for the DM, or null (the server said why). */
     battleBrief: async (): Promise<{ line: string; left: number } | null> => {
       const snap = await run('battle_brief');
@@ -202,7 +214,10 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     },
   }), [run, timed, refresh, context, applyInbox]);
 
-  return { ...api, snapshot, busy, active: !!scope && !!snapshot };
+  const active = !!scope && !!snapshot;
+  /** Signet Strain as the server keeps it; null while the engine is off or the server is older. */
+  const serverStrain = active && typeof snapshot?.strain === 'number' ? snapshot.strain : null;
+  return { ...api, snapshot, busy, active, serverStrain };
 }
 
 export type EmpyreanRulesApi = ReturnType<typeof useEmpyreanRules>;

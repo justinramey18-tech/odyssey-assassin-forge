@@ -33,8 +33,10 @@ export interface SoloFightOptions {
   resume: boolean;
   /** Results that came with a reply (the fight's end) go through the rules hook's once-only path. */
   onInbox: (inbox: RulesInboxEvent[]) => void;
-  /** Strain spent by a signet move, as the server charged it. */
+  /** Strain spent by a signet move, as the server charged it (an older server that keeps no strain). */
   onStrain: (amount: number) => void;
+  /** Signet Strain after a move, as the server keeps it. */
+  onStrainNow?: (strain: number) => void;
 }
 
 export function useSoloFight(opts: SoloFightOptions) {
@@ -140,8 +142,9 @@ export function useSoloFight(opts: SoloFightOptions) {
     try {
       const reply = await send('fight_act', { move });
       if (!reply) { toast.error('The fight server could not be reached. Try again.'); return false; }
+      if (typeof reply.strainNow === 'number') optsRef.current.onStrainNow?.(reply.strainNow);
       if (!reply.ok) { if (reply.error && reply.error !== 'Not ready yet.') toast.error(reply.error); return false; }
-      if (reply.strain) optsRef.current.onStrain(reply.strain);
+      if (typeof reply.strainNow !== 'number' && reply.strain) optsRef.current.onStrain(reply.strain);
       return true;
     } finally { setBusy(false); }
   }, [send]);
