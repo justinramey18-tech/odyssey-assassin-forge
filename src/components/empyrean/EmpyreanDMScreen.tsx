@@ -1381,6 +1381,19 @@ ${oocLines}`;
     void supabase.auth.getUser().then(({ data }) => { if (!cancelled) setLiveUserId(data.user?.id ?? undefined); });
     return () => { cancelled = true; };
   }, []);
+  // The rider's own in-character picture, shown on their side of solo battles.
+  const [riderPortrait, setRiderPortrait] = useState<string | null>(null);
+  const fightOpen = !!soloFight.fight;
+  useEffect(() => {
+    if (!fightOpen || !liveUserId) return;
+    let cancelled = false;
+    void (supabase.from('player_chat_avatars') as any)
+      .select('ic_url').eq('user_id', liveUserId).maybeSingle()
+      .then(({ data }: { data: { ic_url: string | null } | null }) => {
+        if (!cancelled) setRiderPortrait(typeof data?.ic_url === 'string' && data.ic_url ? data.ic_url : null);
+      });
+    return () => { cancelled = true; };
+  }, [fightOpen, liveUserId]);
   const latestDmText = useMemo(() => {
     const last = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
     return last ? String(last.content) : '';
@@ -3186,6 +3199,7 @@ ${oocLines}`;
           strainRoom={Math.max(0, maxBurnout - burnoutLevel)}
           onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
           dragonColor={config?.dragonColor}
+          riderPortrait={riderPortrait}
           onClosed={handleFightClosed}
         />
       )}
