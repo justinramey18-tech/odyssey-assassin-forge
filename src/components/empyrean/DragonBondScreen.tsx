@@ -23,6 +23,7 @@ import {
   type Meters,
   type Tier,
 } from '@/lib/dragon-meters';
+import { dragonPortrait } from '@/lib/empyreanArt';
 import { connectedDragon, loadDragonHistory, type DragonEvent, type SoloDragonState } from '@/lib/dragon-record';
 
 const tap = { touchAction: 'manipulation' as const };
@@ -66,7 +67,8 @@ function when(iso: string) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-export function DragonBondScreen({ open, onClose, dragonName, bondState, questStrainCeiling, isUnbonded }: {
+export function DragonBondScreen({ open, onClose, dragonName, dragonColor, bondState, questStrainCeiling, isUnbonded }: {
+  dragonColor?: string;
   open: boolean;
   onClose: () => void;
   dragonName: string;
@@ -116,6 +118,13 @@ export function DragonBondScreen({ open, onClose, dragonName, bondState, questSt
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
+        {!isUnbonded && (
+          <div className="relative -mx-3 -mt-3 h-52 overflow-hidden">
+            <img src={dragonPortrait(dragonColor)} alt={dragonName || 'Your dragon'} className="w-full h-full object-cover" width={1024} height={768} />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+            <p className="absolute bottom-2 left-3 font-cinzel text-lg font-bold text-foreground drop-shadow">{dragonName || 'Your dragon'}</p>
+          </div>
+        )}
         {isUnbonded ? (
           <div className="rounded-lg border border-destructive/25 bg-destructive/[0.06] px-3 py-4 text-sm text-foreground/75">
             You are unbonded. A new bond begins when a dragon chooses you at the Threshing.

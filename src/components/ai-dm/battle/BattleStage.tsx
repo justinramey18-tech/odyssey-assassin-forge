@@ -48,6 +48,8 @@ interface Props {
   onPickFriend?: (id: string) => void;
   /** Recent hits and heals (by fighter id), for the shake and the number pop-ups. */
   flashes: StageFlash[];
+  /** Optional painted backdrop; without it the flat field is drawn. */
+  backdrop?: string;
 }
 
 const BAR: Record<'green' | 'yellow' | 'red', string> = { green: '#45b649', yellow: '#f2c230', red: '#e0432f' };
@@ -193,7 +195,7 @@ function MiniBox({ f, onPick }: { f: StageFighter; onPick?: () => void }) {
   );
 }
 
-export function BattleStage({ enemies, party, me, targetId, onPickEnemy, onPickFriend, flashes }: Props) {
+export function BattleStage({ enemies, party, me, targetId, onPickEnemy, onPickFriend, flashes, backdrop }: Props) {
   const flashOf = (id: string) => [...flashes].reverse().find(x => x.id === id);
   // Sprites: the target stands in front, up to two more behind; 4+ enemies get a "+N" chip.
   const standing = enemies.filter(f => !out(f.status));
@@ -211,10 +213,19 @@ export function BattleStage({ enemies, party, me, targetId, onPickEnemy, onPickF
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--b-sky)' }}>
       {/* Field: sky, horizon, hills and grass in flat bands. */}
-      <div aria-hidden className="absolute inset-x-0 top-[22%] h-[8%]" style={{ background: 'var(--b-sky-2)' }} />
-      <div aria-hidden className="absolute left-[38%] top-[24%] w-[80%] h-[18%] rounded-[50%]" style={{ background: 'var(--b-hill)' }} />
-      <div aria-hidden className="absolute inset-x-0 top-[32%] bottom-0" style={{ background: 'var(--b-grass)' }} />
-      <div aria-hidden className="absolute inset-x-0 top-[66%] bottom-0" style={{ background: 'var(--b-grass-2)' }} />
+      {backdrop ? (
+        <>
+          <img aria-hidden src={backdrop} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <div aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.45))' }} />
+        </>
+      ) : (
+        <>
+          <div aria-hidden className="absolute inset-x-0 top-[22%] h-[8%]" style={{ background: 'var(--b-sky-2)' }} />
+          <div aria-hidden className="absolute left-[38%] top-[24%] w-[80%] h-[18%] rounded-[50%]" style={{ background: 'var(--b-hill)' }} />
+          <div aria-hidden className="absolute inset-x-0 top-[32%] bottom-0" style={{ background: 'var(--b-grass)' }} />
+          <div aria-hidden className="absolute inset-x-0 top-[66%] bottom-0" style={{ background: 'var(--b-grass-2)' }} />
+        </>
+      )}
 
       {/* Enemy platform and sprites (top right). */}
       <div aria-hidden className="absolute right-[-4%] top-[40%] w-[62%] h-[10%] rounded-[50%]" style={{ background: 'var(--b-pad)', border: '3px solid var(--b-pad-edge)' }} />

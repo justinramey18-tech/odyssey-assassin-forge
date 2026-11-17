@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
 import type { EventLevel, PassActivity } from '@/lib/empyrean-rules-client';
+import { EMPYREAN_SCENE_ART } from '@/lib/empyreanArt';
 import { ASCENSION_TIERS, PRODIGY_NAME, describeTier, nextAscension, type ProdigyTier } from '@/lib/empyreanClasses/prodigy';
 
 const TOUCH = { touchAction: 'manipulation' as const };
@@ -29,14 +30,14 @@ export function EmpyreanEngineButtons({ rules, onCamp, onMap, mapReady }: { rule
   return (
     <>
       <Button variant="ghost" onClick={onCamp} style={TOUCH} aria-label={`Camp. ${snap.clock}`} title="Camp: rest, time, wounds, progress"
-        className="relative px-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center gap-1 text-[11px] text-primary">
+        className="empyrean-rune-btn gap-1 text-[11px] text-primary">
         <Tent className="w-5 h-5" />
         <span className="hidden min-[380px]:inline whitespace-nowrap">{snap.clock.replace(', ', ' · ')}</span>
         {alert && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />}
       </Button>
       {mapReady && (
         <Button variant="ghost" onClick={onMap} style={TOUCH} aria-label="Map" title="Map"
-          className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center text-primary">
+          className="empyrean-rune-btn text-primary">
           <MapIcon className="w-5 h-5" />
         </Button>
       )}
@@ -80,8 +81,12 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="z-[66] border-primary/20 bg-background max-h-[88vh] overflow-y-auto">
+        <div className="relative -mx-6 -mt-6 mb-1 h-36 overflow-hidden">
+          <img src={EMPYREAN_SCENE_ART.campQuarters} alt="" aria-hidden className="w-full h-full object-cover" width={1024} height={768} />
+          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+        </div>
         <SheetHeader className="text-left">
-          <SheetTitle className="font-cinzel text-primary flex items-center gap-2"><Tent className="w-5 h-5" /> Camp</SheetTitle>
+          <SheetTitle className="font-cinzel text-primary flex items-center gap-2"><img src={EMPYREAN_SCENE_ART.flameDagger} alt="" aria-hidden className="w-7 h-7" /> Camp</SheetTitle>
           <SheetDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-foreground/80">
             <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {snap.clock} ({snap.timeOfDay})</span>
             {placeName && <span className="flex items-center gap-1"><Compass className="w-3.5 h-3.5" /> {flying ? 'In flight' : placeName}</span>}

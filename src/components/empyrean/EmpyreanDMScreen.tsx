@@ -12,6 +12,7 @@ import { formatForReadingMode, type FormattedReading } from '@/lib/reading-mode-
 import { isFeatureSkipped } from '@/lib/api-keys';
 const EmpyreanCampaignSetup = lazy(() => import('@/components/empyrean/EmpyreanCampaignSetup').then(m => ({ default: m.EmpyreanCampaignSetup })));
 import BurnoutFlameOverlay from '@/components/empyrean/BurnoutFlameOverlay';
+import { StrainMeter } from '@/components/empyrean/meters/StrainMeter';
 const DeathSaveScreen = lazy(() => import('@/components/empyrean/DeathSaveScreen'));
 const MemorialScreen = lazy(() => import('@/components/empyrean/MemorialScreen'));
 const ThreshingCinematic = lazy(() => import('@/components/empyrean/ThreshingCinematic'));
@@ -245,19 +246,6 @@ const BURNOUT_LABELS = [
   'Mutual collapse imminent — bond tearing',
   'Maximum capacity — sever or die',
 ];
-
-function BurnoutIndicator({ level, maxBurnout }: { level: number; maxBurnout: number }) {
-  const ratio = maxBurnout > 0 ? level / maxBurnout : 0;
-  const color = ratio < 0.35 ? 'text-emerald-400' : ratio < 0.65 ? 'text-amber-400' : ratio < 0.85 ? 'text-orange-500' : 'text-red-500';
-  const emptyColor = ratio < 0.35 ? 'text-emerald-400/20' : ratio < 0.65 ? 'text-amber-400/20' : ratio < 0.85 ? 'text-orange-500/20' : 'text-red-500/20';
-  return (
-    <div className="flex items-center gap-0.5" title={`Signet Strain (${level}/${maxBurnout}): ${BURNOUT_LABELS[level] ?? BURNOUT_LABELS[BURNOUT_LABELS.length - 1]}`}>
-      {Array.from({ length: maxBurnout }, (_, i) => (
-        <Flame key={i} className={cn('w-3 h-3', i < level ? color : emptyColor)} />
-      ))}
-    </div>
-  );
-}
 
 function stripAllMetaTags(content: string): string {
   return content
@@ -2073,7 +2061,7 @@ ${oocLines}`;
         <div className="flex items-center gap-2">
           <button
             onClick={() => onClose()}
-            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="empyrean-rune-btn"
           >
             <ArrowLeft className="w-5 h-5 text-purple-300" />
           </button>
@@ -2100,31 +2088,9 @@ ${oocLines}`;
               {isUnbonded ? (
                 <span className="text-muted-foreground text-[10px]">No signet</span>
               ) : !isUnbonded && maxBurnout > 0 && (
-                <div className="flex items-center gap-1">
-                  <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
-                  <button
-                    onClick={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
-                    disabled={burnoutLevel <= 0}
-                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-[10px] font-mono flex items-center justify-center transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    −
-                  </button>
-                  <span className={cn(
-                    "text-[10px] font-mono",
-                    burnoutLevel === 0 ? "text-emerald-400" : burnoutLevel / maxBurnout < 0.4 ? "text-yellow-400" : burnoutLevel / maxBurnout < 0.75 ? "text-orange-400" : "text-red-400"
-                  )}>
-                    {burnoutLevel}/{maxBurnout}
-                  </span>
-                  <button
-                    onClick={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))}
-                    disabled={burnoutLevel >= maxBurnout}
-                    className="w-5 h-5 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-[10px] font-mono flex items-center justify-center transition-colors"
-                    style={{ touchAction: 'manipulation' }}
-                  >
-                    +
-                  </button>
-                </div>
+                <StrainMeter compact level={burnoutLevel} max={maxBurnout} label={`Signet Strain: ${BURNOUT_LABELS[burnoutLevel] ?? ''}`}
+                  onDown={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
+                  onUp={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))} />
               )}
             </p>
           </div>
@@ -2173,7 +2139,7 @@ ${oocLines}`;
           {pendingLoot.length > 0 && (
             <Button variant="ghost"
               onClick={() => setLootOpen(true)}
-              className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              className="empyrean-rune-btn"
               style={{ touchAction: 'manipulation' }}
               aria-label="Loot to review"
               title="Loot to review"
@@ -2184,7 +2150,7 @@ ${oocLines}`;
           )}
           <Button variant="ghost"
             onClick={() => setRosterOpen(true)}
-            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+            className="empyrean-rune-btn"
             style={{ touchAction: 'manipulation' }}
             aria-label="People"
             title="People"
@@ -2193,7 +2159,7 @@ ${oocLines}`;
           </Button>
           <Button variant="ghost"
             onClick={() => liveTableRef.current?.open()}
-            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+            className="empyrean-rune-btn"
             style={{ touchAction: 'manipulation' }}
             aria-label="Live Table"
             title="Live Table"
@@ -2202,7 +2168,7 @@ ${oocLines}`;
           </Button>
           <button
             onClick={() => setQuestHubOpen(true)}
-            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="empyrean-rune-btn"
             style={{ touchAction: 'manipulation' }}
             aria-label="Quest Hub"
             title="Quest Hub"
@@ -2211,7 +2177,7 @@ ${oocLines}`;
           </button>
           <Button variant="ghost"
             onClick={() => setBondScreenOpen(true)}
-            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+            className="empyrean-rune-btn"
             style={{ touchAction: 'manipulation' }}
             aria-label="Bond"
             title="Bond"
@@ -2220,7 +2186,7 @@ ${oocLines}`;
           </Button>
           <button
             onClick={() => setShowToolsDrawer(true)}
-            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="empyrean-rune-btn"
           >
             <BookOpen className="w-5 h-5 text-purple-400" />
           </button>
@@ -2315,7 +2281,7 @@ ${oocLines}`;
             {pendingLoot.length > 0 && (
               <Button variant="ghost"
                 onClick={() => setLootOpen(true)}
-                className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+                className="empyrean-rune-btn"
                 style={{ touchAction: 'manipulation' }}
                 aria-label="Loot to review"
                 title="Loot to review"
@@ -2326,7 +2292,7 @@ ${oocLines}`;
             )}
             <Button variant="ghost"
               onClick={() => setRosterOpen(true)}
-              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              className="empyrean-rune-btn"
               style={{ touchAction: 'manipulation' }}
               aria-label="People"
               title="People"
@@ -2335,7 +2301,7 @@ ${oocLines}`;
             </Button>
             <Button variant="ghost"
               onClick={() => liveTableRef.current?.open()}
-              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              className="empyrean-rune-btn"
               style={{ touchAction: 'manipulation' }}
               aria-label="Live Table"
               title="Live Table"
@@ -2344,7 +2310,7 @@ ${oocLines}`;
             </Button>
             <button
               onClick={() => setQuestHubOpen(true)}
-              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+              className="empyrean-rune-btn"
               style={{ touchAction: 'manipulation' }}
               aria-label="Quest Hub"
               title="Quest Hub"
@@ -2353,7 +2319,7 @@ ${oocLines}`;
             </button>
             <Button variant="ghost"
               onClick={() => setBondScreenOpen(true)}
-              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              className="empyrean-rune-btn"
               style={{ touchAction: 'manipulation' }}
               aria-label="Bond"
               title="Bond"
@@ -2362,7 +2328,7 @@ ${oocLines}`;
             </Button>
             <button
               onClick={() => setShowToolsDrawer(true)}
-              className="relative p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+              className="empyrean-rune-btn"
               style={{ touchAction: 'manipulation' }}
               aria-label="DM tools"
               title="DM tools"
@@ -2383,31 +2349,9 @@ ${oocLines}`;
             <Flame className="w-3.5 h-3.5 text-orange-400" />
             <span className="text-[11px] font-cinzel text-white/60">Signet Strain</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <BurnoutIndicator level={burnoutLevel} maxBurnout={maxBurnout} />
-            <button
-              onClick={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
-              disabled={burnoutLevel <= 0}
-              className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-xs font-mono flex items-center justify-center transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              −
-            </button>
-            <span className={cn(
-              "text-[11px] font-mono min-w-[28px] text-center",
-              burnoutLevel === 0 ? "text-emerald-400" : burnoutLevel / maxBurnout < 0.4 ? "text-yellow-400" : burnoutLevel / maxBurnout < 0.75 ? "text-orange-400" : "text-red-400"
-            )}>
-              {burnoutLevel}/{maxBurnout}
-            </span>
-            <button
-              onClick={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))}
-              disabled={burnoutLevel >= maxBurnout}
-              className="w-6 h-6 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white/60 hover:text-white text-xs font-mono flex items-center justify-center transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              +
-            </button>
-          </div>
+          <StrainMeter level={burnoutLevel} max={maxBurnout} label={`Signet Strain: ${BURNOUT_LABELS[burnoutLevel] ?? ''}`}
+            onDown={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
+            onUp={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))} />
         </div>
       )}
 
@@ -3241,6 +3185,7 @@ ${oocLines}`;
           prodigy={prodigy}
           strainRoom={Math.max(0, maxBurnout - burnoutLevel)}
           onUseConsumableByName={autoSyncCallbacks?.onUseConsumableByName}
+          dragonColor={config?.dragonColor}
           onClosed={handleFightClosed}
         />
       )}
@@ -3265,6 +3210,7 @@ ${oocLines}`;
         open={bondScreenOpen}
         onClose={() => setBondScreenOpen(false)}
         dragonName={config?.dragonName || ''}
+        dragonColor={config?.dragonColor}
         bondState={dragonBond.bondState}
         questStrainCeiling={questStrainCeiling}
         isUnbonded={isUnbonded}

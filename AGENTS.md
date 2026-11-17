@@ -37,3 +37,4 @@
 - Solo Empyrean opening sends use a ref-backed hook with latest callbacks and a once-only clear step, because re-renders must not restart the timer or erase later chat.
 - Solo Live NPCs use campaign-owned solo_npcs rows and an isolated solo-npc helper with era-gated canon minds; existing voicing takes an optional mind block, so party NPC systems remain unchanged.
 - Solo Empyrean Live Table reuses RoundChatDrawer with the Arena local chat hook and voiceNPC off-feed mode; never build a second table UI, so solo and party stay identical.
+- Solo Empyrean built-in art lookups (dragon by color, foe by cast name then kind, arena backdrops, scene art) live in src/lib/empyreanArt.ts; BattleStage takes an optional backdrop so party fights keep the flat field.

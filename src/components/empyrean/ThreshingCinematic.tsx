@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { EMPYREAN_SCENE_ART } from '@/lib/empyreanArt';
 
 interface ThreshingCinematicProps {
   open: boolean;
@@ -211,6 +212,7 @@ export function ThreshingCinematic({ open, riderName, onConfigureDragon }: Thres
         fontFamily: "'Crimson Text', 'Georgia', serif",
       }}
     >
+      <img src={EMPYREAN_SCENE_ART.threshingField} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.35, zIndex: -1 }} />
       {/* Edge glow (phases 2-3) */}
       {(phase === 2 || phase === 3) && (
         <div

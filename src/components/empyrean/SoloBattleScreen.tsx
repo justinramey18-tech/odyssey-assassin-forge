@@ -13,6 +13,7 @@ import type { SoloFightApi } from '@/hooks/use-solo-fight';
 import { signetStrainCost, type FightView, type RulesContext } from '@/lib/empyrean-rules-client';
 import { prodigyRiderCooldownMs, type ProdigyTier } from '@/lib/empyreanClasses/prodigy';
 import '@/components/ai-dm/battle/battle.css';
+import { arenaBackdrop, dragonPortrait, foePortrait } from '@/lib/empyreanArt';
 
 const SIGNET_LEVELS = [{ intensity: 2, label: 'focused' }, { intensity: 4, label: 'strong' }, { intensity: 6, label: 'all-out' }];
 const TONE: Record<string, 'neutral' | 'warn' | 'good' | 'bad'> = { info: 'neutral', muted: 'neutral', warn: 'warn', good: 'good' };
@@ -44,9 +45,13 @@ interface Props {
   onUseConsumableByName?: (name: string, quantity?: number) => boolean;
   /** The player left the finished fight. */
   onClosed: (view: FightView) => void;
+  /** The rider's dragon scale color, for its battle portrait. */
+  dragonColor?: string;
+  /** The rider's own portrait, if they have one. */
+  riderPortrait?: string | null;
 }
 
-export function SoloBattleScreen({ fight, characterContext, bonded, signetName, masteryRank, prodigy = 0, strainRoom, onUseConsumableByName, onClosed }: Props) {
+export function SoloBattleScreen({ fight, characterContext, bonded, signetName, masteryRank, prodigy = 0, strainRoom, onUseConsumableByName, onClosed, dragonColor, riderPortrait }: Props) {
   const view = fight.fight;
   const [, setBeat] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
@@ -74,10 +79,10 @@ export function SoloBattleScreen({ fight, characterContext, bonded, signetName, 
       const who = e.pending.target === 'dragon' ? (view.dragon?.name ?? 'your dragon').toUpperCase() : e.pending.target === 'both' ? 'EVERYONE' : 'YOU';
       line = { text: `▼ ${e.pending.label.toUpperCase()} at ${who} · ${secs(e.pending.strikeAt)}s`, tone: 'warn', blink: true };
     } else if (e.status === 'up') line = { text: `Acts in ${secs(e.nextAt)}s`, tone: 'muted' };
-    return { id: e.id, name: e.name, hp: e.hp, maxHp: e.maxHp, status: e.status === 'up' ? 'up' : view.lethal ? 'dead' : 'ko', tag: view.challenge, line, chips: e.pending?.warded ? ['WARDED'] : [] };
+    return { id: e.id, name: e.name, portrait: foePortrait(e.kind, e.name) ?? null, hp: e.hp, maxHp: e.maxHp, status: e.status === 'up' ? 'up' : view.lethal ? 'dead' : 'ko', tag: view.challenge, line, chips: e.pending?.warded ? ['WARDED'] : [] };
   });
-  const me: StageFighter = { id: view.rider.id, name: view.rider.name, hp: view.rider.hp, maxHp: view.rider.maxHp, status: view.rider.hp > 0 ? 'up' : 'down', level: view.rider.level };
-  const party: StageFighter[] = view.dragon ? [{ id: view.dragon.id, name: view.dragon.name, hp: view.dragon.hp, maxHp: view.dragon.maxHp, status: view.dragon.status === 'up' ? 'up' : 'dead', ally: true }] : [];
+  const me: StageFighter = { id: view.rider.id, name: view.rider.name, hp: view.rider.hp, maxHp: view.rider.maxHp, status: view.rider.hp > 0 ? 'up' : 'down', level: view.rider.level, portrait: riderPortrait ?? null };
+  const party: StageFighter[] = view.dragon ? [{ id: view.dragon.id, name: view.dragon.name, hp: view.dragon.hp, maxHp: view.dragon.maxHp, status: view.dragon.status === 'up' ? 'up' : 'dead', ally: true, portrait: dragonPortrait(dragonColor) }] : [];
 
   const moves: BattleMove[] = [];
   const weapons = view.rider.weapons.length ? view.rider.weapons : ['Unarmed strike'];
@@ -127,7 +132,7 @@ export function SoloBattleScreen({ fight, characterContext, bonded, signetName, 
       </div>
 
       <div className="relative flex-1 min-h-[300px]">
-        <BattleStage enemies={enemies} party={party} me={me} targetId={target?.id ?? null} onPickEnemy={setPicked} flashes={fight.flashes} />
+        <BattleStage enemies={enemies} party={party} me={me} targetId={target?.id ?? null} onPickEnemy={setPicked} flashes={fight.flashes} backdrop={arenaBackdrop(view.arena, view.lethal)} />
         {showLog && (
           <div className="absolute inset-2 battle-text p-3 overflow-y-auto overscroll-contain z-[4]" role="log" aria-label="Fight log">
             <div className="flex items-center justify-between mb-2">

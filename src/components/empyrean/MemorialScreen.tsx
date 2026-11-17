@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { EMPYREAN_SCENE_ART } from '@/lib/empyreanArt';
 
 interface MemorialScreenProps {
   open: boolean;
@@ -210,6 +211,7 @@ const MemorialScreen: React.FC<MemorialScreenProps> = ({
       className="fixed inset-0 flex flex-col items-center justify-center"
       style={{ zIndex: 9999, backgroundColor: '#0a0908', fontFamily: "'Crimson Text', 'Cinzel', serif" }}
     >
+      <img src={EMPYREAN_SCENE_ART.memorialWall} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: 0.35, zIndex: -1 }} />
       <EmberParticles />
 
       {/* Act 1 — The Naming */}

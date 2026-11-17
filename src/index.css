@@ -618,3 +618,62 @@ a, button, [role="button"], input, select, textarea, label {
   border-radius: 8px;
   overflow: hidden;
 }
+
+/* ── Solo Empyrean forged controls: header buttons, health vial, strain gauge ── */
+@layer components {
+  .empyrean-rune-btn {
+    @apply relative flex items-center justify-center rounded-xl transition-all;
+    min-width: 48px; min-height: 48px; padding: 0.5rem;
+    background: radial-gradient(circle at 50% 35%, hsl(var(--primary) / 0.14), transparent 70%),
+      linear-gradient(180deg, hsl(var(--foreground) / 0.07), hsl(var(--background) / 0.4));
+    border: 1px solid hsl(var(--primary) / 0.28);
+    box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.12), inset 0 -2px 4px hsl(var(--background) / 0.7), 0 2px 6px hsl(var(--background) / 0.6);
+  }
+  .empyrean-rune-btn:hover { border-color: hsl(var(--primary) / 0.55); box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.15), 0 0 12px hsl(var(--primary) / 0.3); }
+  .empyrean-rune-btn:active { transform: translateY(1px) scale(0.97); }
+  .empyrean-rune-btn:disabled { opacity: 0.4; }
+
+  .empyrean-vial { position: relative; display: flex; flex-direction: column; align-items: center; width: 30px; height: 100%; padding: 4px 0; }
+  .empyrean-vial-cap { @apply flex items-center justify-center rounded-full; width: 22px; height: 22px; z-index: 2;
+    color: hsl(0 85% 70%); background: radial-gradient(circle at 40% 35%, hsl(35 30% 40%), hsl(25 25% 12%));
+    border: 1px solid hsl(40 45% 55% / 0.7); box-shadow: 0 0 8px hsl(0 80% 40% / 0.45); }
+  .empyrean-vial-tube { position: relative; flex: 1; width: 14px; margin-top: -3px; border-radius: 999px; overflow: hidden;
+    background: linear-gradient(90deg, hsl(0 0% 2% / 0.85), hsl(0 30% 8% / 0.85), hsl(0 0% 2% / 0.85));
+    border: 1.5px solid hsl(40 40% 45% / 0.65); box-shadow: inset 0 0 6px hsl(0 0% 0%), 0 0 10px hsl(0 80% 35% / 0.35); }
+  .empyrean-vial-fill { position: absolute; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(0deg, hsl(355 85% 22%), hsl(355 80% 40%) 70%, hsl(5 90% 58%));
+    box-shadow: 0 -2px 8px hsl(5 90% 55% / 0.8); }
+  .empyrean-vial.is-healthy .empyrean-vial-fill { animation: health-pulse 2.4s ease-in-out infinite; }
+  .empyrean-vial.is-bloodied .empyrean-vial-fill { background: linear-gradient(0deg, hsl(350 85% 16%), hsl(350 80% 30%) 70%, hsl(15 90% 50%)); }
+  .empyrean-vial.is-critical .empyrean-vial-tube { animation: health-critical 0.8s ease-in-out infinite; border-color: hsl(0 85% 55% / 0.9); }
+  .empyrean-vial.is-wild .empyrean-vial-fill { background: linear-gradient(0deg, hsl(140 70% 16%), hsl(140 60% 34%) 70%, hsl(120 70% 55%)); box-shadow: 0 -2px 8px hsl(120 70% 50% / 0.7); }
+  .empyrean-vial-temp { position: absolute; left: 0; right: 0; background: linear-gradient(0deg, hsl(200 90% 55% / 0.35), hsl(195 95% 75% / 0.55)); border-top: 1px solid hsl(195 95% 80% / 0.8); }
+  .empyrean-vial-ticks { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0 calc(10% - 1px), hsl(0 0% 100% / 0.12) calc(10% - 1px) 10%); }
+  .empyrean-vial-glass { position: absolute; top: 0; bottom: 0; left: 2px; width: 3px; border-radius: 999px; background: linear-gradient(180deg, hsl(0 0% 100% / 0.35), hsl(0 0% 100% / 0.05)); }
+  .empyrean-vial-text { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 2;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 9px; letter-spacing: 1px; color: hsl(40 40% 92%); text-shadow: 0 1px 3px hsl(0 0% 0%); }
+  .empyrean-vial-base { width: 20px; height: 7px; margin-top: -2px; border-radius: 3px; z-index: 2;
+    background: linear-gradient(180deg, hsl(40 40% 50%), hsl(30 30% 18%)); border: 1px solid hsl(40 45% 55% / 0.6); }
+
+  .empyrean-strain-gauge { position: relative; display: flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px 0 4px; border-radius: 999px;
+    background: linear-gradient(180deg, hsl(20 20% 10%), hsl(0 0% 3%)); border: 1px solid hsl(35 45% 45% / 0.55);
+    box-shadow: inset 0 1px 3px hsl(0 0% 0%), 0 0 0 hsl(25 95% 50% / 0); transition: box-shadow .4s; }
+  .empyrean-strain-gauge.is-hot { box-shadow: inset 0 1px 3px hsl(0 0% 0%), 0 0 10px hsl(28 95% 50% / 0.45); }
+  .empyrean-strain-gauge.is-critical { border-color: hsl(5 90% 55% / 0.85); animation: strain-throb 1s ease-in-out infinite; }
+  .empyrean-strain-icon { width: 14px; height: 14px; flex-shrink: 0; color: hsl(28 95% 58%); filter: drop-shadow(0 0 4px hsl(28 95% 50% / 0.8)); }
+  .empyrean-strain-gauge.is-calm .empyrean-strain-icon { color: hsl(150 50% 55%); filter: none; }
+  .empyrean-strain-track { position: relative; flex: 1; display: flex; gap: 2px; height: 10px; }
+  .empyrean-strain-seg { flex: 1; border-radius: 2px; background: hsl(0 0% 100% / 0.07); box-shadow: inset 0 1px 1px hsl(0 0% 0% / 0.8); }
+  .empyrean-strain-seg.is-lit { background: linear-gradient(180deg, hsl(45 100% 70%), hsl(25 95% 50%) 55%, hsl(5 85% 38%)); box-shadow: 0 0 5px hsl(25 95% 55% / 0.8); }
+  .empyrean-strain-gauge.is-critical .empyrean-strain-seg.is-lit { background: linear-gradient(180deg, hsl(20 100% 75%), hsl(5 90% 52%) 55%, hsl(350 85% 30%)); }
+  .empyrean-strain-notch { position: absolute; top: -3px; bottom: -3px; width: 1.5px; background: hsl(5 90% 60% / 0.8); border-radius: 1px; }
+  .empyrean-strain-count { font-family: ui-monospace, monospace; font-size: 10px; min-width: 26px; text-align: right; color: hsl(40 40% 85%); }
+  .empyrean-strain-gauge.is-critical .empyrean-strain-count { color: hsl(5 90% 68%); }
+  /* 48px tap area around a smaller forged stud */
+  .empyrean-meter-step { display: flex; align-items: center; justify-content: center; width: 40px; height: 48px; margin: -11px -4px; }
+  .empyrean-meter-step > span { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px;
+    color: hsl(40 40% 85%); background: radial-gradient(circle at 40% 35%, hsl(35 25% 32%), hsl(25 20% 10%)); border: 1px solid hsl(40 45% 55% / 0.55); }
+  .empyrean-meter-step:active > span { transform: scale(0.92); }
+  .empyrean-meter-step:disabled { opacity: 0.35; }
+}
+@keyframes strain-throb { 0%,100% { box-shadow: inset 0 1px 3px hsl(0 0% 0%), 0 0 6px hsl(5 90% 50% / 0.4); } 50% { box-shadow: inset 0 1px 3px hsl(0 0% 0%), 0 0 16px hsl(5 90% 55% / 0.85); } }
