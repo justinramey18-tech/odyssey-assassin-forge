@@ -577,6 +577,8 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     offFeed?: boolean,
     /** Solo table controls may follow the otherwise unchanged two-line dialogue. */
     tableControls?: string,
+    /** Unprompted urge lines (D-40): run on this model instead of the campaign's DM model. */
+    modelOverride?: string,
   ): Promise<string | undefined> => {
     if (!playerMessage.trim() || isLoading) return;
     const feed: typeof setMessages = offFeed ? () => {} : setMessages;
@@ -640,7 +642,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
           worldStatePrompt: worldStatePrompt || undefined,
           dmPersonaPrompt: dmPersonaPrompt || undefined,
           responseModePrompt: responseModePrompt || undefined,
-          model: selectedModel || undefined,
+          model: modelOverride || selectedModel || undefined,
           user_api_key: loadApiKey('anthropic') || undefined,
           user_openai_key: loadApiKey('openai') || undefined,
           user_perplexity_key: loadApiKey('perplexity') || undefined,

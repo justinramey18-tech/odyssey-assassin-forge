@@ -255,6 +255,14 @@ interface RoundChatDrawerProps {
   sceneRunning?: boolean;
   /** Solo Empyrean: picked NPCs answer in the order tapped (numbered on the chips). Party keeps stage order. */
   npcAnswerOrder?: 'stage' | 'tapped';
+  /** Solo urge meter (D-40): NPCs itching to speak unprompted (id → why). A pill row shows above the chips: tap lets them speak, hold hushes them. */
+  npcTells?: Record<string, string>;
+  /** Tap a tell: that NPC speaks now. */
+  onInviteNpc?: (npcId: string) => void;
+  /** Hold a tell: quiet that NPC for a while. */
+  onHushNpc?: (npcId: string) => void;
+  /** Told whenever the table opens or closes (the urge meter only runs while it's open). */
+  onOpenStateChange?: (open: boolean) => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -1128,6 +1136,10 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   onStartScene,
   sceneRunning = false,
   npcAnswerOrder = 'stage',
+  npcTells,
+  onInviteNpc,
+  onHushNpc,
+  onOpenStateChange,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -1136,6 +1148,27 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const onOpenChange = (next: boolean) => {
     if (!next) launchRevealRef.current = false;
     setOpen(next);
+  };
+  // Solo urge meter: the parent pauses it while the table is closed.
+  const openNotifyRef = useRef(onOpenStateChange);
+  openNotifyRef.current = onOpenStateChange;
+  useEffect(() => { openNotifyRef.current?.(open); }, [open]);
+  // A tell pill: a quick tap invites the NPC to speak; holding it (500 ms) hushes them instead.
+  const tellHoldRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout>; fired: boolean } | null>(null);
+  const tellDown = (id: string) => {
+    if (tellHoldRef.current) clearTimeout(tellHoldRef.current.timer);
+    const hold: { id: string; timer: ReturnType<typeof setTimeout>; fired: boolean } = {
+      id, fired: false,
+      timer: setTimeout(() => { hold.fired = true; onHushNpc?.(id); }, 500),
+    };
+    tellHoldRef.current = hold;
+  };
+  const tellUp = (id: string, invite: boolean) => {
+    const hold = tellHoldRef.current;
+    if (!hold || hold.id !== id) return;
+    clearTimeout(hold.timer);
+    tellHoldRef.current = null;
+    if (invite && !hold.fired) onInviteNpc?.(id);
   };
 
   const [editingOocName, setEditingOocName] = useState(false);
@@ -2028,6 +2061,26 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                 {/* Live NPCs: pick who you are talking to. The host can also speak as an NPC. */}
                 {inCharacter && npcs && (stageNpcs.length > 0 || (canManageNpcs && onOpenNpcRoster)) && (
                   <div className="space-y-1">
+                    {onInviteNpc && stageNpcs.some(n => npcTells?.[n.id]) && (
+                      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+                        {stageNpcs.filter(n => npcTells?.[n.id]).map(n => (
+                          <button
+                            key={`tell-${n.id}`}
+                            type="button"
+                            onPointerDown={() => tellDown(n.id)}
+                            onPointerUp={() => tellUp(n.id, true)}
+                            onPointerLeave={() => tellUp(n.id, false)}
+                            onPointerCancel={() => tellUp(n.id, false)}
+                            onContextMenu={(e) => e.preventDefault()}
+                            aria-label={`${n.name} looks like they want to say something: ${npcTells?.[n.id]}. Tap to let them speak; hold to wave them off.`}
+                            style={{ touchAction: 'manipulation' }}
+                            className="shrink-0 min-h-[36px] px-3 rounded-full border border-primary/50 bg-primary/10 text-primary text-[11px] font-cinzel animate-pulse select-none"
+                          >
+                            💭 {n.name.trim().split(/\s+/)[0]} wants to speak
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
                       {stageNpcs.length > 0 && (canManageNpcs && onSpeakAsNpc ? (
                         <button
@@ -2072,6 +2125,9 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 >
                                   {talkTo.indexOf(n.id) + 1}
                                 </span>
+                              )}
+                              {npcTells?.[n.id] && !voicing && (
+                                <span className="absolute right-1 top-1 z-[1] text-[13px] animate-pulse" aria-hidden>💭</span>
                               )}
                               {n.portrait_url ? (
                                 <img
