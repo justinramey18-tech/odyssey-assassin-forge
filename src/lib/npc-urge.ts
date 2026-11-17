@@ -7,7 +7,7 @@
 // the urge and starts a cooldown. The hook enforces the caps (2 wakes per rider line, 1 reaction
 // to an unprompted line, never a chain) and the brakes (DM writing, scene, fight, table closed).
 import { eraReached, type CanonEra } from '@/lib/empyreanCanon/castNpcs/types';
-import { NEUTRAL_TEMPERAMENT, type Temperament, type UrgeIntent } from '@/lib/empyreanCanon/castNpcs/temperament';
+import { NEUTRAL_TEMPERAMENT, type Temperament, type UrgeCategory, type UrgeIntent } from '@/lib/empyreanCanon/castNpcs/temperament';
 
 /** Per-NPC switch: how freely they speak unprompted. 'spoken-to' = never. */
 export type Talkativeness = 'chatty' | 'normal' | 'spoken-to';
@@ -327,4 +327,94 @@ export function tableEnergy(dmText: string): TableEnergy {
 export function energyScale(energy: TableEnergy, sinceMs: number): number {
   if (energy === 'tense') return sinceMs < URGE_TUNING.tenseForMs ? URGE_TUNING.tenseScale : 1;
   return energy === 'calm' ? URGE_TUNING.calmScale : 1;
+}
+
+// ── Tier 3 (2026-11-17): memories as triggers, and the AI judge ──
+
+export const URGE_TIER3 = {
+  /** A rider line that touches something this NPC remembers about them. */
+  memoryPts: 4,
+  /** The same memory does not trigger again for this long. */
+  memoryRestMs: 600_000,
+  /** The judge is asked only when the word lists gave nobody this much, and the line has this many words. */
+  judgeBelowPts: 3,
+  judgeMinWords: 4,
+  /** Outside a huddle, at least this long between judge calls. */
+  judgeGapMs: 15_000,
+  /** Judge strength 1, 2, 3 → this share of the read's points. */
+  judgeStrength: [0.5, 0.75, 1],
+} as const;
+
+const STOP_WORDS = new Set(['about', 'after', 'again', 'against', 'always', 'another', 'around', 'because', 'before', 'being', 'between', 'could', 'during', 'every', 'first', 'having', 'might', 'never', 'other', 'rider', 'riders', 'should', 'since', 'something', 'still', 'their', 'there', 'these', 'thing', 'things', 'think', 'those', 'through', 'under', 'until', 'where', 'which', 'while', 'would', 'asked', 'said', 'told', 'looked', 'watched', 'stood', 'stayed', 'wanted', 'without', 'dragon', 'dragons', 'cadet', 'cadets', 'squad']);
+
+function distinctiveWords(text: string, skip: Set<string>): Set<string> {
+  const out = new Set<string>();
+  for (const w of (text || '').toLowerCase().split(/[^\p{L}]+/u)) {
+    if (w.length >= 5 && !STOP_WORDS.has(w) && !skip.has(w)) out.add(w);
+  }
+  return out;
+}
+
+/**
+ * The stored memory a line touches, by shared distinctive words (5+ letters, not common ones,
+ * not anybody's name): two shared words, or one long one (8+ letters). No AI call.
+ */
+export function memoryMatch(text: string, memories: string[], names: string[]): { index: number; memory: string } | null {
+  const skip = new Set(names.flatMap(n => n.toLowerCase().split(/[^\p{L}]+/u)).filter(Boolean));
+  const said = distinctiveWords(text, skip);
+  if (!said.size) return null;
+  let bestIndex = -1;
+  let bestScore = 0;
+  for (let index = 0; index < memories.length; index++) {
+    const shared = Array.from(distinctiveWords(memories[index], skip)).filter(w => said.has(w));
+    const score = shared.length >= 2 ? shared.length + 1 : shared.some(w => w.length >= 8) ? 1 : 0;
+    // The newest memory wins a tie.
+    if (score > 0 && score >= bestScore) { bestIndex = index; bestScore = score; }
+  }
+  return bestIndex >= 0 ? { index: bestIndex, memory: memories[bestIndex] } : null;
+}
+
+export function memoryReason(memory: string): UrgeReason {
+  return { pts: URGE_TIER3.memoryPts, text: `this touches something you remember: "${memory.trim().slice(0, 200)}" (bring it up if it fits)` };
+}
+
+/**
+ * Should the AI judge read this rider line? Only a real sentence, aimed at somebody (it names
+ * an NPC on stage, or says "you"), that the word lists made little of.
+ */
+export function needsJudge(text: string, bestListPts: number, namesOnStage: string[]): boolean {
+  const line = (text || '').trim();
+  const words = line.split(/\s+/).filter(Boolean).length;
+  if (words < URGE_TIER3.judgeMinWords || bestListPts >= URGE_TIER3.judgeBelowPts) return false;
+  return /(^|[^\p{L}])(you|your|yours|you're|youre)([^\p{L}]|$)/iu.test(line) || mentionsAny(line, namesOnStage);
+}
+
+export type JudgeRead = 'none' | 'insult' | 'mockery' | 'threat' | 'praise' | 'flirt' | 'secret_probe' | 'support' | 'challenge';
+export type JudgeTone = 'neutral' | 'heated' | 'calm' | 'joking';
+export interface JudgedItem { key: string; read: JudgeRead; strength: 1 | 2 | 3; memory: number }
+export interface JudgedLine { tone: JudgeTone; sidesWith: string; items: JudgedItem[] }
+
+const JUDGE_READ_POINTS: Record<Exclude<JudgeRead, 'none'>, { pts: number; weight?: UrgeCategory; text: string }> = {
+  insult: { pts: URGE_POINTS.insult, weight: 'insult', text: 'that was an insult, however it was dressed' },
+  mockery: { pts: 3, weight: 'insult', text: 'you are being mocked' },
+  threat: { pts: URGE_POINTS.danger + 1, weight: 'danger', text: 'that sounded like a threat' },
+  praise: { pts: URGE_POINTS.praise, weight: 'praise', text: 'that was meant as real praise' },
+  flirt: { pts: 3, text: 'that was flirting, and it was aimed at you' },
+  secret_probe: { pts: URGE_POINTS.secret, weight: 'secret', text: 'they are probing at something you keep to yourself' },
+  support: { pts: 2, text: 'they are taking your side' },
+  challenge: { pts: 3, text: 'that was a challenge' },
+};
+
+/** Urge points from the judge's read of a line for one NPC (weighted by temperament and strength). */
+export function judgeReasons(item: JudgedItem, t: Temperament | undefined, memories: string[]): UrgeReason[] {
+  const out: UrgeReason[] = [];
+  if (item.read !== 'none') {
+    const rule = JUDGE_READ_POINTS[item.read];
+    const weight = rule.weight ? ((t ?? NEUTRAL_TEMPERAMENT).reacts?.[rule.weight] ?? 1) : 1;
+    const pts = rule.pts * weight * URGE_TIER3.judgeStrength[item.strength - 1];
+    if (pts > 0) out.push({ pts, text: rule.text });
+  }
+  const memory = item.memory >= 1 ? memories[item.memory - 1] : undefined;
+  if (memory) out.push(memoryReason(memory));
+  return out;
 }

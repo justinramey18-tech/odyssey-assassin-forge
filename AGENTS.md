@@ -41,3 +41,4 @@
 - Solo starter-guide recovery matches saved map IDs and inserts only missing identities; guide reads reject stale campaign responses, because retries must preserve edited guides and campaign isolation.
 - Solo Empyrean built-in art lookups (dragon by color, foe by cast name then kind, arena backdrops, scene art) live in src/lib/empyreanArt.ts; BattleStage takes an optional backdrop so party fights keep the flat field.
 - Solo NPC urge scoring stays pure and separate from era-gated temperament profiles, because speech timing must be testable without AI requests or screen state.
+- Solo NPC judge requests use the isolated solo-judge adapter and return null on failure, because optional interpretation must not interrupt play or persist data.

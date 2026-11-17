@@ -3,6 +3,7 @@ import {
   URGE_RULES, URGE_LINE_MODEL, freshUrge, settleUrge, addReasons, resetUrge, scoreLine,
   spotlightBonus, silenceReasons, effectiveThreshold, urgeStanding, pickWakes, whyBlock,
   URGE_TUNING, mentionsAny, learnTaste, rankFromRole, rankScale, asksQuestion, ignoredQuestionReasons, tableEnergy, energyScale,
+  URGE_TIER3, memoryMatch, memoryReason, needsJudge, judgeReasons,
 } from '@/lib/npc-urge';
 import { TEMPERAMENTS, NEUTRAL_TEMPERAMENT, temperamentFor } from '@/lib/empyreanCanon/castNpcs/temperament';
 
@@ -208,5 +209,46 @@ describe('Tier 2: taste, rank, questions, energy', () => {
     expect(energyScale('tense', URGE_TUNING.tenseForMs + 1)).toBe(1);
     expect(energyScale('calm', 999_999_999)).toBe(URGE_TUNING.calmScale);
     expect(energyScale('normal', 0)).toBe(1);
+  });
+});
+
+describe('Tier 3: memories as triggers, and the judge', () => {
+  const memories = [
+    'Kylar kept quiet when Dain asked who broke formation.',
+    'Kylar shared her rations on the Gauntlet.',
+    'Kylar lied to the Commandant about the missing daggers.',
+  ];
+
+  it('a line that shares distinctive words with a memory finds it; names and common words never count', () => {
+    expect(memoryMatch('I never told anyone who broke formation that day', memories, ['Kylar', 'Dain Aetos'])?.index).toBe(0);
+    expect(memoryMatch('Remember the Gauntlet? I still owe you rations', memories, ['Kylar'])?.index).toBe(1);
+    // One long shared word (8+ letters) is enough; one short one is not.
+    expect(memoryMatch('What did the commandant want?', memories, ['Kylar'])?.index).toBe(2);
+    expect(memoryMatch('Who has my daggers?', memories, ['Kylar'])).toBeNull();
+    expect(memoryMatch('Kylar and Dain should talk about something', memories, ['Kylar', 'Dain Aetos'])).toBeNull();
+    expect(memoryMatch('', memories, [])).toBeNull();
+    const r = memoryReason(memories[1]);
+    expect(r.pts).toBe(URGE_TIER3.memoryPts);
+    expect(r.text).toContain('shared her rations');
+  });
+
+  it('the judge is asked only for real sentences, aimed at somebody, that the word lists made little of', () => {
+    expect(needsJudge('Oh, what a fine leader you make', 1, [])).toBe(true);
+    expect(needsJudge('Oh, what a fine leader you make', 6, [])).toBe(false);
+    expect(needsJudge('Fine. Whatever.', 0, [])).toBe(false);
+    // Not aimed at anybody: nothing to judge.
+    expect(needsJudge('What a lovely quiet morning this is', 0, ['Dain'])).toBe(false);
+    expect(needsJudge('Funny how Dain always knows the rules', 0, ['Dain'])).toBe(true);
+  });
+
+  it('judge reads become urge, weighted by temperament and strength, plus the memory it names', () => {
+    const jackT = TEMPERAMENTS['jack-barlowe'];
+    expect(total(judgeReasons({ key: 'jack-barlowe', read: 'insult', strength: 3, memory: 0 }, jackT, []))).toBe(4 * 2);
+    expect(total(judgeReasons({ key: 'jack-barlowe', read: 'insult', strength: 1, memory: 0 }, jackT, []))).toBe(4 * 2 * 0.5);
+    expect(total(judgeReasons({ key: 'x', read: 'flirt', strength: 2, memory: 0 }, undefined, []))).toBeCloseTo(2.25);
+    const withMemory = judgeReasons({ key: 'x', read: 'none', strength: 1, memory: 2 }, undefined, memories);
+    expect(withMemory).toHaveLength(1);
+    expect(withMemory[0].text).toContain('rations');
+    expect(judgeReasons({ key: 'x', read: 'none', strength: 1, memory: 9 }, undefined, memories)).toEqual([]);
   });
 });
