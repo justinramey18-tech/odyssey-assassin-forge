@@ -20,6 +20,11 @@ import campQuarters from '@/assets/empyrean-scenes/camp-quarters.jpg';
 import memorialWall from '@/assets/empyrean-scenes/memorial-wall.jpg';
 import threshingField from '@/assets/empyrean-scenes/threshing-field.jpg';
 import flameDagger from '@/assets/empyrean-scenes/flame-dagger-insignia.png';
+import sigLightning from '@/assets/signet-emblems/lightning.png';
+import sigShadow from '@/assets/signet-emblems/shadow.png';
+import sigIce from '@/assets/signet-emblems/ice.png';
+import sigMind from '@/assets/signet-emblems/mind-shield.png';
+import sigDistance from '@/assets/signet-emblems/distance.png';
 import { CAST_PORTRAITS } from '@/lib/empyreanCanon/castPortraits';
 import { CAST_A } from '@/lib/empyreanCanon/castNpcs/castA';
 import { CAST_B } from '@/lib/empyreanCanon/castNpcs/castB';
@@ -60,3 +65,15 @@ export function arenaBackdrop(arena: string, lethal: boolean): string {
 }
 
 export const EMPYREAN_SCENE_ART = { campQuarters, memorialWall, threshingField, parapet, flameDagger };
+
+/** Emblem for a signet power, matched by keywords in its free-text name; undefined when none fit. */
+export function signetEmblem(signet: string | null | undefined): string | undefined {
+  const s = (signet || '').toLowerCase();
+  if (!s.trim()) return undefined;
+  if (/lightning|storm|thunder/.test(s)) return sigLightning;
+  if (/shadow|dark/.test(s)) return sigShadow;
+  if (/ice|frost|cold|freez/.test(s)) return sigIce;
+  if (/mind|mental|shield|read|thought|inintna/.test(s)) return sigMind;
+  if (/distance|wield|teleport|portal|far|throw/.test(s)) return sigDistance;
+  return undefined;
+}

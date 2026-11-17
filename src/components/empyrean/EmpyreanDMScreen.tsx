@@ -161,6 +161,7 @@ import {
   type NarrativeCooldownMap,
 } from '@/lib/narrativeCooldowns';
 
+import { signetEmblem } from '@/lib/empyreanArt';
 import type { SwipeHandlers } from '@/components/empyrean/EmpyreanDMContainer';
 import type { NavigableTab } from '@/components/navigation/types';
 
@@ -2098,6 +2099,9 @@ ${oocLines}`;
             </div>
             <p className="text-[11px] text-muted-foreground flex items-center gap-2">
               <span className="truncate max-w-[140px]">{characterName}{!isUnbonded && config.dragonName ? ` & ${config.dragonName}` : ''}</span>
+              {!isUnbonded && signetEmblem(config?.signetType) && (
+                <img src={signetEmblem(config?.signetType)} alt={`${config?.signetType} signet`} title={config?.signetType} width={20} height={20} className="w-5 h-5 shrink-0 drop-shadow" />
+              )}
               {isUnbonded ? (
                 <span className="text-muted-foreground text-[10px]">No signet</span>
               ) : !isUnbonded && maxBurnout > 0 && (
@@ -2249,6 +2253,9 @@ ${oocLines}`;
           <span className="text-[11px] text-muted-foreground truncate min-w-0">
             {characterName}{!isUnbonded && config.dragonName ? ` & ${config.dragonName}` : ''}
             {isUnbonded && <span className="ml-2 text-[10px]">No signet</span>}
+            {!isUnbonded && signetEmblem(config?.signetType) && (
+                <img src={signetEmblem(config?.signetType)} alt={`${config?.signetType} signet`} title={config?.signetType} width={20} height={20} className="inline-block align-middle ml-1.5 w-5 h-5 drop-shadow" />
+              )}
           </span>
           <div className="flex items-center gap-1 shrink-0">
             {activeOOCNotes.length > 0 && (

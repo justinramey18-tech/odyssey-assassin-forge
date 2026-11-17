@@ -18,3 +18,15 @@ describe('empyrean art lookups', () => {
     expect(arenaBackdrop('ground', true)).not.toBe(arenaBackdrop('ground', false));
   });
 });
+
+import { signetEmblem } from '@/lib/empyreanArt';
+describe('signetEmblem', () => {
+  it('matches the five signet powers and nothing for unknown', () => {
+    const names = ['Lightning Wielder', 'Shadow Wielder', 'Ice', 'Mental Shield', 'Distance Wielder'];
+    const got = names.map(signetEmblem);
+    expect(got.every(Boolean)).toBe(true);
+    expect(new Set(got).size).toBe(5);
+    expect(signetEmblem('')).toBeUndefined();
+    expect(signetEmblem('Plant growth')).toBeUndefined();
+  });
+});
