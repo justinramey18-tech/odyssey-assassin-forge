@@ -271,6 +271,10 @@ interface RoundChatDrawerProps {
   onHuddleSeal?: () => void;
   /** Told while the rider has words in the text box (a huddle waits for them to finish). */
   onTypingChange?: (typing: boolean) => void;
+  /** Solo: an NPC squared up to the rider and a bout is on offer. */
+  challenge?: { name: string } | null;
+  onAcceptChallenge?: () => void;
+  onDismissChallenge?: () => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -1152,6 +1156,9 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   onHuddleEnough,
   onHuddleSeal,
   onTypingChange,
+  challenge,
+  onAcceptChallenge,
+  onDismissChallenge,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -2073,6 +2080,33 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
                 {/* The input field (reply chip, text box, picture + send, actions banner). */}
                 <div className="space-y-1.5">
+
+                {/* Solo: an NPC squared up to the rider. */}
+                {challenge && onAcceptChallenge && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-2 py-1.5" role="status">
+                    <p className="flex-1 min-w-0 text-[12px] font-cinzel text-foreground truncate">{challenge.name} squares up to you</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onAcceptChallenge}
+                      style={{ touchAction: 'manipulation' }}
+                      className="shrink-0 min-h-[48px] px-3 rounded-lg border-primary/50 bg-primary/10 text-primary text-[11px] font-cinzel"
+                    >
+                      Spar
+                    </Button>
+                    {onDismissChallenge && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onDismissChallenge}
+                        style={{ touchAction: 'manipulation' }}
+                        className="shrink-0 min-h-[48px] px-3 rounded-lg border-border/25 bg-background/30 text-foreground/80 text-[11px] font-cinzel"
+                      >
+                        Not now
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                 {/* Solo huddles: NPCs talking among themselves. Anything the rider sends joins in. */}
                 {huddle && (onHuddleEnough || onHuddleSeal) && (

@@ -1451,6 +1451,7 @@ ${oocLines}`;
     storageKey: `solo-live-table:${activeCampaignId || 'none'}`,
     // A fight freezes the urge meter (D-40): no unprompted NPC lines mid-fight.
     paused: fightOpen,
+    sparAvailable: rules.active,
   });
   // At full Signet Strain the rider can't act: the table locks like the old message box did.
   const tableLocked = !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout;
@@ -3019,6 +3020,16 @@ ${oocLines}`;
           onHuddleEnough={liveTable.huddleEnough}
           onHuddleSeal={liveTable.huddleSeal}
           onTypingChange={liveTable.setTyping}
+          challenge={liveTable.challenge}
+          onDismissChallenge={liveTable.clearChallenge}
+          onAcceptChallenge={() => {
+            const foe = soloNpcs.roster.find(e => e.key === liveTable.challenge?.key);
+            liveTable.clearChallenge();
+            if (!foe?.fight) return;
+            liveTableRef.current?.close();
+            setNpcFight({ key: foe.key, foeKind: foe.fight.kind, foeName: foe.name, challenge: foe.fight.challenge });
+            setFightSetup('spar');
+          }}
         />
       </div>
 
