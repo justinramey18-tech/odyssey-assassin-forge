@@ -19,7 +19,6 @@ const ThreshingCinematic = lazy(() => import('@/components/empyrean/ThreshingCin
 const CinematicSlideshow = lazy(() => import('@/components/empyrean/CinematicSlideshow'));
 import { DragonRiderSetupSheet } from '@/components/ai-dm/DragonRiderSetupSheet';
 import { VerticalHealthBar } from '@/components/home/VerticalHealthBar';
-import { NpcSceneDialog } from '@/components/ai-dm/NpcSceneDialog';
 import { useOocDmChat } from '@/hooks/use-ooc-dm-chat';
 import { OocDmChat } from '@/components/ai-dm/OocDmChat';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -52,7 +51,6 @@ import { useGMGuides } from '@/hooks/use-gm-guides';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
-import { EmpyreanDMInput, type EmpyreanDMInputHandle } from './EmpyreanDMInput';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
 import { useDMChatTheme } from '@/hooks/use-dm-chat-theme';
 import { useWhisperTrayEnabled } from '@/hooks/use-whisper-tray-enabled';
@@ -114,8 +112,8 @@ import { Eye } from 'lucide-react';
 import { ScrollText } from 'lucide-react';
 import { HeartHandshake } from 'lucide-react';
 import { Bookmark, BookmarkCheck, PackageOpen, ImagePlus } from 'lucide-react';
-import { Users, MessagesSquare } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { Users } from 'lucide-react';
+import { DMHandoffBar } from '@/components/ai-dm/DMHandoffBar';
 import { RoundChatDrawer, type RoundChatDrawerHandle } from '@/components/ai-dm/RoundChatDrawer';
 import { useSoloLiveTable } from '@/hooks/use-solo-live-table';
 import { useSoloNpcs, type SoloNpcs } from '@/hooks/use-solo-npcs';
@@ -298,7 +296,6 @@ export function EmpyreanDMScreen({
   const [showSaves, setShowSaves] = useState(false);
   const [showGuides, setShowGuides] = useState(false);
   const [showWorldState, setShowWorldState] = useState(false);
-  const [showNpcScene, setShowNpcScene] = useState(false);
   const [showOocChat, setShowOocChat] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [burnoutLevel, setBurnoutLevel] = useState(0);
@@ -324,7 +321,10 @@ export function EmpyreanDMScreen({
   const [slideshowSlides, setSlideshowSlides] = useState<import('@/lib/parseSlides').Slide[]>([]);
   const [showSetup, setShowSetup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const empyreanInputRef = useRef<EmpyreanDMInputHandle>(null);
+  // Every rider action goes through the Live Table (like party mode): lines, pills and game results
+  // land in the table's message box, and the rider seals them and taps Send to DM.
+  const liveTableRef = useRef<RoundChatDrawerHandle>(null);
+  const toTable = useCallback((text: string) => { liveTableRef.current?.openWithDraft(text); }, []);
   const [readingMode, setReadingMode] = useState(false);
   const [formattedReading, setFormattedReading] = useState<FormattedReading | null>(null);
   const [isFormattingReading, setIsFormattingReading] = useState(false);
@@ -1158,7 +1158,7 @@ ${oocLines}`;
   const handleBattleBrief = async () => {
     const brief = await rules.battleBrief();
     if (!brief) return;
-    empyreanInputRef.current?.appendText(brief.line);
+    toTable(brief.line);
     setCampOpen(false);
     toast('Battle Brief ready', { description: `Send your message and the DM gives you one true tactical fact. ${brief.left} left today.` });
   };
@@ -1250,7 +1250,7 @@ ${oocLines}`;
     const line = typeof result?.line === 'string' && result.line
       ? result.line
       : `[FIGHT RESULT, binding: ${(view.outcome || 'ended').toUpperCase()}. ${view.rider.name} stands at ${Math.max(0, view.rider.hp)}/${view.rider.maxHp} HP. Narrate the aftermath from this; do not change who won, who is hurt, or any number.]`;
-    empyreanInputRef.current?.appendText(line);
+    toTable(line);
     if (view.riderDown) setTimeout(() => setShowDeathSaves(true), 400);
   };
   // What the server needs to narrate a journey encounter with the app closed: the DM's own
@@ -1399,16 +1399,22 @@ ${oocLines}`;
     const last = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
     return last ? String(last.content) : '';
   }, [messages]);
-  const liveTableRef = useRef<RoundChatDrawerHandle>(null);
   const liveTable = useSoloLiveTable({
     userId: liveUserId,
     riderName: characterName,
     npcs: soloNpcs,
     latestDmText,
     voiceNPC,
-    sendToDm: (prompt) => sendMessage(prompt),
+    sendToDm: (prompt, liveTableRules) => {
+      setRecapDismissed(true);
+      return sendMessage(prepareForDmRef.current(prompt), undefined, { liveTable: { ...liveTableRules }, dropUserOnFail: true });
+    },
     busy: isLoading,
+    storageKey: `solo-live-table:${activeCampaignId || 'none'}`,
   });
+  // At full Signet Strain the rider can't act: the table locks like the old message box did.
+  const tableLocked = !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout;
+  useEffect(() => { if (tableLocked) liveTableRef.current?.close(); }, [tableLocked]);
 
   // Send the opening message (a campaign the Empyrean Guide just built, the saved opening scene,
   // or a prompt from the library) once the chat is empty. A fresh start clears an older story
@@ -1529,20 +1535,19 @@ ${oocLines}`;
         const ruling = await engine.check({ d20: result.kept, modifier: result.modifier, dc: hint.dc, risk: checkRisk(whisperContent), label: auto.actionPhrase ?? whisperContent });
         if (ruling) text += `\n${ruling.line}`;
       }
-      empyreanInputRef.current?.appendText(text);
+      toTable(text);
     });
-  }, [characterContext]);
+  }, [characterContext, toTable]);
 
   const handleAskDirector = useCallback(() => {
     setDirectorScreenOpen(true);
   }, []);
 
   const handleAppendPrompt = useCallback((prompt: string) => {
-    if (isLoading) return;
-    empyreanInputRef.current?.appendText(prompt);
+    toTable(prompt);
     setActiveNavTab(null);
     setNavExpanded(false);
-  }, [isLoading]);
+  }, [toTable]);
 
   const handleHealingItemUsed = useHealingItemAction({
     characterName: characterName || characterContext?.name || 'The Rider',
@@ -1775,17 +1780,9 @@ ${oocLines}`;
     return () => clearTimeout(t);
   }, [open, isUnbonded, characterName, sendMessage]);
 
-  const handleSend = useCallback(() => {
-    const text = empyreanInputRef.current?.getText()?.trim();
-    if (!text || isLoading) return;
-    setRecapDismissed(true);
-    // "@Name line" to a roster NPC: they answer in their own voice, with their mind and memories (D-38).
-    const npcHit = armedSignetIntensity == null ? soloNpcsRef.current?.mention(text) : null;
-    if (npcHit) {
-      voiceNPC(npcHit.name, npcHit.line, undefined, npcHit.voice);
-      empyreanInputRef.current?.setText('');
-      return;
-    }
+  // What Send to DM adds to the sealed lines: the Threshing authorization and an armed signet
+  // (its Strain cost and intensity tag). Read through a ref so the Live Table always gets the latest.
+  const prepareForDm = useCallback((text: string) => {
     let messageToSend = text;
 
     // Inject Threshing authorization tag if authorized
@@ -1805,29 +1802,16 @@ ${oocLines}`;
       signetUsedThisRoundRef.current = true;
       setArmedSignetIntensity(null);
     }
-
-    // Support multiple @NPC tags: @NPC1 @NPC2 message
-    const multiNpcMatch = messageToSend.match(/^((?:@\S+\s+)+)(.+)$/s);
-    if (multiNpcMatch && voiceNPC) {
-      const npcNames = [...multiNpcMatch[1].matchAll(/@(\S+)/g)].map(m => m[1]);
-      const message = multiNpcMatch[2];
-      if (npcNames.length > 0 && message.trim()) {
-        voiceNPC(npcNames.length === 1 ? npcNames[0] : npcNames, message);
-      } else {
-        sendMessage(messageToSend);
-      }
-    } else {
-      sendMessage(messageToSend);
-    }
-    empyreanInputRef.current?.setText('');
-  }, [isLoading, sendMessage, voiceNPC, threshingAuthorized, characterName, armedSignetIntensity, maxBurnout]);
+    return messageToSend;
+  }, [threshingAuthorized, characterName, armedSignetIntensity, maxBurnout, prodigy]);
+  const prepareForDmRef = useRef(prepareForDm);
+  prepareForDmRef.current = prepareForDm;
 
   const handlePromptSelect = useCallback((prompt: string) => {
     const filled = prompt.replace(/\[Character Name\]/g, characterName);
-    empyreanInputRef.current?.setText(filled);
+    toTable(filled);
     setShowPrompts(false);
-    empyreanInputRef.current?.focus();
-  }, [characterName]);
+  }, [characterName, toTable]);
 
   const handleModelChange = useCallback((modelId: string) => {
     setSelectedModel(modelId);
@@ -1884,6 +1868,13 @@ ${oocLines}`;
   }, []);
 
   const handleUsePrompt = useCallback((prompt: string) => {
+    toTable(prompt);
+    setActiveNavTab(null);
+    setNavExpanded(false);
+  }, [toTable]);
+
+  // Autopilot acts on its own, so it still sends straight to the DM.
+  const handleAutopilotSend = useCallback((prompt: string) => {
     if (!isLoading) {
       sendMessage(prompt);
       setActiveNavTab(null);
@@ -1953,7 +1944,7 @@ ${oocLines}`;
     characterName,
     dragonName: config?.dragonName || '',
     delaySeconds: 8,
-    onSendAction: handleUsePrompt,
+    onSendAction: handleAutopilotSend,
     lastAssistantMessage: lastAssistantMsg,
     isLoading,
   });
@@ -2174,15 +2165,6 @@ ${oocLines}`;
           >
             <Users className="w-5 h-5 text-primary" />
           </Button>
-          <Button variant="ghost"
-            onClick={() => liveTableRef.current?.open()}
-            className="empyrean-rune-btn"
-            style={{ touchAction: 'manipulation' }}
-            aria-label="Live Table"
-            title="Live Table"
-          >
-            <MessagesSquare className="w-5 h-5 text-primary" />
-          </Button>
           <button
             onClick={() => setQuestHubOpen(true)}
             className="empyrean-rune-btn"
@@ -2318,15 +2300,6 @@ ${oocLines}`;
               title="People"
             >
 <Users className="w-5 h-5 text-primary" />
-            </Button>
-            <Button variant="ghost"
-              onClick={() => liveTableRef.current?.open()}
-              className="empyrean-rune-btn"
-              style={{ touchAction: 'manipulation' }}
-              aria-label="Live Table"
-              title="Live Table"
-            >
-              <MessagesSquare className="w-5 h-5 text-primary" />
             </Button>
             <button
               onClick={() => setQuestHubOpen(true)}
@@ -2851,10 +2824,8 @@ ${oocLines}`;
               dragonName={config?.dragonName || ''}
               signetType={config?.signetType || ''}
               onAction={(prompt) => {
-                if (!isLoading) {
-                  sendMessage(prompt);
-                  setActiveNavTab(null);
-                }
+                toTable(prompt);
+                setActiveNavTab(null);
               }}
               disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
               isUnbonded={isUnbonded}
@@ -2915,23 +2886,69 @@ ${oocLines}`;
           </div>
         )}
 
-      {/* Input bar — sits above the fixed DMBottomNav (~54px collapsed height) */}
+      {/* The Live Table is the only way to play (like party mode): the Send to DM bar, then the
+          PLAY dock, above the fixed DMBottomNav (~54px collapsed height). No filter or transform
+          on this wrapper: the open table is position fixed and must cover the whole screen. */}
       <div className={cn(
-        "shrink-0 border-t border-purple-500/20 bg-background/90 backdrop-blur-sm px-3 pt-2.5 pb-[60px]",
-        !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout && "pointer-events-none opacity-40 select-none"
+        "shrink-0 pb-[60px]",
+        tableLocked && "pointer-events-none opacity-40 select-none"
       )}>
-        <div className="relative">
-          <EmpyreanDMInput
-            ref={empyreanInputRef}
-            onSend={() => handleSend()}
-            onCancel={cancelRequest}
-            onOpenCharacterSheet={() => setCharacterSheetOpen(true)}
-            isLoading={isLoading}
-            npcNames={npcNames}
-            npcSceneActive={!!npcSceneConfig?.active}
-            onNpcInterjection={(text) => submitNpcInterjection(text)}
-          />
-        </div>
+        {isLoading && liveTable.thinking.length === 0 && (
+          <div className="flex justify-center px-3 pb-1.5">
+            <button
+              type="button"
+              onClick={cancelRequest}
+              className="min-h-[40px] px-4 rounded-full border border-red-500/40 bg-red-900/20 text-red-200 text-[13px]"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Stop the DM
+            </button>
+          </div>
+        )}
+        <DMHandoffBar
+          isHost
+          isGenerating={liveTable.dmSending}
+          tickedCount={liveTable.chat.progress.current}
+          orderedSelected={liveTable.chat.orderedSelected}
+          onReorderSelected={liveTable.chat.setSelectedOrder}
+          onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
+        />
+        <RoundChatDrawer
+          ref={liveTableRef}
+          messages={liveTable.chat.messages}
+          reactions={liveTable.chat.reactions}
+          currentUserId={liveUserId || 'arena-player'}
+          characterName={characterName || 'Rider'}
+          style={liveTable.chat.style}
+          progress={liveTable.chat.progress}
+          sending={liveTable.chat.sending}
+          isGenerating={liveTable.dmSending}
+          isHost
+          presenceIds={new Set(liveUserId ? [liveUserId] : [])}
+          presenceReady
+          readReceiptsLoaded
+          onSend={async (content, ic) => (await liveTable.chat.postLine(content, ic)) !== null}
+          onToggleReaction={(id, emoji) => { void liveTable.chat.toggleReaction(id, emoji, characterName || 'Rider'); }}
+          onDeleteMessage={(id) => { void liveTable.chat.deleteMessage(id); }}
+          onEditMessage={liveTable.chat.editMessage}
+          onClearAll={liveTable.chat.clearAllMessages}
+          onToggleSelected={(id) => { void liveTable.chat.toggleSelected(id); }}
+          onSelectAll={() => { void liveTable.chat.selectAllPending(); }}
+          onClearSelection={() => { void liveTable.chat.clearSelection(); }}
+          onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
+          orderedSelected={liveTable.chat.orderedSelected}
+          onReorderSelected={liveTable.chat.setSelectedOrder}
+          npcs={liveTable.tableNpcs}
+          npcThinking={liveTable.thinking}
+          onSendToNpcs={liveTable.onSendToNpcs}
+          characterContext={characterContext}
+          onNpcSocialCheck={liveTable.onNpcSocialCheck}
+          canManageNpcs
+          onOpenNpcRoster={() => setRosterOpen(true)}
+          onStartScene={liveTable.onStartScene}
+          sceneRunning={liveTable.sceneRunning}
+          npcAnswerOrder="tapped"
+        />
       </div>
 
       {/* Character Sheet — full-screen overlay (Empyrean solo) */}
@@ -3068,7 +3085,7 @@ ${oocLines}`;
         onDragonNotesChange={handleDragonNotesChange}
         onReconfigureEmpyrean={onClose}
         onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
-        onNpcScene={() => setShowNpcScene(true)}
+        onNpcScene={() => liveTableRef.current?.open()}
         onOocChat={() => setShowOocChat(true)}
         isUnbonded={isUnbonded}
         onAuthorizeThreshing={() => {
@@ -3129,44 +3146,6 @@ ${oocLines}`;
         prodigy={prodigy ? { tier: prodigy, level: characterContext?.level ?? 1, briefsLeft: rules.snapshot?.prodigy?.briefsLeft ?? 0 } : null}
         onBattleBrief={rules.active && prodigy ? () => void handleBattleBrief() : undefined}
       />
-      {open && typeof document !== 'undefined' && createPortal(
-        /* Zero-size layer: hides the closed dock; the open table is full screen above the solo screen. */
-        <div style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden', zIndex: 65 }}>
-          <RoundChatDrawer
-            ref={liveTableRef}
-            messages={liveTable.chat.messages}
-            reactions={liveTable.chat.reactions}
-            currentUserId={liveUserId || 'arena-player'}
-            characterName={characterName || 'Rider'}
-            style={liveTable.chat.style}
-            progress={liveTable.chat.progress}
-            sending={liveTable.chat.sending}
-            isGenerating={isLoading}
-            isHost
-            presenceIds={new Set(liveUserId ? [liveUserId] : [])}
-            presenceReady
-            readReceiptsLoaded
-            onSend={async (content, ic) => (await liveTable.chat.postLine(content, ic)) !== null}
-            onToggleReaction={(id, emoji) => { void liveTable.chat.toggleReaction(id, emoji, characterName || 'Rider'); }}
-            onDeleteMessage={(id) => { void liveTable.chat.deleteMessage(id); }}
-            onEditMessage={liveTable.chat.editMessage}
-            onClearAll={liveTable.chat.clearAllMessages}
-            onToggleSelected={(id) => { void liveTable.chat.toggleSelected(id); }}
-            onSelectAll={() => { void liveTable.chat.selectAllPending(); }}
-            onClearSelection={() => { void liveTable.chat.clearSelection(); }}
-            onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
-            orderedSelected={liveTable.chat.orderedSelected}
-            onReorderSelected={liveTable.chat.setSelectedOrder}
-            npcs={liveTable.tableNpcs}
-            npcThinking={liveTable.thinking}
-            onSendToNpcs={liveTable.onSendToNpcs}
-            characterContext={characterContext}
-            onNpcSocialCheck={liveTable.onNpcSocialCheck}
-            onOpenNpcRoster={() => setRosterOpen(true)}
-          />
-        </div>,
-        document.body,
-      )}
       <SoloNpcRoster
         open={rosterOpen}
         onOpenChange={setRosterOpen}
@@ -3428,14 +3407,6 @@ ${oocLines}`;
             return null;
           }
         }}
-      />
-
-      <NpcSceneDialog
-        open={showNpcScene}
-        onClose={() => setShowNpcScene(false)}
-        onStart={(npcs, prompt, max) => { startNpcScene(npcs, prompt, max); }}
-        sessionConfig={npcSceneSessionConfig}
-        messages={messages as any}
       />
 
       <AnimatePresence>
