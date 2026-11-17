@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
 import { CANON_ERA_LABELS, matchNames, npcVoiceContext } from '@/lib/empyreanCanon/castNpcs';
+import { castPortrait } from '@/lib/empyreanCanon/castPortraits';
 import { rosterNameEntries, type RosterEntry } from '@/lib/solo-npcs';
 import { formatReply, parseReply } from '@/lib/chatReply';
 import { stripActionCard } from '@/lib/roundChatActionCard';
@@ -78,6 +79,13 @@ export function tableHeard(lines: Array<Pick<RoundChatMessage, 'id' | 'content' 
   return out.join('\n');
 }
 
+/** The roster as the Live Table lists it: canon characters carry their built-in portrait (People shows the same one). Pure, for tests. */
+export function tableNpcsFor(roster: RosterEntry[], stage: string[]) {
+  return roster
+    .filter(e => e.status !== 'hidden')
+    .map(e => ({ id: e.key, name: e.name, portrait_url: castPortrait(e.key) ?? null, on_stage: stage.includes(e.key) && e.status !== 'dead', archived: false }));
+}
+
 export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey }: {
   userId: string | undefined;
   riderName: string;
@@ -111,10 +119,7 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   useEffect(() => { setCalled([]); }, [latestDmText]);
   const stage = useMemo(() => Array.from(new Set([...storyStage, ...called])).slice(0, MAX_STAGE), [storyStage, called]);
 
-  const tableNpcs = useMemo(() => npcs.roster
-    .filter(e => e.status !== 'hidden')
-    .map(e => ({ id: e.key, name: e.name, portrait_url: null, on_stage: stage.includes(e.key) && e.status !== 'dead', archived: false })),
-  [npcs.roster, stage]);
+  const tableNpcs = useMemo(() => tableNpcsFor(npcs.roster, stage), [npcs.roster, stage]);
 
   const callOver = useCallback((key: string) => {
     setCalled(prev => (prev.includes(key) ? prev : [...prev, key].slice(-MAX_STAGE)));
