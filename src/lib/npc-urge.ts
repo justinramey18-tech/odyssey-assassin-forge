@@ -46,11 +46,36 @@ export const URGE_POINTS = {
 const STYLE_FACTOR = { quiet: 1.4, normal: 1, loud: 0.75 } as const;
 const TALK_FACTOR = { chatty: 0.75, normal: 1 } as const;
 
+/** Tier 2 numbers: learned taste, rank, ignored questions, table energy. */
+export const URGE_TUNING = {
+  /** Sealing an unprompted line: that NPC's threshold × this (chattier), down to learnedMin. */
+  likedStep: 0.95,
+  /** Deleting one, or hushing a tell: threshold × this (quieter), up to learnedMax. Annoyance counts double. */
+  dislikedStep: 1.10,
+  learnedMin: 0.7,
+  learnedMax: 1.5,
+  /** Someone of higher rank is on stage: lower ranks need this much more urge. */
+  outrankedScale: 1.3,
+  /** An NPC's question goes unanswered for this many rider lines before it pushes. */
+  questionGraceLines: 2,
+  questionFirstPush: 4,
+  questionNextPush: 2,
+  questionExpiresMs: 300_000,
+  /** A tense DM post: everyone needs less urge for a while. A calm one: a bit more. */
+  tenseWords: 3,
+  tenseScale: 0.8,
+  tenseForMs: 300_000,
+  calmScale: 1.1,
+} as const;
+
 // Whole-word trigger lists (case-insensitive). Short and tunable on purpose.
-const INSULT = ['coward', 'idiot', 'fool', 'useless', 'weak', 'weakling', 'pathetic', 'liar', 'traitor', 'worthless', 'stupid', 'moron', 'scum', 'bastard'];
-const PRAISE = ['brave', 'bravest', 'brilliant', 'amazing', 'impressive', 'incredible', 'hero', 'proud', 'thank'];
-const DANGER = ['blade', 'blades', 'dagger', 'daggers', 'knife', 'sword', 'swords', 'blood', 'bleeding', 'wounded', 'hurt', 'dying', 'kill', 'killed', 'attack', 'attacked', 'threat', 'ambush', 'poison', 'poisoned', 'venin', 'wyvern', 'weapon', 'weapons'];
-const AUTHORITY = ['order', 'orders', 'ordered', 'command', 'commands', 'rank', 'codex', 'rule', 'rules', 'regulation', 'curfew', 'report', 'discipline', 'permission', 'forbidden'];
+// Entries may be phrases ("drawn steel"); a phrase matches whole.
+const INSULT = ['coward', 'idiot', 'fool', 'useless', 'weak', 'weakling', 'pathetic', 'liar', 'traitor', 'worthless', 'stupid', 'moron', 'scum', 'bastard', 'spineless', 'gutless', 'craven', 'disgrace', 'embarrassment', 'dead weight', 'waste of space'];
+const PRAISE = ['brave', 'bravest', 'brilliant', 'amazing', 'impressive', 'incredible', 'hero', 'proud', 'thank', 'thanks', 'grateful', 'well done', 'good work'];
+const DANGER = ['blade', 'blades', 'dagger', 'daggers', 'knife', 'sword', 'swords', 'blood', 'bleeding', 'wounded', 'hurt', 'dying', 'kill', 'killed', 'attack', 'attacked', 'threat', 'ambush', 'poison', 'poisoned', 'venin', 'wyvern', 'weapon', 'weapons', 'wyverns', 'wound', 'wounds', 'stabbed', 'murder', 'murdered', 'threatened', 'assassin', 'bleeding out', 'drawn steel'];
+const AUTHORITY = ['order', 'orders', 'ordered', 'command', 'commands', 'rank', 'codex', 'rule', 'rules', 'regulation', 'curfew', 'report', 'discipline', 'permission', 'forbidden', 'regulations', 'insubordination', 'disobey', 'disobeyed', 'chain of command', 'superior officer', 'out of line'];
+/** Words that make a DM post tense (with DANGER): reveals and deaths. */
+const REVEAL = ['secret', 'betrayed', 'betrayal', 'lied', 'revealed', 'discovered', 'dead', 'death', 'dies', 'scream', 'screams', 'explosion', 'flames', 'traitor'];
 
 export interface UrgeReason { text: string; pts: number }
 
@@ -195,15 +220,15 @@ export function silenceReasons(t: Temperament | undefined, idleMs: number): Urge
 }
 
 /** The urge an NPC needs before speaking, or null when it never speaks unprompted. */
-export function effectiveThreshold(t: Temperament | undefined, talk: Talkativeness): number | null {
+export function effectiveThreshold(t: Temperament | undefined, talk: Talkativeness, scale = 1): number | null {
   if (talk === 'spoken-to') return null;
   const style = (t ?? NEUTRAL_TEMPERAMENT).style;
-  return URGE_RULES.threshold * STYLE_FACTOR[style] * TALK_FACTOR[talk];
+  return URGE_RULES.threshold * STYLE_FACTOR[style] * TALK_FACTOR[talk] * scale;
 }
 
 /** Where this NPC stands right now: ready to speak, showing a tell, or quiet. */
-export function urgeStanding(s: NpcUrgeState, t: Temperament | undefined, talk: Talkativeness, now: number): 'speak' | 'tell' | null {
-  const limit = effectiveThreshold(t, talk);
+export function urgeStanding(s: NpcUrgeState, t: Temperament | undefined, talk: Talkativeness, now: number, scale = 1): 'speak' | 'tell' | null {
+  const limit = effectiveThreshold(t, talk, scale);
   if (limit === null) return null;
   const settled = settleUrge(s, now);
   if (settled.urge >= limit) {
@@ -212,14 +237,14 @@ export function urgeStanding(s: NpcUrgeState, t: Temperament | undefined, talk: 
   return settled.urge >= limit * URGE_RULES.tellRatio ? 'tell' : null;
 }
 
-export interface WakeCandidate { key: string; state: NpcUrgeState; temperament?: Temperament; talk: Talkativeness }
+export interface WakeCandidate { key: string; state: NpcUrgeState; temperament?: Temperament; talk: Talkativeness; /** Learned taste × rank × table energy; missing = 1. */ scale?: number }
 
 /** Who actually speaks: everyone ready, most-over-threshold first, capped. */
 export function pickWakes(candidates: WakeCandidate[], now: number, max: number): string[] {
   return candidates
     .map(c => {
-      const limit = effectiveThreshold(c.temperament, c.talk);
-      if (limit === null || urgeStanding(c.state, c.temperament, c.talk, now) !== 'speak') return null;
+      const limit = effectiveThreshold(c.temperament, c.talk, c.scale ?? 1);
+      if (limit === null || urgeStanding(c.state, c.temperament, c.talk, now, c.scale ?? 1) !== 'speak') return null;
       return { key: c.key, over: settleUrge(c.state, now).urge / limit };
     })
     .filter((x): x is { key: string; over: number } => !!x)
@@ -238,4 +263,68 @@ export function whyBlock(npcName: string, riderName: string, s: NpcUrgeState, in
       ? `You speak quietly, only to ${rider}: open the dialogue line with *(quietly, to ${rider})*.`
       : `Say what you have to say, in your own voice.`;
   return `## WHY YOU SPEAK (unprompted)\nNobody addressed you, but you speak up on your own because ${why}. React to the conversation above as yourself — a thought of your own, not an answer to a question nobody asked you. ${how} Never ask for rolls, never start a fight, and never speak for ${rider}.`;
+}
+
+// ── Tier 2 (2026-11-17): learned taste, rank, ignored questions, table energy ──
+
+/** True when the text names any of these (whole word, 3+ letters). */
+export function mentionsAny(text: string, names: string[]): boolean {
+  return names.some(n => n.trim().length >= 3 && hasWord(text, n));
+}
+
+/** The next learned-taste factor for an NPC: liked = the rider sealed their unprompted line; not liked = deleted it or hushed them. */
+export function learnTaste(factor: number | undefined, liked: boolean): number {
+  const next = (factor ?? 1) * (liked ? URGE_TUNING.likedStep : URGE_TUNING.dislikedStep);
+  return Math.min(URGE_TUNING.learnedMax, Math.max(URGE_TUNING.learnedMin, Math.round(next * 1000) / 1000));
+}
+
+export type NpcRank = 'cadet' | 'officer' | 'command';
+const RANK_ORDER: Record<NpcRank, number> = { cadet: 0, officer: 1, command: 2 };
+
+/**
+ * Rank from a role line ("Commanding General of Basgiath", "Lieutenant at Montserrat") and a titled name.
+ * Cadet leaders (wingleader, section or squad leader) are still cadets: only commissioned
+ * officers and command make cadets hold their tongue.
+ */
+export function rankFromRole(role: string | undefined, name?: string): NpcRank {
+  const r = (role || '').toLowerCase();
+  const n = (name || '').toLowerCase();
+  // A title in the name ("Professor Emetterio", "Prince Halden") counts; "Prince Halden's guard" as a role does not make a prince.
+  if (/\b(general|commandant|colonel|major|king|queen|duke|duchess|professor|curator)\b/.test(r)
+    || /^(general|commandant|colonel|major|king|queen|prince|princess|duke|duchess|professor)\b/.test(n)) return 'command';
+  if (/\b(lieutenant|captain)\b/.test(r) || /^(lieutenant|captain)\b/.test(n)) return 'officer';
+  return 'cadet';
+}
+
+/** The threshold scale for an NPC of this rank while these other ranks are on stage. */
+export function rankScale(own: NpcRank, othersOnStage: NpcRank[]): number {
+  return othersOnStage.some(o => RANK_ORDER[o] > RANK_ORDER[own]) ? URGE_TUNING.outrankedScale : 1;
+}
+
+/** Does this NPC line put a question to the rider? */
+export function asksQuestion(text: string): boolean {
+  return /\?/.test(text || '');
+}
+
+/** The push from an unanswered question, given how many rider lines have passed it by. */
+export function ignoredQuestionReasons(missedLines: number): UrgeReason[] {
+  if (missedLines < URGE_TUNING.questionGraceLines) return [];
+  const pts = missedLines === URGE_TUNING.questionGraceLines ? URGE_TUNING.questionFirstPush : URGE_TUNING.questionNextPush;
+  return [{ pts, text: 'you asked a question and it was ignored' }];
+}
+
+export type TableEnergy = 'tense' | 'calm' | 'normal';
+
+/** How charged a DM post is, by its words (no AI call). */
+export function tableEnergy(dmText: string): TableEnergy {
+  const text = (dmText || '').trim();
+  if (!text) return 'normal';
+  const hits = [...DANGER, ...REVEAL].filter(w => hasWord(text, w)).length;
+  return hits >= URGE_TUNING.tenseWords ? 'tense' : hits === 0 ? 'calm' : 'normal';
+}
+
+/** The threshold scale from the latest DM post's energy, given how long ago it arrived. */
+export function energyScale(energy: TableEnergy, sinceMs: number): number {
+  if (energy === 'tense') return sinceMs < URGE_TUNING.tenseForMs ? URGE_TUNING.tenseScale : 1;
+  return energy === 'calm' ? URGE_TUNING.calmScale : 1;
 }

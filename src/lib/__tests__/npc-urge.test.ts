@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   URGE_RULES, URGE_LINE_MODEL, freshUrge, settleUrge, addReasons, resetUrge, scoreLine,
   spotlightBonus, silenceReasons, effectiveThreshold, urgeStanding, pickWakes, whyBlock,
+  URGE_TUNING, mentionsAny, learnTaste, rankFromRole, rankScale, asksQuestion, ignoredQuestionReasons, tableEnergy, energyScale,
 } from '@/lib/npc-urge';
 import { TEMPERAMENTS, NEUTRAL_TEMPERAMENT, temperamentFor } from '@/lib/empyreanCanon/castNpcs/temperament';
 
@@ -19,8 +20,9 @@ const bodhi = { key: 'bodhi-durran', name: 'Bodhi Durran', aliases: ['Bodhi', 'D
 const total = (rs: Array<{ pts: number }>) => rs.reduce((s, r) => s + r.pts, 0);
 
 describe('temperaments', () => {
-  it('ships the 15 approved profiles and a neutral default', () => {
-    expect(Object.keys(TEMPERAMENTS)).toHaveLength(15);
+  it('ships the 18 approved profiles and a neutral default; Violet and Bodhi whisper', () => {
+    expect(Object.keys(TEMPERAMENTS)).toHaveLength(18);
+    expect(Object.entries(TEMPERAMENTS).filter(([, t]) => t.intent === 'whisper').map(([k]) => k).sort()).toEqual(['bodhi-durran', 'violet-sorrengail']);
     expect(temperamentFor('dain-aetos').reacts?.authority).toBe(1.5);
     expect(temperamentFor('somebody-else')).toBe(NEUTRAL_TEMPERAMENT);
   });
@@ -142,5 +144,69 @@ describe('what the AI is told', () => {
 
   it('unprompted lines run on the cheap model', () => {
     expect(URGE_LINE_MODEL).toBe('google/gemini-2.5-flash');
+  });
+});
+
+describe('Tier 1: phrases and synonyms', () => {
+  it('phrases match whole, and synonyms reach the same NPCs', () => {
+    const d = scoreLine({ text: 'Nobody checks the halls after hours', speaker: 'rider', npc: dain, temperament: TEMPERAMENTS['dain-aetos'], era: 'fw' });
+    expect(total(d)).toBe(1 + 3); // ignored + topic "after hours"
+    const a = scoreLine({ text: 'They serve the crown, not His Majesty himself', speaker: 'rider', npc: aaric, temperament: TEMPERAMENTS['aaric-graycastle'], era: 'if' });
+    expect(total(a)).toBe(1 + 3 * 2); // ignored + secret topic ×2, counted once
+    const j = scoreLine({ text: 'Jack, you are dead weight', speaker: 'rider', npc: jack, temperament: TEMPERAMENTS['jack-barlowe'], era: 'fw' });
+    expect(total(j)).toBe(6 + 4 * 2); // name + phrase insult ×2
+    expect(mentionsAny('ask Dain about it', ['Dain Aetos', 'Dain'])).toBe(true);
+    expect(mentionsAny('a disdainful look', ['Dain'])).toBe(false);
+  });
+});
+
+describe('Tier 2: taste, rank, questions, energy', () => {
+  it('learned taste moves the bar, annoyance twice as fast, within limits', () => {
+    expect(learnTaste(undefined, true)).toBeCloseTo(0.95);
+    expect(learnTaste(undefined, false)).toBeCloseTo(1.1);
+    let f: number | undefined;
+    for (let i = 0; i < 30; i++) f = learnTaste(f, true);
+    expect(f).toBe(URGE_TUNING.learnedMin);
+    for (let i = 0; i < 30; i++) f = learnTaste(f, false);
+    expect(f).toBe(URGE_TUNING.learnedMax);
+    expect(effectiveThreshold(NEUTRAL_TEMPERAMENT, 'normal', 1.5)).toBeCloseTo(15);
+    const s = addReasons(freshUrge(T0), [{ pts: 12, text: 'x' }], NOW);
+    expect(urgeStanding(s, NEUTRAL_TEMPERAMENT, 'normal', NOW)).toBe('speak');
+    expect(urgeStanding(s, NEUTRAL_TEMPERAMENT, 'normal', NOW, 1.5)).toBe('tell');
+    expect(pickWakes([{ key: 'a', state: s, talk: 'normal', scale: 1.5 }], NOW, 2)).toEqual([]);
+  });
+
+  it('rank: cadets (leaders included) defer to officers and command', () => {
+    expect(rankFromRole('Commanding General of Basgiath')).toBe('command');
+    expect(rankFromRole('Vice commandant of the Riders')).toBe('command');
+    expect(rankFromRole('Lieutenant at Montserrat')).toBe('officer');
+    expect(rankFromRole('Wingleader of Fourth Wing (third-year)')).toBe('cadet');
+    expect(rankFromRole('Squad leader, Second Squad')).toBe('cadet');
+    expect(rankFromRole(undefined)).toBe('cadet');
+    expect(rankFromRole('Physical training instructor', 'Professor Emetterio')).toBe('command');
+    expect(rankFromRole("Prince Halden's guard", 'Captain Anna Winshire')).toBe('officer');
+    expect(rankFromRole('Crown prince of Navarre', 'Prince Halden')).toBe('command');
+    expect(rankScale('cadet', ['cadet', 'command'])).toBe(URGE_TUNING.outrankedScale);
+    expect(rankScale('officer', ['cadet'])).toBe(1);
+    expect(rankScale('command', ['command'])).toBe(1);
+  });
+
+  it('an ignored question pushes after two missed lines, then a little more each line', () => {
+    expect(asksQuestion('**Dain:** "Where were you last night?"')).toBe(true);
+    expect(asksQuestion('**Dain:** "Stand down."')).toBe(false);
+    expect(ignoredQuestionReasons(1)).toEqual([]);
+    expect(total(ignoredQuestionReasons(2))).toBe(4);
+    expect(total(ignoredQuestionReasons(3))).toBe(2);
+  });
+
+  it('table energy: a tense post lowers the bar for five minutes, a calm one raises it', () => {
+    expect(tableEnergy('Blood on the flagstones. A scream. Someone is dead.')).toBe('tense');
+    expect(tableEnergy('You walk the quiet corridor to class.')).toBe('calm');
+    expect(tableEnergy('A dagger lies on the desk.')).toBe('normal');
+    expect(tableEnergy('')).toBe('normal');
+    expect(energyScale('tense', 60_000)).toBe(URGE_TUNING.tenseScale);
+    expect(energyScale('tense', URGE_TUNING.tenseForMs + 1)).toBe(1);
+    expect(energyScale('calm', 999_999_999)).toBe(URGE_TUNING.calmScale);
+    expect(energyScale('normal', 0)).toBe(1);
   });
 });

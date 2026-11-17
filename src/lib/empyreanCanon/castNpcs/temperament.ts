@@ -1,5 +1,5 @@
 // Solo Empyrean urge meter (D-40): how strongly each core NPC is moved to speak unprompted.
-// 15 hand-written profiles (Justin approved 2026-11-17, claude/NPC_URGE_PROFILES.md); everyone
+// 18 hand-written profiles (Justin approved 2026-11-17, claude/NPC_URGE_PROFILES.md); everyone
 // else gets NEUTRAL_TEMPERAMENT. All of it is paraphrase from the canon cast entries; no book text.
 // Era tags keep later-book topics out of an earlier campaign (same rule as the cast facts).
 import type { CanonEra } from './types';
@@ -49,7 +49,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
     style: 'quiet', intent: 'action',
     reacts: { danger: 2, secret: 1.5, insult: 0.5, authority: 0.5 },
     topics: [
-      { era: 'fw', words: ['marked', 'rebellion', 'fen', 'traitor', 'relic'] },
+      { era: 'fw', words: ['marked', 'rebellion', 'fen', 'traitor', 'relic', 'rebels', 'uprising', 'separatist', 'separatists'] },
       { era: 'if', words: ['tyrrendor', 'aretia', 'revolution'] },
       { era: 'fw', words: ['venin'], secret: true },
     ],
@@ -63,7 +63,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
     style: 'normal', intent: 'speech',
     reacts: { authority: 1.5, insult: 1.5 },
     topics: [
-      { era: 'fw', words: ['codex', 'rule', 'rules', 'curfew', 'sneak', 'sneaking', 'regulation', 'father', 'colonel', 'marked'] },
+      { era: 'fw', words: ['codex', 'rule', 'rules', 'curfew', 'sneak', 'sneaking', 'regulation', 'father', 'colonel', 'marked', 'rulebook', 'regulations', 'after hours', 'off limits', 'out of bounds', 'against the rules'] },
       { era: 'if', words: ['liam'] },
     ],
     people: [{ name: 'Violet', feeling: 'protective' }, { name: 'Xaden', feeling: 'rival' }],
@@ -71,14 +71,14 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'garrick-tavis': {
     style: 'quiet', intent: 'action',
     reacts: { danger: 2 },
-    topics: [{ era: 'fw', words: ['spar', 'sparring', 'mat', 'fight', 'fighting', 'challenge'] }],
+    topics: [{ era: 'fw', words: ['spar', 'sparring', 'mat', 'fight', 'fighting', 'challenge', 'duel', 'brawl'] }],
     people: [
       { name: 'Xaden', feeling: 'loyal' }, { name: 'Bodhi', feeling: 'loyal' },
       { name: 'Imogen', feeling: 'loves' },
     ],
   },
   'bodhi-durran': {
-    style: 'normal', intent: 'speech',
+    style: 'normal', intent: 'whisper',
     reacts: { insult: 0.5, silence: 1.5 },
     peacemaker: true,
     topics: [{ era: 'fw', words: ['tyrrendor', 'heir'], secret: true }],
@@ -87,7 +87,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'mira-sorrengail': {
     style: 'normal', intent: 'speech',
     reacts: { danger: 2, praise: 0.5 },
-    topics: [{ era: 'fw', words: ['armor', 'survival', 'ward', 'wards', 'montserrat', 'strythmore'] }],
+    topics: [{ era: 'fw', words: ['armor', 'armour', 'survival', 'ward', 'wards', 'montserrat', 'strythmore'] }],
     people: [
       { name: 'Violet', feeling: 'protective' }, { name: 'Lilith', feeling: 'wary' },
       { name: 'Brennan', feeling: 'loves', era: 'if' },
@@ -97,7 +97,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
     style: 'normal', intent: 'speech',
     reacts: { danger: 1.5 },
     topics: [
-      { era: 'fw', words: ['heal', 'healing', 'mend', 'mender', 'mending', 'wounded', 'injury'] },
+      { era: 'fw', words: ['heal', 'healing', 'mend', 'mender', 'mending', 'mended', 'healer', 'wounded', 'injury'] },
       { era: 'if', words: ['aretia', 'lies', 'revolution'] },
     ],
     people: [
@@ -108,7 +108,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'lilith-sorrengail': {
     style: 'quiet', intent: 'speech',
     reacts: { authority: 2, insult: 1.5, praise: 0.25 },
-    topics: [{ era: 'fw', words: ['duty', 'discipline', 'weak', 'weakness', 'ward', 'wards', 'codex'] }],
+    topics: [{ era: 'fw', words: ['duty', 'discipline', 'weak', 'weakness', 'ward', 'wards', 'codex', 'excuse', 'excuses', 'failure'] }],
     people: [
       { name: 'Violet', feeling: 'protective' }, { name: 'Mira', feeling: 'protective' },
       { name: 'Melgren', feeling: 'loyal' },
@@ -117,14 +117,14 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'jack-barlowe': {
     style: 'loud', intent: 'speech',
     reacts: { insult: 2, danger: 0.5 },
-    topics: [{ era: 'fw', words: ['parapet', 'challenge', 'mat', 'weak', 'weakness', 'afraid', 'scared', 'hurt'] }],
+    topics: [{ era: 'fw', words: ['parapet', 'challenge', 'mat', 'weak', 'weakness', 'afraid', 'scared', 'hurt', 'fragile', 'runt'] }],
     people: [{ name: 'Violet', feeling: 'hates' }, { name: 'Xaden', feeling: 'hates' }],
   },
   'jesinia-neilwart': {
     style: 'quiet', intent: 'action',
     reacts: { insult: 0.5 },
     topics: [
-      { era: 'fw', words: ['book', 'books', 'archives', 'archive', 'history', 'scribe', 'scribes', 'truth'] },
+      { era: 'fw', words: ['book', 'books', 'archives', 'archive', 'history', 'scribe', 'scribes', 'truth', 'tome', 'tomes', 'scroll', 'scrolls'] },
       { era: 'if', words: ['hidden', 'forbidden'] },
     ],
     people: [{ name: 'Violet', feeling: 'loyal' }, { name: 'Sawyer', feeling: 'loves', era: 'if' }],
@@ -132,7 +132,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'sloane-mairi': {
     style: 'normal', intent: 'speech',
     reacts: { insult: 1.5, praise: 0.5 },
-    topics: [{ era: 'if', words: ['liam', 'marked'] }],
+    topics: [{ era: 'if', words: ['liam', 'marked', 'brother'] }],
     people: [
       { name: 'Violet', feeling: 'blames', era: 'if' }, { name: 'Xaden', feeling: 'wary', era: 'if' },
       { name: 'Imogen', feeling: 'wary', era: 'if' },
@@ -141,13 +141,13 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'aaric-graycastle': {
     style: 'quiet', intent: 'action',
     reacts: { secret: 2, authority: 0.5 },
-    topics: [{ era: 'if', words: ['royal', 'prince', 'king', 'tauri', 'alic', 'cam', 'crown'], secret: true }],
+    topics: [{ era: 'if', words: ['royal', 'prince', 'king', 'tauri', 'alic', 'cam', 'crown', 'throne', 'royals', 'royalty', 'his majesty', 'halden'], secret: true }],
     people: [{ name: 'Xaden', feeling: 'hates', era: 'if' }],
   },
   'violet-sorrengail': {
-    style: 'normal', intent: 'speech',
+    style: 'normal', intent: 'whisper',
     reacts: { danger: 1.5, secret: 1.5 },
-    topics: [{ era: 'fw', words: ['history', 'archives', 'book', 'books', 'poison', 'dagger', 'daggers', 'mother'] }],
+    topics: [{ era: 'fw', words: ['history', 'archives', 'book', 'books', 'poison', 'dagger', 'daggers', 'mother', 'scribe', 'scribes', 'tairn', 'andarna', 'lightning'] }],
     people: [
       { name: 'Rhiannon', feeling: 'loyal' }, { name: 'Ridoc', feeling: 'loyal' },
       { name: 'Mira', feeling: 'loves' }, { name: 'Lilith', feeling: 'wary' },
@@ -158,7 +158,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'rhiannon-matthias': {
     style: 'normal', intent: 'speech',
     reacts: { danger: 1.5, silence: 1.5 },
-    topics: [{ era: 'fw', words: ['plan', 'plans', 'squad', 'family', 'morraine'] }],
+    topics: [{ era: 'fw', words: ['plan', 'plans', 'squad', 'family', 'morraine', 'strategy', 'raegan'] }],
     people: [
       { name: 'Violet', feeling: 'loyal' }, { name: 'Ridoc', feeling: 'loyal' },
       { name: 'Sawyer', feeling: 'loyal' },
@@ -167,7 +167,7 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'ridoc-gamlyn': {
     style: 'loud', intent: 'speech',
     reacts: { silence: 2, danger: 1.5, insult: 0.5 },
-    topics: [{ era: 'fw', words: ['prank', 'pranks', 'joke', 'aotrom', 'ice'] }],
+    topics: [{ era: 'fw', words: ['prank', 'pranks', 'joke', 'jokes', 'pun', 'puns', 'funny', 'aotrom', 'ice'] }],
     people: [
       { name: 'Violet', feeling: 'loyal' }, { name: 'Rhiannon', feeling: 'loyal' },
       { name: 'Sawyer', feeling: 'loyal' },
@@ -176,11 +176,38 @@ export const TEMPERAMENTS: Record<string, Temperament> = {
   'imogen-cardulo': {
     style: 'normal', intent: 'speech',
     reacts: { insult: 2, praise: 0.5 },
-    topics: [{ era: 'fw', words: ['marked', 'rebellion', 'traitor', 'fen', 'relic'] }],
+    topics: [{ era: 'fw', words: ['marked', 'rebellion', 'traitor', 'fen', 'relic', 'rebels', 'uprising', 'separatist', 'separatists'] }],
     people: [
       { name: 'Quinn', feeling: 'loyal' }, { name: 'Xaden', feeling: 'loyal' },
       { name: 'Garrick', feeling: 'rival' },
     ],
+  },
+  'liam-mairi': {
+    style: 'normal', intent: 'speech',
+    reacts: { danger: 1.5, secret: 1.5 },
+    topics: [
+      { era: 'fw', words: ['marked', 'whittle', 'whittling', 'carving', 'farsight'] },
+      { era: 'fw', words: ['guard', 'guarding', 'bodyguard', 'second signet'], secret: true },
+    ],
+    people: [
+      { name: 'Violet', feeling: 'protective' }, { name: 'Xaden', feeling: 'loyal' },
+      { name: 'Sloane', feeling: 'protective' }, { name: 'Dain', feeling: 'wary' },
+    ],
+  },
+  'sawyer-henrick': {
+    style: 'quiet', intent: 'speech',
+    reacts: { danger: 1.5, praise: 0.5 },
+    topics: [{ era: 'fw', words: ['metal', 'forge', 'metallurgy', 'luceras', 'repeat', 'repeating', 'held back'] }],
+    people: [
+      { name: 'Rhiannon', feeling: 'loyal' }, { name: 'Ridoc', feeling: 'loyal' },
+      { name: 'Violet', feeling: 'loyal' }, { name: 'Jesinia', feeling: 'loves', era: 'if' },
+    ],
+  },
+  'quinn-hollis': {
+    style: 'loud', intent: 'speech',
+    reacts: { silence: 1.5, insult: 0.5 },
+    topics: [{ era: 'fw', words: ['marked', 'astral', 'projection'] }],
+    people: [{ name: 'Imogen', feeling: 'loyal' }, { name: 'Xaden', feeling: 'loyal' }],
   },
 };
 
