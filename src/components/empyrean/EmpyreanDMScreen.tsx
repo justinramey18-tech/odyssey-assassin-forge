@@ -147,6 +147,7 @@ import { DragonBondScreen } from '@/components/empyrean/DragonBondScreen';
 import { strainCeiling } from '@/lib/dragon-meters';
 import { PRODIGY_STRAIN_CAP, prodigyStrainBonus, prodigyTier } from '@/lib/empyreanClasses/prodigy';
 import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
+import { hubUnlocks, standingFactsLine } from '@/lib/empyrean-quest-hub';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
 import { normalizeWorldState } from '@/lib/quests';
@@ -1292,7 +1293,8 @@ ${oocLines}`;
     const timer = window.setInterval(() => setFactsTick(n => n + 1), 30000);
     return () => window.clearInterval(timer);
   }, [soloMap.flying]);
-  const ruleFacts = rules.active ? rules.snapshot?.facts ?? '' : '';
+  const standingFacts = standingFactsLine(questApi.hub);
+  const ruleFacts = rules.active ? [rules.snapshot?.facts ?? '', standingFacts].filter(Boolean).join('\n') : '';
   useEffect(() => {
     setGameFacts(rules.active ? buildGameFacts(ruleFacts, soloMap.ready ? soloMap.mapFacts() : '') : '');
     setAreaGuidesText(rules.active && soloMap.ready ? soloMap.areaGuides() : '');
@@ -3155,6 +3157,7 @@ ${oocLines}`;
         onFight={rules.active ? setFightSetup : undefined}
         prodigy={prodigy ? { tier: prodigy, level: characterContext?.level ?? 1, briefsLeft: rules.snapshot?.prodigy?.briefsLeft ?? 0 } : null}
         onBattleBrief={rules.active && prodigy ? () => void handleBattleBrief() : undefined}
+        questUnlocks={hubUnlocks(questApi.hub)}
       />
       <SoloNpcRoster
         open={rosterOpen}

@@ -54,8 +54,10 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonName, placeName, onOpenMap, onFight, prodigy, onBattleBrief }: {
+export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonName, placeName, onOpenMap, onFight, prodigy, onBattleBrief, questUnlocks }: {
   open: boolean; onOpenChange: (open: boolean) => void; rules: EmpyreanRulesApi; bonded: boolean;
+  /** Quest Hub unlocks (hubUnlocks): shown with the server's list, bonded or not. */
+  questUnlocks?: Array<{ id: string; label: string; source: string; unlocked: boolean }>;
   dragonName?: string; placeName?: string; onOpenMap?: () => void;
   /** Open the fight setup: a match on the mat, or a real fight. */
   onFight?: (mode: 'spar' | 'fight') => void;
@@ -213,9 +215,9 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
           )}
 
           <Section icon={<Sparkles className="w-4 h-4 text-primary" />} title="Unlocked by your progress">
-            {!bonded && <p className="text-xs text-muted-foreground">These open once a dragon bonds you.</p>}
+            {!bonded && <p className="text-xs text-muted-foreground">Signet and dragon unlocks open once a dragon bonds you.</p>}
             <ul className="space-y-1.5 text-xs">
-              {snap.unlocks.filter(() => bonded).map(u => (
+              {[...snap.unlocks.filter(() => bonded), ...(questUnlocks ?? [])].map(u => (
                 <li key={u.id} className={cn('flex gap-2', !u.unlocked && 'opacity-50')}>
                   {u.unlocked ? <Unlock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" /> : <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
                   <span>{u.label}<span className="block text-[10px] text-muted-foreground">{u.source}</span></span>
