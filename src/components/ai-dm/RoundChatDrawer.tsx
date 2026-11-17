@@ -253,6 +253,8 @@ interface RoundChatDrawerProps {
   onStartScene?: (npcIds: string[], topic: string, turns: number) => Promise<boolean>;
   /** True while an NPC scene is being written. */
   sceneRunning?: boolean;
+  /** Solo Empyrean: picked NPCs answer in the order tapped (numbered on the chips). Party keeps stage order. */
+  npcAnswerOrder?: 'stage' | 'tapped';
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -1125,6 +1127,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   onNpcJoin,
   onStartScene,
   sceneRunning = false,
+  npcAnswerOrder = 'stage',
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -1496,13 +1499,13 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     : null;
   /** Which NPCs will answer the line being typed (most specific wins: @mention, then a reply, then the chips). */
   const npcsAnswering = !speakingAs && inCharacter && onSendToNpcs
-    ? npcsToAsk({ text, onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: replyTo?.npc_id ?? null })
+    ? npcsToAsk({ text, onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: replyTo?.npc_id ?? null, keepChosenOrder: npcAnswerOrder === 'tapped' })
     : [];
 
   // ── Live social rolls: exactly one NPC target (same precedence as npcsAnswering) ──
   const socialTarget = !speakingAs && inCharacter && characterContext && onNpcSocialCheck
     ? (() => {
-      const targets = npcsToAsk({ text, onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: replyTo?.npc_id ?? null });
+      const targets = npcsToAsk({ text, onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: replyTo?.npc_id ?? null, keepChosenOrder: npcAnswerOrder === 'tapped' });
       return targets.length === 1 ? targets[0] : null;
     })()
     : null;
@@ -1571,12 +1574,12 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   // is never read or touched.
   preparedRef.current = {
     getTargets: () =>
-      npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null })
+      npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null, keepChosenOrder: npcAnswerOrder === 'tapped' })
         .map(n => ({ id: n.id, name: n.name })),
     send: async (line: string) => {
       const trimmed = line.trim();
       if (!trimmed || sending || socialBusy) return false;
-      const asking = npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null }).map(n => n.id);
+      const asking = npcsToAsk({ text: '', onStage: stageNpcs, chosenIds: talkTo, replyToNpcId: null, keepChosenOrder: npcAnswerOrder === 'tapped' }).map(n => n.id);
       const stored = formatReply(null, trimmed);
       pinnedRef.current = true;
       setPinned(true);
@@ -2061,7 +2064,15 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 : "border-white/15 bg-black/50 text-white/75",
                             )}
                           >
-                            <div className="w-full aspect-[9/4] rounded-lg overflow-hidden bg-black/40 flex items-center justify-center">
+                            <div className="relative w-full aspect-[9/4] rounded-lg overflow-hidden bg-black/40 flex items-center justify-center">
+                              {npcAnswerOrder === 'tapped' && !voicing && picked && talkTo.length > 1 && (
+                                <span
+                                  className="absolute left-1 top-1 z-[1] min-w-[22px] h-[22px] px-1 rounded-full bg-primary text-primary-foreground text-[12px] font-bold flex items-center justify-center"
+                                  aria-label={`Answers ${talkTo.indexOf(n.id) + 1}${talkTo.indexOf(n.id) === 0 ? 'st' : talkTo.indexOf(n.id) === 1 ? 'nd' : talkTo.indexOf(n.id) === 2 ? 'rd' : 'th'}`}
+                                >
+                                  {talkTo.indexOf(n.id) + 1}
+                                </span>
+                              )}
                               {n.portrait_url ? (
                                 <img
                                   src={n.portrait_url}

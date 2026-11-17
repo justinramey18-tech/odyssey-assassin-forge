@@ -84,6 +84,15 @@ describe('who a line is for', () => {
     expect(npcsToAsk({ text: 'what now?', onStage, chosenIds: [] })).toEqual([]);
   });
 
+  it('answers in the order tapped only when asked to (solo Empyrean)', () => {
+    const onStage = [grukk, mira];
+    expect(npcsToAsk({ text: 'hi', onStage, chosenIds: [mira.id, grukk.id], keepChosenOrder: true }).map(n => n.name)).toEqual(['Mira', 'Grukk']);
+    expect(npcsToAsk({ text: 'hi', onStage, chosenIds: [grukk.id, mira.id], keepChosenOrder: true }).map(n => n.name)).toEqual(['Grukk', 'Mira']);
+    expect(npcsToAsk({ text: 'hi', onStage, chosenIds: [mira.id, grukk.id] }).map(n => n.name)).toEqual(['Grukk', 'Mira']);
+    expect(npcsToAsk({ text: 'hi', onStage: [grukk, offstage, mira], chosenIds: [offstage.id, mira.id], keepChosenOrder: true }).map(n => n.name)).toEqual(['Mira']);
+    expect(npcsToAsk({ text: '@Grukk @Mira hi', onStage, chosenIds: [mira.id], keepChosenOrder: true }).map(n => n.name)).toEqual(['Grukk', 'Mira']);
+  });
+
   it('never asks an NPC that is off stage or archived', () => {
     const onStage = [grukk, offstage, { ...mira, archived: true }];
     expect(npcsToAsk({ text: '@Ollie hi', onStage, chosenIds: [] })).toEqual([]);

@@ -110,18 +110,25 @@ export function mentionedNpcs<T extends NpcLike>(text: string, npcs: T[]): T[] {
  *   2. the NPC whose line is being replied to, or else
  *   3. the NPCs picked with the Talk to chips.
  * Only NPCs on stage (and not archived) can answer.
+ * Chips answer in stage order, unless keepChosenOrder is set (solo Empyrean): then in the order tapped.
  */
 export function npcsToAsk<T extends NpcLike>(input: {
   text: string;
   onStage: T[];
   chosenIds: string[];
   replyToNpcId?: string | null;
+  keepChosenOrder?: boolean;
 }): T[] {
   const stage = input.onStage.filter(n => n.on_stage !== false && !n.archived);
   const mentioned = mentionedNpcs(input.text, stage);
   if (mentioned.length) return mentioned;
   const replied = input.replyToNpcId ? stage.find(n => n.id === input.replyToNpcId) : undefined;
   if (replied) return [replied];
+  if (input.keepChosenOrder) {
+    return input.chosenIds
+      .map(id => stage.find(n => n.id === id))
+      .filter((n): n is T => !!n);
+  }
   return stage.filter(n => input.chosenIds.includes(n.id));
 }
 
