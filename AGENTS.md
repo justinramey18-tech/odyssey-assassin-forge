@@ -42,3 +42,4 @@
 - Solo Empyrean built-in art lookups (dragon by color, foe by cast name then kind, arena backdrops, scene art) live in src/lib/empyreanArt.ts; BattleStage takes an optional backdrop so party fights keep the flat field.
 - Solo NPC urge scoring stays pure and separate from era-gated temperament profiles, because speech timing must be testable without AI requests or screen state.
 - Solo NPC judge requests use the isolated solo-judge adapter and return null on failure, because optional interpretation must not interrupt play or persist data.
+- Solo NPC huddle transitions stay in the pure npc-huddle rules module, because conversation pressure and pacing must be testable without storage, network calls or screen state.
