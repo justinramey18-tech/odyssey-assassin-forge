@@ -23,6 +23,9 @@
 //   is a third voice in it. The urge meter picks who speaks next; heat, stances and steam move with
 //   what is said; tension, old ground, appetite and pace are kept on the phone per campaign.
 //   Nothing here writes saved data: memories and attitude still change only through Send to DM.
+// - DM tandem (src/lib/live-npc-tandem.ts): the DM's hidden LIVE directions set the stage and the
+//   room's mood, cue an NPC to speak, or start a huddle; a hand-off carries a LIVE TABLE STATE note
+//   (dmNotes) back to the DM. With no directions in a post, everything works from names as before.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
@@ -42,6 +45,7 @@ import {
   type Huddle, type HuddleEnd, type HuddleNpc, type HuddleTaste, type PairPressure,
 } from '@/lib/npc-huddle';
 import { askJudge, type JudgeAsk } from '@/lib/solo-judge';
+import { directionsSig, parseDirections, stripLiveTags, tableStateForDm, type DmDirections, type TableStateInput } from '@/lib/live-npc-tandem';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { formatReply, parseReply } from '@/lib/chatReply';
 import { stripActionCard } from '@/lib/roundChatActionCard';
@@ -82,6 +86,8 @@ export interface SoloLiveTableContext {
   hasInCharacter: boolean;
   hasNpcLines: boolean;
   hasCombat: false;
+  /** For the app only (never sent to the server as a rule): what the table knows that the sealed lines do not say. */
+  dmNotes?: string;
 }
 
 /** The urge meter's switches, kept on this phone per campaign. */
@@ -98,7 +104,7 @@ export function isWhisper(m: Pick<RoundChatMessage, 'content' | 'npc_id'>): bool
 }
 
 /** Meter levels kept on the phone, and which table lines were unprompted (for learning). */
-interface UrgeLevels { states: Record<string, NpcUrgeState>; unprompted: string[]; /** Unprompted lines already learned from. */ learnedIds: string[]; /** The DM post the table energy was read from, and when. */ energy: { sig: string; at: number } | null }
+interface UrgeLevels { states: Record<string, NpcUrgeState>; unprompted: string[]; /** Unprompted lines already learned from. */ learnedIds: string[]; /** The DM post the table energy was read from, and when. */ energy: { sig: string; at: number } | null; /** The DM post whose cue and huddle directions already ran. */ directed: string }
 /** Engine reasons that say nothing about what the line meant: they never count as "the lists caught it". */
 const PLAIN_REASONS = new Set(['your name came up', 'the talk keeps passing you by']);
 /** Enough of a DM post to tell it from the next one. */
@@ -106,7 +112,7 @@ const energySig = (text: string) => `${text.length}:${text.slice(0, 48)}`;
 const LEVELS_MAX_AGE_MS = 3_600_000;
 
 function readUrgeLevels(key: string | undefined): UrgeLevels {
-  if (!key) return { states: {}, unprompted: [], learnedIds: [], energy: null };
+  if (!key) return { states: {}, unprompted: [], learnedIds: [], energy: null, directed: '' };
   try {
     const raw = getScopedItem(key);
     const data = raw ? JSON.parse(raw) as Partial<UrgeLevels> : null;
@@ -123,9 +129,10 @@ function readUrgeLevels(key: string | undefined): UrgeLevels {
       unprompted: Array.isArray(data?.unprompted) ? data.unprompted.filter(x => typeof x === 'string').slice(-60) : [],
       learnedIds: Array.isArray(data?.learnedIds) ? data.learnedIds.filter(x => typeof x === 'string').slice(-60) : [],
       energy,
+      directed: typeof data?.directed === 'string' ? data.directed : '',
     };
   } catch {
-    return { states: {}, unprompted: [], learnedIds: [], energy: null };
+    return { states: {}, unprompted: [], learnedIds: [], energy: null, directed: '' };
   }
 }
 
@@ -232,7 +239,12 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   sceneRunningRef.current = sceneRunning;
   const dmSendingRef = useRef(false);
 
-  const storyStage = useMemo(() => stageFromStory(latestDmText, npcs.roster), [latestDmText, npcs.roster]);
+  // The DM's hidden directions. Its STAGE list decides who is here; without one, the names in the post do.
+  const directions = useMemo(() => parseDirections(latestDmText), [latestDmText]);
+  const storyStage = useMemo(
+    () => stageFromStory(directions.stage ? directions.stage.join('; ') : stripLiveTags(latestDmText), npcs.roster),
+    [directions, latestDmText, npcs.roster],
+  );
   // A new DM post resets who the rider called over; the post decides who is still here.
   useEffect(() => { setCalled([]); }, [latestDmText]);
   const stage = useMemo(() => Array.from(new Set([...storyStage, ...called])).slice(0, MAX_STAGE), [storyStage, called]);
@@ -339,9 +351,11 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   const tableOpenRef = useRef(false);
   const endHuddleRef = useRef<(end: HuddleEnd) => void>(() => {});
   const partingLineRef = useRef<(key: string, h: Huddle) => void>(() => {});
+  const applyDirectionsRef = useRef<() => void>(() => {});
   const setTableOpen = useCallback((open: boolean) => {
     tableOpenRef.current = open;
     if (!open) endHuddleRef.current('interrupted');
+    else applyDirectionsRef.current();
   }, []);
   // The drawer reports typing: a huddle waits for the rider to finish their line.
   const typingRef = useRef({ since: 0, last: 0 });
@@ -362,6 +376,11 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   // The latest DM post's energy, and when it arrived (kept, so reopening the app does not restart the clock).
   const energyRef = useRef<{ energy: ReturnType<typeof tableEnergy>; at: number; sig: string }>({ energy: 'normal', at: 0, sig: '' });
   const savedEnergyRef = useRef<{ sig: string; at: number } | null>(null);
+  // DM directions: the post whose cue and huddle already ran, and the ones waiting for the table to open.
+  const directedSigRef = useRef('');
+  const pendingDirectionsRef = useRef<{ sig: string; d: DmDirections } | null>(null);
+  /** The huddle that just ended, for the next hand-off's note to the DM. */
+  const lastHuddleReportRef = useRef<TableStateInput['lastHuddle']>(null);
   const levelsLoadedRef = useRef(false);
   if (!levelsLoadedRef.current || levelsKeyRef.current !== levelsKey) {
     const loaded = readUrgeLevels(levelsKey);
@@ -369,6 +388,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     unpromptedIdsRef.current = new Set(loaded.unprompted);
     learnedIdsRef.current = new Set(loaded.learnedIds);
     savedEnergyRef.current = loaded.energy;
+    directedSigRef.current = loaded.directed;
+    pendingDirectionsRef.current = null;
     if (levelsLoadedRef.current) urgeRef.current = {};
     levelsLoadedRef.current = true;
     levelsKeyRef.current = levelsKey;
@@ -389,6 +410,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         unprompted: Array.from(unpromptedIdsRef.current).slice(-60),
         learnedIds: Array.from(learnedIdsRef.current).slice(-60),
         energy: energyRef.current.sig ? { sig: energyRef.current.sig, at: energyRef.current.at } : null,
+        directed: directedSigRef.current,
       }));
     } catch { /* best effort */ }
   }, []);
@@ -397,9 +419,10 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   useEffect(() => {
     const sig = energySig(latestDmText);
     const saved = savedEnergyRef.current;
-    energyRef.current = { energy: tableEnergy(latestDmText), at: saved && saved.sig === sig ? saved.at : Date.now(), sig };
+    // The DM's ROOM direction wins; without one the words of the post decide.
+    energyRef.current = { energy: directions.room ?? tableEnergy(stripLiveTags(latestDmText)), at: saved && saved.sig === sig ? saved.at : Date.now(), sig };
     savedEnergyRef.current = null;
-  }, [latestDmText]);
+  }, [latestDmText, directions]);
   // A memory that just triggered rests a while before it can trigger again (per NPC).
   const usedMemoriesRef = useRef<Record<string, Record<string, number>>>({});
   const lastJudgeAtRef = useRef(0);
@@ -704,6 +727,10 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const now = Date.now();
     saveTaste(settleHuddle(tasteRef.current, { end, h }, now));
     lastHuddleAtRef.current = now;
+    if (h.npcLines >= 2) {
+      const nameOf = (k: string) => npcsRef.current.entry(k)?.name ?? k;
+      lastHuddleReportRef.current = { names: h.members.map(nameOf), about: h.about, heat: h.heat, end, ally: h.ally ? nameOf(h.ally) : null, riderSpoke: h.riderLines > 0 };
+    }
     const rest = { ...pressureRef.current };
     delete rest[pairKey(h.pair[0], h.pair[1])];
     pressureRef.current = rest;
@@ -815,6 +842,41 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       if (spoken && huddleLinesRef.current?.id === h.id) { huddleLinesRef.current.ids.push(spoken.id); showHuddle(); }
     });
   };
+
+  /** Run the DM's cue and huddle directions for its latest post, once, when the table is open. */
+  const applyDirections = useCallback(() => {
+    const pending = pendingDirectionsRef.current;
+    if (!pending || !tableOpenRef.current || !urgeSettingsRef.current.enabled || pausedRef.current || dmSendingRef.current || sceneRunningRef.current) return;
+    pendingDirectionsRef.current = null;
+    directedSigRef.current = pending.sig;
+    const now = Date.now();
+    const entries = rosterNameEntries(npcsRef.current.roster);
+    const onStage = (name: string) => matchNames(name, entries).find(k => !!urgeRef.current[k] && talkFor(k) !== 'spoken-to');
+    let first: { key: string; reason: string } | null = null;
+    for (const cue of pending.d.cues) {
+      const key = onStage(cue.name);
+      const s = key ? urgeRef.current[key] : undefined;
+      if (!key || !s) continue;
+      urgeRef.current = { ...urgeRef.current, [key]: addReasons(s, [{ pts: URGE_RULES.threshold, text: `the story just left you with something to say: ${cue.reason}` }], now) };
+      if (!first) first = { key, reason: cue.reason };
+    }
+    const hd = pending.d.huddle;
+    const a = hd ? onStage(hd.a) : undefined;
+    const b = hd ? onStage(hd.b) : undefined;
+    const started = !!hd && !!a && !!b && a !== b && urgeSettingsRef.current.huddles !== false && startHuddleRef.current([a, b], 'topic', hd.about);
+    if (!started && first) speakUnpromptedRef.current(first.key, first.reason, true);
+    refreshTells();
+  }, [refreshTells, talkFor]);
+  applyDirectionsRef.current = applyDirections;
+  // A finished DM post: its directions wait until the table is open, then run once (also after a reload).
+  useEffect(() => {
+    if (busy || !latestDmText) return;
+    const sig = directionsSig(latestDmText);
+    if (sig === directedSigRef.current) return;
+    if (!directions.cues.length && !directions.huddle) { directedSigRef.current = sig; pendingDirectionsRef.current = null; return; }
+    pendingDirectionsRef.current = { sig, d: directions };
+    applyDirections();
+  }, [busy, latestDmText, directions, applyDirections]);
 
   /** "Enough": the rider ends the huddle. They learn from it. */
   const huddleEnough = useCallback(() => endHuddle('enough'), [endHuddle]);
@@ -1093,6 +1155,25 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const full = [prompt, talk.length ? `TABLE TALK (out of character)\n${talk.join('\n')}` : ''].filter(Boolean).join('\n\n');
     if (!full) { toast('Seal a line first', { description: 'Tick the lines that really happened, then Send to DM.' }); return; }
     const selected = chat.orderedSelected;
+    // A huddle still running ends here, so the note below can tell the DM how it went.
+    endHuddleRef.current('interrupted');
+    const nameOf = (k: string) => npcsRef.current.entry(k)?.name ?? k;
+    const stageKeys = Object.keys(urgeRef.current);
+    const pairs: TableStateInput['pairs'] = [];
+    for (let i = 0; i < stageKeys.length; i++) {
+      for (let j = i + 1; j < stageKeys.length; j++) {
+        const rec = tasteRef.current.pairs[pairKey(stageKeys[i], stageKeys[j])];
+        if (rec && rec.tension >= 1) pairs.push({ a: nameOf(stageKeys[i]), b: nameOf(stageKeys[j]), tension: rec.tension, lastAbout: rec.topics[rec.topics.length - 1] ?? null });
+      }
+    }
+    const dmNotes = tableStateForDm({
+      riderName,
+      onStage: stageKeys.map(k => ({ name: nameOf(k), wants: tells[k] ?? null })),
+      whispered: selected.some(m => isWhisper(m)),
+      pairs,
+      lastHuddle: lastHuddleReportRef.current,
+      ignored: stageKeys.filter(k => (questionsRef.current[k]?.missed ?? 0) >= URGE_TUNING.questionGraceLines).map(nameOf),
+    });
     const liveTable: SoloLiveTableContext = {
       mode: 'live',
       // Solo keeps the Empyrean DM's own tone: the table rules, played straight (no comedy dial).
@@ -1101,21 +1182,21 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       hasInCharacter: selected.some(m => m.in_character),
       hasNpcLines: selected.some(m => !!m.npc_id),
       hasCombat: false,
+      dmNotes,
     };
     sendingRef.current = true;
     dmSendingRef.current = true;
-    endHuddleRef.current('interrupted');
     setDmSending(true);
     try {
       const replied = await sendToDm(full, liveTable);
-      if (replied) await chat.consumePending();
+      if (replied) { lastHuddleReportRef.current = null; await chat.consumePending(); }
       else toast.error('The DM did not reply', { description: 'Your sealed lines are still here. Try Send to DM again.' });
     } finally {
       sendingRef.current = false;
       dmSendingRef.current = false;
       setDmSending(false);
     }
-  }, [chat, sendToDm, busy]);
+  }, [chat, sendToDm, busy, riderName, tells]);
 
   return {
     chat, tableNpcs, thinking, dmSending, sceneRunning, callOver, onSendToNpcs, onNpcSocialCheck, onStartScene, onSendToDMNow, onSpeakAsNpc, onRegenerateNpcLine, onNpcRoll, onNpcJoin,

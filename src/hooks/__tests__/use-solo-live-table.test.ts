@@ -747,3 +747,113 @@ describe('Tier 3 and huddles: memories, the judge, and NPCs talking among themse
     expect(closed.asked).toHaveLength(0);
   });
 });
+
+describe('DM tandem: the DM directs the table, and the table reports back', () => {
+  const rosterEntry = (key: string): RosterEntry => {
+    const found = roster.find(e => e.key === key);
+    if (!found) throw new Error(`The canon roster has no ${key}`);
+    return found;
+  };
+  const trinaE = rosterEntry('trina');
+  const dainE = rosterEntry('dain-aetos');
+  const xadenE = rosterEntry('xaden-riorson');
+  const imogenE = rosterEntry('imogen-cardulo');
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_700_000_000_000);
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  function setupDm(over: { story: string; storageKey?: string; busy?: boolean; scale?: number }) {
+    const asked: Array<{ name: string; line: string; mind: string }> = [];
+    const voiceNPC = vi.fn(async (name: string | string[], line: string, _s?: unknown, mind?: string) => {
+      asked.push({ name: String(name), line, mind: mind || '' });
+      await new Promise(r => setTimeout(r, 3));
+      return `**${name}:** "Answer ${asked.length}."`;
+    });
+    const sent: Array<{ prompt: string; notes: string }> = [];
+    const sendToDm = vi.fn(async (prompt: string, rules: { dmNotes?: string }) => { sent.push({ prompt, notes: rules.dmNotes ?? '' }); return true; });
+    const hook = renderHook((props: { story: string; busy: boolean }) => useSoloLiveTable({
+      userId: 'rider', riderName: 'Xeyle', npcs: fakeNpcs(roster), latestDmText: props.story,
+      voiceNPC, sendToDm, busy: props.busy, storageKey: over.storageKey, judge: async () => null, huddleTimeScale: over.scale ?? 0.002,
+    }), { initialProps: { story: over.story, busy: over.busy ?? false } });
+    return { ...hook, asked, sent };
+  }
+  const settle = (ms = 60) => new Promise(r => setTimeout(r, ms));
+  const onStage = (h: ReturnType<typeof setupDm>) => h.result.current.tableNpcs.filter(n => n.on_stage).map(n => n.id).sort();
+
+  it('the STAGE direction decides who is here; without one the names in the post do', () => {
+    const named = `${dainE.name} blocks the door. ${xadenE.name} is still away at Samara.`;
+    expect(onStage(setupDm({ story: named }))).toEqual(['dain-aetos', 'xaden-riorson']);
+    expect(onStage(setupDm({ story: `${named}\n<!--LIVE:STAGE ${dainE.name}-->` }))).toEqual(['dain-aetos']);
+    expect(onStage(setupDm({ story: `${named}\n<!--LIVE:STAGE none-->` }))).toEqual([]);
+  });
+
+  it('the ROOM direction sets the mood whatever the words say', async () => {
+    const h = setupDm({ story: `${trinaE.name} waits by the gate.\n<!--LIVE:STAGE ${trinaE.name}-->\n<!--LIVE:ROOM tense-->` });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    // 8 points: enough only while the room is tense.
+    await act(async () => { await h.result.current.postRiderLine('Thank you, Trina', true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+  });
+
+  it('a CUE waits for the DM to finish and the table to open, then that NPC speaks first, once', async () => {
+    const story = `${trinaE.name} waits by the gate.\n<!--LIVE:STAGE ${trinaE.name}-->\n<!--LIVE:CUE ${trinaE.name} | she wants to know where you were last night-->`;
+    const h = setupDm({ story, storageKey: 'solo-live-table:camp-cue', busy: true });
+    act(() => h.result.current.setTableOpen(true));
+    await settle();
+    expect(h.asked).toHaveLength(0); // the DM is still writing
+    h.rerender({ story, busy: false });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.asked[0].name).toBe(trinaE.name);
+    expect(h.asked[0].mind).toContain('she wants to know where you were last night');
+    await settle();
+    h.unmount();
+    // Reopening the app does not run the same post's directions again.
+    const back = setupDm({ story, storageKey: 'solo-live-table:camp-cue' });
+    act(() => back.result.current.setTableOpen(true));
+    await settle();
+    expect(back.asked).toHaveLength(0);
+
+    const closed = setupDm({ story: story.replace('last night', 'this morning') });
+    await settle();
+    expect(closed.asked).toHaveLength(0);
+    act(() => closed.result.current.setTableOpen(true));
+    await waitFor(() => expect(closed.asked.length).toBe(1));
+  });
+
+  it('a HUDDLE direction starts those two talking about what the DM named', async () => {
+    const h = setupDm({ story: `They face each other.\n<!--LIVE:STAGE ${xadenE.name}; ${imogenE.name}-->\n<!--LIVE:HUDDLE ${xadenE.name} + ${imogenE.name} | who let the secret slip-->` });
+    act(() => h.result.current.setTableOpen(true));
+    await waitFor(() => expect(h.result.current.huddle?.active).toBe(true));
+    await waitFor(() => expect(h.asked.length).toBeGreaterThan(0));
+    expect(h.asked[0].mind).toContain('who let the secret slip');
+  });
+
+  it('a hand-off tells the DM how the huddle went, and that a whisper was private', async () => {
+    const h = setupDm({ story: `${xadenE.name} and ${imogenE.name} stand by the mat.`, scale: 0.002 });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('They say the marked ones cannot be trusted', true); });
+    await waitFor(() => expect(h.result.current.huddle?.active).toBe(true));
+    await waitFor(() => expect(h.result.current.huddle?.active ?? false).toBe(false), { timeout: 3000 });
+    act(() => h.result.current.huddleSeal());
+    await waitFor(() => expect(h.result.current.chat.messages.filter(m => m.npc_id && m.selected).length).toBe(4));
+    await act(async () => { await h.result.current.onSendToDMNow(); });
+    expect(h.sent).toHaveLength(1);
+    expect(h.sent[0].notes).toContain('## LIVE TABLE STATE');
+    expect(h.sent[0].notes).toContain('just had it out about "marked"');
+    expect(h.sent[0].notes).toContain('Xeyle stayed out of it');
+    expect(h.sent[0].notes).not.toContain('whispered');
+    // Reported once: the next hand-off does not repeat it.
+    let lineId = '';
+    await act(async () => { lineId = (await h.result.current.postRiderLine('I walk away', true)) || ''; });
+    await act(async () => { await h.result.current.chat.toggleSelected(lineId); });
+    await act(async () => { await h.result.current.onSendToDMNow(); });
+    expect(h.sent).toHaveLength(2);
+    expect(h.sent[1].notes).not.toContain('just had it out');
+  });
+});
