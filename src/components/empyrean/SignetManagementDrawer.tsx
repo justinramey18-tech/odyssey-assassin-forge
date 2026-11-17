@@ -23,8 +23,8 @@ interface SignetManagementDrawerProps {
   maxBurnout: number;
   /** Called when user taps Ground Yourself. Parent handles DM prompt + burnout reduction + close. */
   onGroundYourself: () => void;
-  /** Called when user confirms Reset Strain. Parent sets burnoutLevel to 0 silently. */
-  onResetStrain: () => void;
+  /** Called when user confirms Reset Strain. Parent sets burnoutLevel to 0 silently. Leave it out to hide Reset Strain. */
+  onResetStrain?: () => void;
 }
 
 /** Flavor line that shifts with the strain level. */
@@ -69,7 +69,7 @@ export function SignetManagementDrawer({
   }, [onGroundYourself]);
 
   const handleReset = useCallback(() => {
-    onResetStrain();
+    onResetStrain?.();
   }, [onResetStrain]);
 
   return (
@@ -171,6 +171,7 @@ export function SignetManagementDrawer({
                 </p>
               </section>
 
+              {onResetStrain && (
               <section className="space-y-2 pt-1">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -206,6 +207,7 @@ export function SignetManagementDrawer({
                   Between-session / long-rest use only.
                 </p>
               </section>
+              )}
             </>
           )}
         </div>

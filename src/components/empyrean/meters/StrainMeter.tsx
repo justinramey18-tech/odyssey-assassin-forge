@@ -1,5 +1,7 @@
 // Signet Strain meter for the solo Empyrean story screen: a forged ember gauge with a
 // segment per strain point, a danger notch at 75%, and −/+ controls with 48px tap areas.
+// The − control shows only when a handler is given (solo Empyrean gives none: strain comes down by
+// grounding, rests and the after-reply cool-down).
 import { Flame, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -7,7 +9,7 @@ interface Props {
   level: number;
   max: number;
   label?: string;
-  onDown: () => void;
+  onDown?: () => void;
   onUp: () => void;
   compact?: boolean;
 }
@@ -26,10 +28,12 @@ export function StrainMeter({ level, max, label, onDown, onUp, compact = false }
   const t = tone(ratio);
   return (
     <div className={cn('flex items-center', compact ? 'gap-0' : 'gap-1')} title={label} data-tone={t}>
-      <button type="button" onClick={onDown} disabled={safeLevel <= 0} aria-label="Lower Signet Strain"
-        className="empyrean-meter-step" style={{ touchAction: 'manipulation' }}>
-        <span><Minus className="w-3 h-3" /></span>
-      </button>
+      {onDown && (
+        <button type="button" onClick={onDown} disabled={safeLevel <= 0} aria-label="Lower Signet Strain"
+          className="empyrean-meter-step" style={{ touchAction: 'manipulation' }}>
+          <span><Minus className="w-3 h-3" /></span>
+        </button>
+      )}
       <div className={cn('empyrean-strain-gauge', `is-${t}`, compact ? 'w-[92px]' : 'w-[132px]')}
         role="meter" aria-valuemin={0} aria-valuemax={safeMax} aria-valuenow={safeLevel} aria-label={`Signet Strain ${safeLevel} of ${safeMax}`}>
         <Flame className="empyrean-strain-icon" />
