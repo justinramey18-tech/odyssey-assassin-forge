@@ -80,8 +80,10 @@ export function liveNpcDmGuide(riderName: string): string {
 
 export interface TableStateInput {
   riderName: string;
-  /** NPCs on stage, with what is on their mind when the urge meter knows. */
-  onStage: Array<{ name: string; wants?: string | null }>;
+  /** NPCs on stage, with what is on their mind when the urge meter knows, and (from their private note) what they are after and hiding. */
+  onStage: Array<{ name: string; wants?: string | null; aim?: string | null; hiding?: string | null }>;
+  /** Things NPCs did at the table that change the scene (walked out, squared up, handed something over). */
+  actions?: string[];
   /** A sealed line in this hand-off was a whisper. */
   whispered: boolean;
   /** Pairs on stage with unfinished business. */
@@ -99,8 +101,16 @@ export function tableStateForDm(input: TableStateInput): string {
   const rider = input.riderName.trim() || 'the rider';
   const lines: string[] = [];
   if (input.onStage.length) {
-    lines.push(`At the table: ${input.onStage.map(n => (n.wants ? `${n.name} (holding something back: ${clean(n.wants, 120)})` : n.name)).join('; ')}.`);
+    lines.push(`At the table: ${input.onStage.map(n => {
+      const bits = [
+        n.wants ? `holding something back: ${clean(n.wants, 120)}` : '',
+        n.aim ? `is after: ${clean(n.aim, 120)}` : '',
+        n.hiding ? `is hiding from ${rider}: ${clean(n.hiding, 120)}` : '',
+      ].filter(Boolean);
+      return bits.length ? `${n.name} (${bits.join('; ')})` : n.name;
+    }).join('; ')}.`);
   }
+  for (const act of (input.actions ?? []).slice(0, 4)) lines.push(clean(act, 160));
   if (input.whispered) lines.push(`A line marked 🤫 was whispered to ${rider} alone. The others did not hear it.`);
   const h = input.lastHuddle;
   if (h && h.names.length >= 2) {

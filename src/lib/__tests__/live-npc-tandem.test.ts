@@ -60,6 +60,19 @@ describe('what the table tells the DM', () => {
     expect(tableStateForDm({ riderName: 'Kylar', onStage: [], whispered: false, pairs: [], ignored: [] })).toBe('');
   });
 
+  it('the note also carries what NPCs are after, what they hide, and what they did', () => {
+    const note = tableStateForDm({
+      riderName: 'Kylar',
+      onStage: [{ name: 'Dain Aetos', aim: 'an honest answer', hiding: 'he read her file' }],
+      whispered: false, pairs: [], ignored: [],
+      actions: ['Xaden Riorson walked out.', 'Dain Aetos handed Kylar: a folded order.'],
+    });
+    expect(note).toContain('Dain Aetos (is after: an honest answer; is hiding from Kylar: he read her file)');
+    expect(note).toContain('- Xaden Riorson walked out.');
+    expect(note).toContain('- Dain Aetos handed Kylar: a folded order.');
+    expect(tableStateForDm({ riderName: 'Kylar', onStage: [], whispered: false, pairs: [], ignored: [], actions: ['Jack Barlowe squared up to Kylar.'] })).toContain('squared up');
+  });
+
   it('a hand-off asks for a full scene and carries the note', () => {
     const format = soloHandoffFormat('Kylar', '## LIVE TABLE STATE\n- x');
     expect(format).toContain(`${HANDOFF_WORDS.min} to ${HANDOFF_WORDS.max} words`);
