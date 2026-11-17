@@ -13,12 +13,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { ATTITUDE_WORDS, CANON_ERAS, CANON_ERA_LABELS, CAST_GROUP_LABELS, type CanonEra } from '@/lib/empyreanCanon/castNpcs';
 import type { NpcStatus, RosterEntry } from '@/lib/solo-npcs';
+import type { Talkativeness } from '@/lib/npc-urge';
 import type { SoloNpcs } from '@/hooks/use-solo-npcs';
 import { castPortrait } from '@/lib/empyreanCanon/castPortraits';
 
 const TOUCH = { touchAction: 'manipulation' as const };
 const ERA_SHORT: Record<CanonEra, string> = { fw: 'Year 1', if: 'Year 2', os: 'Year 3' };
 const STATUS_LABEL: Record<RosterEntry['status'], string> = { unmet: 'Not met', met: 'Met', knocked_out: 'Knocked out', dead: 'Dead', hidden: 'Removed' };
+const TALK_LABEL: Record<Talkativeness, string> = { chatty: 'Chatty', normal: 'Normal', 'spoken-to': 'Only if spoken to' };
 
 function attitudeColor(a: number): string {
   return a >= 1 ? 'text-primary' : a === 0 ? 'text-muted-foreground' : a === -1 ? 'text-accent-foreground' : 'text-destructive';
@@ -40,7 +42,7 @@ function Row({ e, onOpen }: { e: RosterEntry; onOpen: () => void }) {
   );
 }
 
-export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onFight, onSpar }: {
+export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onFight, onSpar, urge }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   npcs: SoloNpcs;
@@ -48,6 +50,8 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
   onTalk: (name: string) => void;
   onFight?: (entry: RosterEntry) => void;
   onSpar?: (entry: RosterEntry) => void;
+  /** The urge meter's switches (D-40): the table-wide one and one per NPC. */
+  urge?: { enabled: boolean; perNpc: Record<string, Talkativeness>; setEnabled: (v: boolean) => void; setNpc: (key: string, talk: Talkativeness) => void };
 }) {
   const [query, setQuery] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -94,6 +98,18 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
               </div>
               <p className="text-[11px] text-muted-foreground">{STATUS_LABEL[selected.status]}</p>
             </div>
+
+            {urge && (
+              <div className="rounded-lg border border-border/40 p-3 space-y-2">
+                <p className="text-sm">Speaks up on their own</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['chatty', 'normal', 'spoken-to'] as Talkativeness[]).map(t => (
+                    <Button key={t} variant={(urge.perNpc[selected.key] ?? 'normal') === t ? 'default' : 'outline'} onClick={() => urge.setNpc(selected.key, t)} style={TOUCH} className="min-h-[48px] text-[11px]">{TALK_LABEL[t]}</Button>
+                  ))}
+                </div>
+                {!urge.enabled && <p className="text-[11px] text-muted-foreground">The table-wide switch on the People list is off, so nobody speaks unprompted.</p>}
+              </div>
+            )}
 
             <div className="space-y-2 text-sm">
               <p><span className="text-muted-foreground">Looks: </span>{selected.mind.look}</p>
@@ -150,6 +166,16 @@ export function SoloNpcRoster({ open, onOpenChange, npcs, riderName, onTalk, onF
                 ))}
               </div>
             </div>
+
+            {urge && (
+              <div className="rounded-lg border border-border/40 p-3 flex items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm">NPCs speak up on their own</span>
+                  <span className="block text-[11px] text-muted-foreground">On stage, when something moves them. Tune each person on their Mind screen.</span>
+                </span>
+                <Button variant={urge.enabled ? 'default' : 'outline'} onClick={() => urge.setEnabled(!urge.enabled)} style={TOUCH} className="min-h-[48px] shrink-0">{urge.enabled ? 'On' : 'Off'}</Button>
+              </div>
+            )}
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

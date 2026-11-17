@@ -1438,6 +1438,8 @@ ${oocLines}`;
     },
     busy: isLoading,
     storageKey: `solo-live-table:${activeCampaignId || 'none'}`,
+    // A fight freezes the urge meter (D-40): no unprompted NPC lines mid-fight.
+    paused: fightOpen,
   });
   // At full Signet Strain the rider can't act: the table locks like the old message box did.
   const tableLocked = !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout;
@@ -2946,7 +2948,7 @@ ${oocLines}`;
           presenceIds={new Set(liveUserId ? [liveUserId] : [])}
           presenceReady
           readReceiptsLoaded
-          onSend={async (content, ic) => (await liveTable.chat.postLine(content, ic)) !== null}
+          onSend={async (content, ic) => (await liveTable.postRiderLine(content, ic)) !== null}
           onToggleReaction={(id, emoji) => { void liveTable.chat.toggleReaction(id, emoji, characterName || 'Rider'); }}
           onDeleteMessage={(id) => { void liveTable.chat.deleteMessage(id); }}
           onEditMessage={liveTable.chat.editMessage}
@@ -2987,6 +2989,10 @@ ${oocLines}`;
           onStartScene={liveTable.onStartScene}
           sceneRunning={liveTable.sceneRunning}
           npcAnswerOrder="tapped"
+          npcTells={liveTable.tells}
+          onInviteNpc={liveTable.inviteNpc}
+          onHushNpc={liveTable.hushNpc}
+          onOpenStateChange={liveTable.setTableOpen}
         />
       </div>
 
@@ -3189,6 +3195,7 @@ ${oocLines}`;
         onOpenChange={setRosterOpen}
         npcs={soloNpcs}
         riderName={characterName}
+        urge={liveTable.urge}
         onTalk={(name) => {
           const hit = soloNpcs.roster.find(e => e.name === name);
           if (hit) liveTable.callOver(hit.key);
