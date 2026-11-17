@@ -57,6 +57,10 @@ export interface CampaignState {
   spars: { day: number; n: number };
   /** A Prodigy's Battle Briefs used today (D-37). */
   briefs: { day: number; n: number };
+  /** Signet Strain right now. The server keeps it; the phone shows it and sends the limit. */
+  strain: number;
+  /** The last DM reply the after-reply cool-down counted, so a reply is never counted twice. */
+  strainCooled: string | null;
 }
 export function freshState(): CampaignState {
   return {
@@ -66,6 +70,7 @@ export function freshState(): CampaignState {
     signet: { xpDay: 1, xpToday: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
     fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
+    strain: 0, strainCooled: null,
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -101,6 +106,8 @@ export function normalizeState(raw: unknown): CampaignState {
       ? { name: String(r.dragon.name ?? '').slice(0, 80), maxHp: clamp(int(r.dragon.maxHp), 1, 2000), hp: clamp(int(r.dragon.hp), 0, clamp(int(r.dragon.maxHp), 1, 2000)) } : null,
     spars: { day: Math.max(1, int(r.spars?.day, 1)), n: Math.max(0, int(r.spars?.n)) },
     briefs: { day: Math.max(1, int(r.briefs?.day, 1)), n: Math.max(0, int(r.briefs?.n)) },
+    strain: clamp(int(r.strain), 0, STRAIN_HARD_CAP),
+    strainCooled: typeof r.strainCooled === 'string' ? r.strainCooled.slice(0, 100) : null,
   };
 }
 
@@ -152,6 +159,64 @@ export function signetUse(state: CampaignState, minute: number, intensity: numbe
   const want = clamp(Math.ceil(clamp(int(intensity, 1), 1, 8) / 3), 1, 3) * P.prodigyMasteryMultiplier(clamp(int(prodigy), 0, 5) as P.ProdigyTier);
   const xpDelta = Math.max(0, Math.min(want, masteryDailyXp(prodigy) - s.signet.xpToday));
   return { state: { ...s, signet: { ...s.signet, xpToday: s.signet.xpToday + xpDelta } }, xpDelta };
+}
+
+// ── Signet Strain (kept here, shown on the phone; the phone sends the limit it works out) ──
+export const STRAIN_HARD_CAP = 20;
+/** The strain limit the phone sent (bond tier, Quest Hub rank, Prodigy), or null when it sent none. */
+export function strainLimitOf(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? clamp(Math.trunc(n), 0, STRAIN_HARD_CAP) : null;
+}
+/** Room left under the limit (null limit: no room is known, so none is claimed). */
+export const strainRoom = (state: CampaignState, limit: number | null) => (limit == null ? null : Math.max(0, limit - state.strain));
+/** Raise strain, never past the limit. A rise that reaches the limit is reckless: one strain_limit
+ *  event, which costs bond on the phone (D-30). */
+export function raiseStrain(state: CampaignState, amount: number, limit: number | null, reason: string): { state: CampaignState; events: RuleEvent[] } {
+  const from = state.strain;
+  const add = Math.max(0, int(amount));
+  if (!add) return { state, events: [] };
+  const to = Math.min(limit ?? STRAIN_HARD_CAP, from + add);
+  if (to <= from) return { state, events: [] };
+  const hit = limit != null && limit > 0 && from < limit && to >= limit;
+  const seq = state.seq + (hit ? 1 : 0);
+  return {
+    state: { ...state, strain: to, seq },
+    events: hit ? [{ kind: 'strain_limit', reason: String(reason || 'Signet Strain').slice(0, 120), idem_key: `strain-limit:${seq}`, payload: { strain: to, limit } }] : [],
+  };
+}
+export const lowerStrain = (state: CampaignState, amount: number): CampaignState =>
+  ({ ...state, strain: Math.max(0, state.strain - Math.max(0, int(amount))) });
+/** A signet channel: mastery XP (signetUse) plus its strain cost, capped at the limit. */
+export function channelSignet(state: CampaignState, minute: number, intensity: number, rank: number, prodigy: number, limit: number | null):
+  { state: CampaignState; events: RuleEvent[]; xpDelta: number; cost: number } {
+  const u = signetUse(state, minute, intensity, prodigy);
+  const cost = signetStrainCost(intensity, rank, prodigy);
+  const r = raiseStrain(u.state, cost, limit, 'Channeled to the limit');
+  return { state: r.state, events: r.events, xpDelta: u.xpDelta, cost };
+}
+export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
+export const STRAIN_REASONS: StrainReason[] = ['cool', 'ground', 'ground_roll', 'quest', 'raise', 'revive', 'fallen'];
+/** Every other way strain moves. Fixed amounts; only Signet quest relief carries one (1 to 4). */
+export function changeStrain(state: CampaignState, reason: StrainReason, limit: number | null, opts: { messageId?: string; channeled?: boolean; amount?: number } = {}):
+  { state: CampaignState; events: RuleEvent[] } {
+  switch (reason) {
+    case 'cool': {
+      // After each DM reply: −1 unless the rider channeled that round. Each reply counts once.
+      const id = typeof opts.messageId === 'string' ? opts.messageId.slice(0, 100) : '';
+      if (!id || state.strainCooled === id) return { state, events: [] };
+      const s = { ...state, strainCooled: id };
+      return { state: opts.channeled ? s : lowerStrain(s, 1), events: [] };
+    }
+    case 'ground': return { state: lowerStrain(state, 2), events: [] };
+    case 'ground_roll': return { state: lowerStrain(state, 1), events: [] };
+    case 'quest': return { state: lowerStrain(state, clamp(int(opts.amount, 2), 1, 4)), events: [] };
+    case 'raise': return raiseStrain(state, 1, limit, 'Strain raised to the limit');
+    case 'revive': return { state: { ...state, strain: limit == null ? 7 : Math.max(0, limit - 1) }, events: [] };
+    case 'fallen': return { state: { ...state, strain: 0 }, events: [] };
+    default: return { state, events: [] };
+  }
 }
 
 // ── checks ──
@@ -270,7 +335,7 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
     if (s.shortRests >= SHORT_RESTS_PER_DAY) return { ok: false, error: `You have already taken ${SHORT_RESTS_PER_DAY} short rests today.` };
     // Healing and ability refresh come from the character sheet's own short rest, applied on the
     // phone when this event arrives, so a rest is never counted twice.
-    s = { ...s, seq, shortRests: s.shortRests + 1 };
+    s = { ...s, seq, shortRests: s.shortRests + 1, strain: Math.max(0, s.strain - 2) };
     return {
       ok: true, state: s, advance: 60, setMinute: null, strainDelta: -2, strainReset: false,
       summary: 'Short rest: 1 hour passes. You catch your breath and Signet Strain eases by 2.',
@@ -284,7 +349,7 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
   const wake = nextDawn(minute);
   const healed = s.injuries.filter(i => i.severity <= 1).map(i => i.name);
   s = {
-    ...s, seq, lastLongRestEnd: wake, dragon: mendDragon(s.dragon, 0.5),
+    ...s, seq, lastLongRestEnd: wake, dragon: mendDragon(s.dragon, 0.5), strain: 0,
     injuries: s.injuries.map(i => ({ ...i, severity: i.severity - 1 })).filter(i => i.severity >= 1),
     conditions: s.conditions.filter(c => c.untilMinute > wake),
   };
