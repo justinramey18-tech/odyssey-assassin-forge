@@ -363,7 +363,7 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
 export type Activity = 'wait' | 'hunt' | 'fly' | 'train';
 export const ACTIVITY_MIN_HOURS: Record<Activity, number> = { wait: 1, hunt: 3, fly: 1, train: 2 };
 export type PassResult = { ok: false; error: string } | { ok: true; state: CampaignState; advance: number; summary: string; xpDelta: number };
-export function passTime(state: CampaignState, minute: number, hours: number, activity: Activity, bonded: boolean): PassResult {
+export function passTime(state: CampaignState, minute: number, hours: number, activity: Activity, bonded: boolean, prodigy = 0): PassResult {
   const h = clamp(int(hours, 1), 1, 12);
   if ((activity === 'hunt' || activity === 'fly') && !bonded) return { ok: false, error: 'You have no bonded dragon yet.' };
   if (h < ACTIVITY_MIN_HOURS[activity]) return { ok: false, error: `That takes at least ${ACTIVITY_MIN_HOURS[activity]} hours.` };
@@ -374,7 +374,7 @@ export function passTime(state: CampaignState, minute: number, hours: number, ac
   let what = `${h} hour${h === 1 ? '' : 's'} pass`;
   if (activity === 'hunt') { s = { ...s, dragon: mendDragon(s.dragon, 0.25), needs: { ...s.needs, huntMetDay: endDay } }; what = `Your dragon hunts for ${h} hours and comes back fed`; }
   if (activity === 'fly') { s = { ...s, needs: { ...s.needs, flyMetDay: endDay } }; what = `You fly together for ${h} hour${h === 1 ? '' : 's'}`; }
-  if (activity === 'train') { const u = signetUse(s, minute, 3); s = u.state; xpDelta = u.xpDelta; what = `You drill your signet for ${h} hours${xpDelta ? ` (+${xpDelta} Signet Mastery)` : ' (no more to learn today)'}`; }
+  if (activity === 'train') { const u = signetUse(s, minute, 3, prodigy); s = u.state; xpDelta = u.xpDelta; what = `You drill your signet for ${h} hours${xpDelta ? ` (+${xpDelta} Signet Mastery)` : ' (no more to learn today)'}`; }
   return { ok: true, state: { ...s, seq: s.seq + 1 }, advance: h * 60, xpDelta, summary: `${what}. It is now ${formatTime(end)}.` };
 }
 
@@ -412,12 +412,19 @@ export const QUEST_REWARDS: Record<Challenge, { xp: [number, number]; gold: [num
   deadly: { xp: [500, 1200], gold: [100, 400] },
 };
 const rollRange = ([lo, hi]: [number, number], rand: Rand, step: number) => Math.round((lo + rand() * (hi - lo)) / step) * step;
-export function questPayout(challenge: unknown, questKey: string, title: string, rand: Rand): RuleEvent {
+/** The quest's listed reward, kept inside its challenge's range (the Quest Hub shows the same number). */
+const listedReward = (value: unknown, [lo, hi]: [number, number]): number | null => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.min(hi, Math.max(lo, Math.round(n))) : null;
+};
+/** Pays the quest's listed XP and gold, clamped to the challenge's range; a phone that sends none gets a roll. */
+export function questPayout(challenge: unknown, questKey: string, title: string, rand: Rand, listed: { xp?: unknown; gold?: unknown } = {}): RuleEvent {
   const c: Challenge = challenge === 'easy' || challenge === 'hard' || challenge === 'deadly' ? challenge : 'moderate';
   const r = QUEST_REWARDS[c];
   return {
     kind: 'quest_payout', reason: `Quest: ${String(title || questKey).slice(0, 120)}`,
-    xp: rollRange(r.xp, rand, 5), gold: rollRange(r.gold, rand, 1), idem_key: `quest:${String(questKey).slice(0, 150)}`,
+    xp: listedReward(listed.xp, r.xp) ?? rollRange(r.xp, rand, 5), gold: listedReward(listed.gold, r.gold) ?? rollRange(r.gold, rand, 1),
+    idem_key: `quest:${String(questKey).slice(0, 150)}`,
     payload: { challenge: c, questKey },
   };
 }

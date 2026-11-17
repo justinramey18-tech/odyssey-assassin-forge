@@ -64,6 +64,8 @@ const Body = z.object({
   intensity: z.number().optional(),
   questKey: z.string().max(150).optional(),
   challenge: z.string().max(20).optional(),
+  xp: z.number().optional(),
+  gold: z.number().optional(),
   title: z.string().max(200).optional(),
   amount: z.number().optional(),
   source: z.string().max(200).optional(),
@@ -576,7 +578,7 @@ Deno.serve(async (req) => {
         break;
       case 'pass_time':
         result = await mutate(db, userId, b, l => {
-          const r = R.passTime(l.state, l.minute, b.hours ?? 1, b.activity ?? 'wait', l.bonded);
+          const r = R.passTime(l.state, l.minute, b.hours ?? 1, b.activity ?? 'wait', l.bonded, R.sheetProdigyTier(sheet));
           if (!r.ok) return { error: (r as { error: string }).error };
           const after = l.minute + r.advance;
           const state = R.rollEvent(R.tick(r.state, after), after, b.place?.kind, false, rand);
@@ -607,7 +609,7 @@ Deno.serve(async (req) => {
       case 'quest_payout':
         if (!b.questKey) return json(400, { ok: false, error: 'Invalid request.' });
         const questKey = b.questKey;
-        result = await mutate(db, userId, b, l => ({ state: R.tick(l.state, l.minute), events: [R.questPayout(b.challenge, questKey, b.title || questKey, rand)] }));
+        result = await mutate(db, userId, b, l => ({ state: R.tick(l.state, l.minute), events: [R.questPayout(b.challenge, questKey, b.title || questKey, rand, { xp: b.xp, gold: b.gold })] }));
         break;
       case 'story_reward':
         result = await mutate(db, userId, b, l => {

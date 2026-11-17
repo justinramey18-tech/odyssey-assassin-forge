@@ -236,3 +236,19 @@ describe('journey math (server copy)', () => {
     expect(T.parseDecision('not json').event).toBe(false);
   });
 });
+
+describe('progression: quest rewards and Prodigy training', () => {
+  it("pays the quest's listed reward kept inside its range, the same number the Quest Hub shows", () => {
+    expect(questPayout('moderate', 'k', 't', seq(0.9), { xp: 500, gold: 30 })).toMatchObject({ xp: 300, gold: 30 });
+    expect(questPayout('hard', 'k', 't', seq(0.9), { xp: 120, gold: 1000 })).toMatchObject({ xp: 250, gold: 150 });
+    expect(questPayout('easy', 'k', 't', seq(0.9), { xp: 87.6, gold: 12 })).toMatchObject({ xp: 88, gold: 12 });
+    // An older phone that sends no reward still gets a roll inside the range.
+    const old = questPayout('easy', 'k', 't', seq(0), { xp: undefined, gold: 0 });
+    expect([old.xp, old.gold]).toEqual([50, 5]);
+  });
+  it("a Prodigy's training builds Signet Mastery twice as fast, like channeling", () => {
+    const train = passTime(freshState(), 0, 2, 'train', true, 1);
+    expect(train.ok && train.xpDelta).toBe(signetUse(freshState(), 0, 3, 1).xpDelta);
+    expect(train.ok && train.xpDelta).toBe(2);
+  });
+});
