@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 vi.mock('@/integrations/supabase/client', () => {
@@ -209,5 +209,133 @@ describe('solo Live Table hook', () => {
     expect(again.result.current.chat.messages.map(m => m.content)).toEqual(['Remember me.']);
     const other = setup({ storageKey: 'solo-live-table:camp-2' });
     expect(other.result.current.chat.messages).toEqual([]);
+  });
+});
+
+// ── Urge meter (D-40): NPCs speak on their own ──
+// Only Date is faked (the stage-entry cooldown is 45s); timers and awaits stay real.
+describe('urge meter: NPCs speak on their own', () => {
+  const rosterEntry = (key: string): RosterEntry => {
+    const found = roster.find(e => e.key === key);
+    if (!found) throw new Error(`The canon roster has no ${key}`);
+    return found;
+  };
+  const jackE = rosterEntry('jack-barlowe');
+  const imogenE = rosterEntry('imogen-cardulo');
+  const trinaE = rosterEntry('trina');
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_700_000_000_000);
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  function setupUrge(over: { story: string; storageKey?: string; paused?: boolean; reply?: (name: string, n: number) => string } = { story: '' }) {
+    const asked: Array<{ name: string; line: string; mind: string; controls?: string; model?: string }> = [];
+    const voiceNPC = vi.fn(async (name: string | string[], line: string, _s?: unknown, mind?: string, _off?: boolean, controls?: string, model?: string) => {
+      asked.push({ name: String(name), line, mind: mind || '', controls, model });
+      await new Promise(r => setTimeout(r, 5));
+      return over.reply ? over.reply(String(name), asked.length) : `**${name}:** "Answer ${asked.length}."`;
+    });
+    const hook = renderHook(() => useSoloLiveTable({
+      userId: 'rider', riderName: 'Xeyle', npcs: fakeNpcs(roster), latestDmText: over.story,
+      voiceNPC, sendToDm: vi.fn(async () => true), busy: false, storageKey: over.storageKey, paused: over.paused,
+    }));
+    return { ...hook, asked, voiceNPC };
+  }
+
+  it('an insult to his face makes Jack speak unprompted, on the cheap model, with the reason', async () => {
+    const h = setupUrge({ story: `${jackE.name} smirks from the doorway.` });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Jack, you are useless', true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.asked[0].name).toBe('Jack Barlowe');
+    expect(h.asked[0].model).toBe('google/gemini-2.5-flash');
+    // An unprompted line never carries the roll or join controls.
+    expect(h.asked[0].controls).toBeUndefined();
+    expect(h.asked[0].mind).toContain('WHY YOU SPEAK');
+    expect(h.asked[0].mind).toContain('useless');
+    await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id === 'jack-barlowe')).toBe(true));
+    const jackLine = h.result.current.chat.messages.find(m => m.npc_id === 'jack-barlowe');
+    expect(jackLine).toBeDefined();
+    expect(jackLine?.selected).toBe(false);
+  });
+
+  it('"Only when spoken to", the table switch, and pause each keep them quiet', async () => {
+    for (const change of ['spoken-to', 'off', 'paused'] as const) {
+      const h = setupUrge({ story: `${jackE.name} smirks from the doorway.`, paused: change === 'paused' });
+      act(() => {
+        h.result.current.setTableOpen(true);
+        if (change === 'spoken-to') h.result.current.urge.setNpc('jack-barlowe', 'spoken-to');
+        if (change === 'off') h.result.current.urge.setEnabled(false);
+      });
+      vi.setSystemTime(Date.now() + 60_000);
+      await act(async () => { await h.result.current.postRiderLine('Jack, you are useless', true); });
+      await new Promise(r => setTimeout(r, 40));
+      expect(h.asked.length).toBe(0);
+      h.unmount();
+    }
+  });
+
+  it('nobody wakes while the table is closed', async () => {
+    const h = setupUrge({ story: `${jackE.name} smirks from the doorway.` });
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Jack, you are useless', true); });
+    await new Promise(r => setTimeout(r, 40));
+    expect(h.asked.length).toBe(0);
+  });
+
+  it('a near-threshold urge shows a tell; hush clears it; invite makes them speak at once', async () => {
+    const h = setupUrge({ story: `${trinaE.name} waits by the gate.` });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Thank you, Trina, that was truly brave', true); });
+    await waitFor(() => expect(h.result.current.tells['trina']).toBeTruthy());
+    expect(h.asked.length).toBe(0);
+    act(() => h.result.current.hushNpc('trina'));
+    expect(h.result.current.tells['trina']).toBeUndefined();
+    act(() => h.result.current.inviteNpc('trina'));
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.asked[0].name).toBe('Trina');
+    expect(h.asked[0].model).toBe('google/gemini-2.5-flash');
+  });
+
+  it('an unprompted line can wake one reaction, and the reaction wakes nobody (no chains)', async () => {
+    const h = setupUrge({
+      story: `${jackE.name} and ${imogenE.name} glare across the yard.`,
+      reply: (name, n) => (n === 1 ? `**Jack:** "Imogen and her traitor friends should be afraid."` : `**${name}:** "Answer ${n}."`),
+    });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Jack, the marked ones are useless', true); });
+    await waitFor(() => expect(h.asked.length).toBe(2));
+    expect(h.asked.map(a => a.name)).toEqual(['Jack Barlowe', 'Imogen Cardulo']);
+    await new Promise(r => setTimeout(r, 40));
+    expect(h.asked.length).toBe(2);
+  });
+
+  it('an addressed NPC answers once, on the DM model, and never doubles up unprompted', async () => {
+    const h = setupUrge({ story: `${jackE.name} smirks from the doorway.` });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.onSendToNpcs('Jack, you are useless', ['jack-barlowe']); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.asked[0].model).toBeUndefined();
+    // A direct answer keeps Lovable's roll and join controls.
+    expect(h.asked[0].controls).toContain('SOLO TABLE CONTROLS');
+    await new Promise(r => setTimeout(r, 40));
+    expect(h.asked.length).toBe(1);
+  });
+
+  it('the talkativeness switches are kept per campaign', () => {
+    const a = setupUrge({ story: '', storageKey: 'solo-live-table:camp-urge' });
+    act(() => a.result.current.urge.setNpc('jack-barlowe', 'chatty'));
+    a.unmount();
+    const b = setupUrge({ story: '', storageKey: 'solo-live-table:camp-urge' });
+    expect(b.result.current.urge.perNpc['jack-barlowe']).toBe('chatty');
+    const other = setupUrge({ story: '', storageKey: 'solo-live-table:camp-other' });
+    expect(other.result.current.urge.perNpc['jack-barlowe']).toBeUndefined();
   });
 });

@@ -8,12 +8,23 @@
 // - "Let them talk": 2 or 3 NPCs speak to each other (the party scene, run on the phone).
 // - The table is kept on this phone per campaign (storageKey).
 // - Send to DM marks lines sent only when the DM really replied.
+// - Urge meter (D-40): on-stage NPCs can speak unprompted. The engine (src/lib/npc-urge.ts)
+//   scores every heard line and the silence; crossing the line makes an NPC speak, on the cheap
+//   urge model, with the reason handed to the AI. Caps: 2 wakes per rider line, 1 reaction to an
+//   unprompted line, never a chain. Brakes: the DM writing, a scene, a fight (paused), table closed.
+//   Unprompted lines never carry the roll or join controls.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
 import { CANON_ERA_LABELS, matchNames, npcVoiceContext } from '@/lib/empyreanCanon/castNpcs';
 import { castPortrait } from '@/lib/empyreanCanon/castPortraits';
+import { temperamentFor } from '@/lib/empyreanCanon/castNpcs/temperament';
 import { rosterNameEntries, type RosterEntry } from '@/lib/solo-npcs';
+import {
+  URGE_LINE_MODEL, URGE_RULES, addReasons, freshUrge, pickWakes, resetUrge, scoreLine,
+  silenceReasons, spotlightBonus, urgeStanding, whyBlock, type NpcUrgeState, type Talkativeness,
+} from '@/lib/npc-urge';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { formatReply, parseReply } from '@/lib/chatReply';
 import { stripActionCard } from '@/lib/roundChatActionCard';
 import { npcLineForDm } from '@/lib/live-npcs';
@@ -36,11 +47,13 @@ const LINE_CHARS = 400;
 export const SOLO_CHAOS_LEVEL = 2;
 /** The longest an answer waits for the DM to finish writing. */
 const WAIT_FOR_DM_MS = 180_000;
+/** How often the urge meter looks at the clock (decay, silence, tells). */
+const URGE_TICK_MS = 10_000;
 
 type VoiceFn = (
   names: string | string[], line: string,
   social?: { skill: SocialCheckResult['skill']; opposingSkillLabel: string; playerTotal: number; npcTotal: number; outcome: SocialCheckResult['outcome']; rollBlockText?: string },
-  mind?: string, offFeed?: boolean, tableControls?: string,
+  mind?: string, offFeed?: boolean, tableControls?: string, modelOverride?: string,
 ) => Promise<string | undefined>;
 
 /** The Live Table rules for the DM (ai-dm `liveTable`), for a solo hand-off. */
@@ -51,6 +64,25 @@ export interface SoloLiveTableContext {
   hasInCharacter: boolean;
   hasNpcLines: boolean;
   hasCombat: false;
+}
+
+/** The urge meter's switches, kept on this phone per campaign. */
+export interface UrgeSettings { enabled: boolean; perNpc: Record<string, Talkativeness> }
+const DEFAULT_URGE_SETTINGS: UrgeSettings = { enabled: true, perNpc: {} };
+
+function readUrgeSettings(key: string | undefined): UrgeSettings {
+  if (!key) return DEFAULT_URGE_SETTINGS;
+  try {
+    const raw = getScopedItem(key);
+    const data = raw ? JSON.parse(raw) : null;
+    if (!data || typeof data !== 'object') return DEFAULT_URGE_SETTINGS;
+    return {
+      enabled: (data as UrgeSettings).enabled !== false,
+      perNpc: typeof (data as UrgeSettings).perNpc === 'object' && (data as UrgeSettings).perNpc ? (data as UrgeSettings).perNpc : {},
+    };
+  } catch {
+    return DEFAULT_URGE_SETTINGS;
+  }
 }
 
 /** Keys of NPCs named in a DM post, capped. Pure, for tests. */
@@ -92,7 +124,7 @@ export function tableNpcsFor(roster: RosterEntry[], stage: string[]) {
     .map(e => ({ id: e.key, name: e.name, portrait_url: castPortrait(e.key) ?? null, on_stage: stage.includes(e.key) && e.status !== 'dead', archived: false }));
 }
 
-export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check }: {
+export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check, paused = false }: {
   userId: string | undefined;
   riderName: string;
   npcs: SoloNpcs;
@@ -106,6 +138,8 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   storageKey?: string;
   characterContext?: CharacterContext;
   check?: (input: { d20: number; modifier: number; dc: number | null; risk: ReturnType<typeof checkRisk>; label: string }) => Promise<RulesCheck | null>;
+  /** Freezes the urge meter (a fight is open, say). */
+  paused?: boolean;
 }) {
   const chat = useArenaRoundChat(userId, riderName, 'solo-live-table', storageKey);
   const me = userId || 'arena-player';
@@ -121,6 +155,13 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   busyRef.current = busy;
   const linesRef = useRef(chat.messages);
   linesRef.current = chat.messages;
+  const npcsRef = useRef(npcs);
+  npcsRef.current = npcs;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+  const sceneRunningRef = useRef(sceneRunning);
+  sceneRunningRef.current = sceneRunning;
+  const dmSendingRef = useRef(false);
 
   const storyStage = useMemo(() => stageFromStory(latestDmText, npcs.roster), [latestDmText, npcs.roster]);
   // A new DM post resets who the rider called over; the post decides who is still here.
@@ -153,8 +194,9 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
     return run;
   }, []);
 
-  /** One NPC speaks. Resolves to the new line (id and words), or null when it said nothing. */
-  const speak = useCallback(async (e: RosterEntry, said: string, mindExtra: string, kind: 'answer' | 'banter', replyToId: string | null, social?: SocialCheckResult) => {
+  /** One NPC speaks. Resolves to the new line (id and words), or null when it said nothing.
+   *  unprompted (urge meter): no roll or join controls, and the cheap urge model. */
+  const speak = useCallback(async (e: RosterEntry, said: string, mindExtra: string, kind: 'answer' | 'banter', replyToId: string | null, social?: SocialCheckResult, unprompted = false) => {
     const t = { key: `${replyToId || 'scene'}:${e.key}:${Date.now()}`, npcId: e.key, name: e.name, messageId: replyToId || '', kind };
     setThinking(prev => [...prev, t]);
     try {
@@ -162,13 +204,13 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
         toast.error(`${e.name} didn't answer`, { description: 'The DM is still writing. Try again in a moment.' });
         return null;
       }
-      const controls = `
+      const controls = unprompted ? undefined : `
 
 SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, append ⟪ROLL⟫{"to":${JSON.stringify(me)},"name":${JSON.stringify(riderName)},"check":"Insight","save":false,"dc":12}⟪/ROLL⟫, using the appropriate existing skill, save and difficulty. Only if you willingly offer to accompany the rider, append ⟪JOIN⟫{"to":${JSON.stringify(me)},"name":${JSON.stringify(riderName)}}⟪/JOIN⟫. These optional control markers follow the dialogue; never add one merely because controls exist.`;
       const reply = await voiceRef.current(e.name, said, social ? {
         skill: social.skill, opposingSkillLabel: social.opposingSkillLabel, playerTotal: social.playerRoll.total,
         npcTotal: social.npcRoll.total, outcome: social.outcome, rollBlockText: social.rollBlockText,
-      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true, controls);
+      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true, controls, unprompted ? URGE_LINE_MODEL : undefined);
       const text = (reply || '').trim();
       if (!text) {
         toast.error(`${e.name} didn't answer`, { description: 'Try again in a moment.' });
@@ -187,6 +229,202 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     }
   }, [chat, mindFor, waitUntilFree, me, riderName]);
 
+  // ── Urge meter (D-40) ──
+  const urgeKey = storageKey ? `${storageKey}:urge` : undefined;
+  const [urgeSettings, setUrgeSettings] = useState<UrgeSettings>(() => readUrgeSettings(urgeKey));
+  const urgeSettingsRef = useRef(urgeSettings);
+  urgeSettingsRef.current = urgeSettings;
+  // Another campaign = its own switches.
+  const urgeKeyRef = useRef(urgeKey);
+  useEffect(() => {
+    if (urgeKeyRef.current === urgeKey) return;
+    urgeKeyRef.current = urgeKey;
+    setUrgeSettings(readUrgeSettings(urgeKey));
+  }, [urgeKey]);
+  const saveUrgeSettings = useCallback((next: UrgeSettings) => {
+    setUrgeSettings(next);
+    if (urgeKey) { try { setScopedItem(urgeKey, JSON.stringify(next)); } catch { /* best effort */ } }
+  }, [urgeKey]);
+  const setUrgeEnabled = useCallback((enabled: boolean) => saveUrgeSettings({ ...urgeSettingsRef.current, enabled }), [saveUrgeSettings]);
+  const setNpcTalkativeness = useCallback((key: string, talk: Talkativeness) => {
+    saveUrgeSettings({ ...urgeSettingsRef.current, perNpc: { ...urgeSettingsRef.current.perNpc, [key]: talk } });
+  }, [saveUrgeSettings]);
+  const talkFor = useCallback((key: string): Talkativeness => urgeSettingsRef.current.perNpc[key] ?? 'normal', []);
+
+  // The drawer reports open/closed; the meter only wakes anyone while the table is open.
+  const tableOpenRef = useRef(false);
+  const setTableOpen = useCallback((open: boolean) => { tableOpenRef.current = open; }, []);
+
+  const urgeRef = useRef<Record<string, NpcUrgeState>>({});
+  const [tells, setTells] = useState<Record<string, string>>({});
+  const lastRiderLineRef = useRef('');
+  const lastTickWakeRef = useRef(0);
+  const lastTickAtRef = useRef(Date.now());
+  const idleAccumRef = useRef(0);
+  const silenceStepsCountedRef = useRef(0);
+
+  /** Every name an NPC answers to, for the engine's matching. */
+  const namesByKey = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const en of rosterNameEntries(npcs.roster)) map[en.key] = en.names;
+    return map;
+  }, [npcs.roster]);
+  const namesByKeyRef = useRef(namesByKey);
+  namesByKeyRef.current = namesByKey;
+
+  /** Who's near or over the line right now (id → the strongest reason). */
+  const refreshTells = useCallback(() => {
+    const now = Date.now();
+    const out: Record<string, string> = {};
+    if (urgeSettingsRef.current.enabled && !pausedRef.current) {
+      for (const [key, s] of Object.entries(urgeRef.current)) {
+        const e = npcsRef.current.entry(key);
+        if (!e || e.status === 'dead') continue;
+        if (urgeStanding(s, temperamentFor(key), talkFor(key), now)) {
+          out[key] = s.reasons[0]?.text || 'something is on their mind';
+        }
+      }
+    }
+    setTells(prev => {
+      const keys = Object.keys(out);
+      if (keys.length === Object.keys(prev).length && keys.every(k => prev[k] === out[k])) return prev;
+      return out;
+    });
+  }, [talkFor]);
+
+  // Stage changes: new arrivals start cold (their entry time starts the cooldown); leavers are dropped.
+  useEffect(() => {
+    const now = Date.now();
+    const next: Record<string, NpcUrgeState> = {};
+    for (const key of stage) next[key] = urgeRef.current[key] ?? freshUrge(now);
+    urgeRef.current = next;
+    refreshTells();
+  }, [stage, refreshTells]);
+
+  // processHeardLine and speakUnprompted call each other (a wake makes a line, a line can wake
+  // one reaction), so each reaches the other through a ref.
+  const speakUnpromptedRef = useRef<(key: string, triggerText: string, allowReaction: boolean) => void>(() => {});
+  const processHeardLineRef = useRef<(text: string, speaker: 'rider' | 'npc', speakerKey: string | undefined, speakerName: string | undefined, addressed: string[], maxWakes: number) => void>(() => {});
+
+  /** Score a heard line for everyone on stage; maybe wake somebody (capped). */
+  const processHeardLine = useCallback((text: string, speaker: 'rider' | 'npc', speakerKey: string | undefined, speakerName: string | undefined, addressed: string[], maxWakes: number) => {
+    // Any line breaks the silence, even while the meter is off or frozen.
+    idleAccumRef.current = 0;
+    silenceStepsCountedRef.current = 0;
+    if (!urgeSettingsRef.current.enabled || pausedRef.current || sceneRunningRef.current) return;
+    const now = Date.now();
+    const era = npcsRef.current.era;
+    for (const [key, s] of Object.entries(urgeRef.current)) {
+      const e = npcsRef.current.entry(key);
+      if (!e || e.status === 'dead') continue;
+      const names = namesByKeyRef.current[key] ?? [e.name];
+      const reasons = scoreLine({
+        text, speaker, speakerKey, speakerName, era,
+        npc: { key, name: e.name, aliases: names },
+        temperament: temperamentFor(key),
+        addressed: addressed.includes(key),
+      });
+      if (speaker === 'rider' && !addressed.includes(key) && key !== speakerKey) {
+        const bonus = spotlightBonus(s, now);
+        if (bonus) reasons.push({ pts: bonus, text: 'you have been quiet a long while' });
+      }
+      if (reasons.length) urgeRef.current[key] = addReasons(s, reasons, now);
+    }
+    if (maxWakes > 0 && tableOpenRef.current) {
+      const candidates = Object.entries(urgeRef.current)
+        .filter(([key]) => !addressed.includes(key) && key !== speakerKey)
+        .map(([key, state]) => ({ key, state, temperament: temperamentFor(key), talk: talkFor(key) }));
+      for (const key of pickWakes(candidates, now, maxWakes)) {
+        speakUnpromptedRef.current(key, text, speaker === 'rider');
+      }
+    }
+    refreshTells();
+  }, [refreshTells, talkFor]);
+  processHeardLineRef.current = processHeardLine;
+
+  /** An NPC speaks on its own (a wake, or the rider tapping the tell). Runs in the same queue as answers. */
+  const speakUnprompted = useCallback((key: string, triggerText: string, allowReaction: boolean) => enqueue(async () => {
+    if (!urgeSettingsRef.current.enabled || pausedRef.current || sceneRunningRef.current) return null;
+    const e = npcsRef.current.entry(key);
+    if (!e || e.status === 'dead') return null;
+    const s = urgeRef.current[key] ?? freshUrge(Date.now());
+    const heard = tableHeard(linesRef.current);
+    const extra = [
+      heard ? `## AT THE TABLE JUST NOW (oldest first; everyone here heard it)\n${heard}` : '',
+      whyBlock(e.name, riderName || 'the rider', s, temperamentFor(key).intent),
+    ].filter(Boolean).join('\n\n');
+    urgeRef.current = { ...urgeRef.current, [key]: resetUrge(s, Date.now()) };
+    refreshTells();
+    const spoken = await speak(e, triggerText.trim() || 'The scene carries on around you.', extra, 'answer', null, undefined, true);
+    // An unprompted line may wake one reaction; a reaction wakes nobody (no chains).
+    if (spoken) processHeardLineRef.current(spoken.text, 'npc', key, e.name, [], allowReaction ? URGE_RULES.maxReactionWakes : 0);
+    return spoken;
+  }), [enqueue, riderName, speak, refreshTells]);
+  useEffect(() => { speakUnpromptedRef.current = (k, t, a) => { void speakUnprompted(k, t, a); }; }, [speakUnprompted]);
+
+  /** The clock: decay shows in the tells, silence builds urge, and a long lull can wake one NPC. */
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const now = Date.now();
+      const dt = Math.max(0, now - lastTickAtRef.current);
+      lastTickAtRef.current = now;
+      if (!urgeSettingsRef.current.enabled || pausedRef.current) return;
+      const idle = tableOpenRef.current && !busyRef.current && !sceneRunningRef.current && !dmSendingRef.current;
+      if (idle) {
+        idleAccumRef.current += dt;
+        const steps = Math.floor(idleAccumRef.current / URGE_RULES.silenceStepMs);
+        const fresh = steps - silenceStepsCountedRef.current;
+        if (fresh > 0) {
+          silenceStepsCountedRef.current = steps;
+          for (const [key, s] of Object.entries(urgeRef.current)) {
+            const e = npcsRef.current.entry(key);
+            if (!e || e.status === 'dead') continue;
+            const r = silenceReasons(temperamentFor(key), fresh * URGE_RULES.silenceStepMs);
+            if (r.length) urgeRef.current[key] = addReasons(s, r, now);
+          }
+        }
+        if (now - lastTickWakeRef.current > URGE_RULES.tickWakeGapMs) {
+          const candidates = Object.entries(urgeRef.current)
+            .map(([key, state]) => ({ key, state, temperament: temperamentFor(key), talk: talkFor(key) }));
+          const woke = pickWakes(candidates, now, 1);
+          if (woke.length) {
+            lastTickWakeRef.current = now;
+            speakUnpromptedRef.current(woke[0], lastRiderLineRef.current, true);
+          }
+        }
+      } else {
+        idleAccumRef.current = 0;
+        silenceStepsCountedRef.current = 0;
+      }
+      refreshTells();
+    }, URGE_TICK_MS);
+    return () => clearInterval(iv);
+  }, [refreshTells, talkFor]);
+
+  /** Tap a tell: the NPC speaks now, whatever the meter says. */
+  const inviteNpc = useCallback((key: string) => {
+    speakUnpromptedRef.current(key, lastRiderLineRef.current, true);
+  }, []);
+
+  /** Hold a tell: the NPC swallows it (urge gone, cooldown started). */
+  const hushNpc = useCallback((key: string) => {
+    const s = urgeRef.current[key];
+    if (s) {
+      urgeRef.current = { ...urgeRef.current, [key]: resetUrge(s, Date.now()) };
+      refreshTells();
+    }
+  }, [refreshTells]);
+
+  /** The rider's own line (the drawer's plain send): post it, then let the meter hear it. */
+  const postRiderLine = useCallback(async (content: string, inCharacter: boolean) => {
+    const id = await chat.postLine(content, inCharacter);
+    if (id && inCharacter) {
+      lastRiderLineRef.current = content;
+      processHeardLineRef.current(content, 'rider', undefined, undefined, [], URGE_RULES.maxWakesPerLine);
+    }
+    return id;
+  }, [chat]);
+
   const answer = useCallback((lineId: string, line: string, keys: string[], social?: SocialCheckResult) => enqueue(async () => {
     for (const key of keys) {
       const e = npcs.entry(key);
@@ -196,13 +434,17 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         heard ? `## AT THE TABLE JUST NOW (oldest first; everyone here heard it)\n${heard}` : '',
         `${riderName || 'The rider'} now says the line you answer (in quotes). If other NPCs already answered it above, you heard them: you may react to them, but never repeat them or speak for them.`,
       ].filter(Boolean).join('\n\n');
-      await speak(e, parseReply(line).body.trim() || line, extra, 'answer', lineId, social);
+      const spoken = await speak(e, parseReply(line).body.trim() || line, extra, 'answer', lineId, social);
+      // The others overhear the answer (it can build urge, never wake anyone by itself).
+      if (spoken) processHeardLineRef.current(spoken.text, 'npc', key, e.name, keys, 0);
     }
   }), [enqueue, npcs, riderName, speak]);
 
   const onSendToNpcs = useCallback(async (content: string, npcIds: string[]) => {
     const id = await chat.postLine(content, true);
     if (!id) return false;
+    lastRiderLineRef.current = content;
+    processHeardLineRef.current(content, 'rider', undefined, undefined, npcIds, URGE_RULES.maxWakesPerLine);
     void answer(id, content, npcIds);
     return true;
   }, [chat, answer]);
@@ -210,6 +452,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   const onNpcSocialCheck = useCallback(async (content: string, npcId: string, result: SocialCheckResult) => {
     const id = await chat.postLine(`${content}\n\n${result.rollBlockText}`, true);
     if (!id) return false;
+    lastRiderLineRef.current = content;
+    processHeardLineRef.current(content, 'rider', undefined, undefined, [npcId], URGE_RULES.maxWakesPerLine);
     void answer(id, content, [npcId], result);
     return true;
   }, [chat, answer]);
@@ -269,6 +513,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const total = Math.min(4, Math.max(2, Math.round(turns) || 3));
     const startedAt = new Date().toISOString();
     setSceneRunning(true);
+    sceneRunningRef.current = true;
     void enqueue(async () => {
       let previous: { id: string; name: string; text: string } | null = null;
       try {
@@ -296,6 +541,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         }
       } finally {
         setSceneRunning(false);
+        sceneRunningRef.current = false;
       }
     });
     return true;
@@ -320,6 +566,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       hasCombat: false,
     };
     sendingRef.current = true;
+    dmSendingRef.current = true;
     setDmSending(true);
     try {
       const replied = await sendToDm(full, liveTable);
@@ -327,9 +574,15 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       else toast.error('The DM did not reply', { description: 'Your sealed lines are still here. Try Send to DM again.' });
     } finally {
       sendingRef.current = false;
+      dmSendingRef.current = false;
       setDmSending(false);
     }
   }, [chat, sendToDm, busy]);
 
-  return { chat, tableNpcs, thinking, dmSending, sceneRunning, callOver, onSendToNpcs, onNpcSocialCheck, onStartScene, onSendToDMNow, onSpeakAsNpc, onRegenerateNpcLine, onNpcRoll, onNpcJoin };
+  return {
+    chat, tableNpcs, thinking, dmSending, sceneRunning, callOver, onSendToNpcs, onNpcSocialCheck, onStartScene, onSendToDMNow, onSpeakAsNpc, onRegenerateNpcLine, onNpcRoll, onNpcJoin,
+    // Urge meter (D-40)
+    postRiderLine, tells, inviteNpc, hushNpc, setTableOpen,
+    urge: { enabled: urgeSettings.enabled, perNpc: urgeSettings.perNpc, setEnabled: setUrgeEnabled, setNpc: setNpcTalkativeness },
+  };
 }
