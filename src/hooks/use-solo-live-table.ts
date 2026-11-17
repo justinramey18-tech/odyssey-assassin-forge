@@ -37,8 +37,8 @@ import {
   URGE_TIER3, judgeReasons, memoryMatch, memoryReason, needsJudge, type JudgedLine,
 } from '@/lib/npc-urge';
 import {
-  HUDDLE_RULES, addPressure, afterNpcLine, afterRiderLine, applyRead, freshTaste, joinHuddle, learnPace, leaveHuddle,
-  pauseMs, readTaste, readySpark,
+  HUDDLE_RULES, addPressure, afterNpcLine, afterRiderLine, applyRead, freshTaste, huddleBlock, joinHuddle, learnPace, leaveHuddle,
+  likedHuddle, nextBeat, nextSpeaker, openHuddle, pairKey, pauseMs, readTaste, readySpark, settleHuddle,
   type Huddle, type HuddleEnd, type HuddleNpc, type HuddleTaste, type PairPressure,
 } from '@/lib/npc-huddle';
 import { askJudge, type JudgeAsk } from '@/lib/solo-judge';
@@ -692,6 +692,155 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   }), [enqueue, riderName, speak, refreshTells, saveLevels]);
   useEffect(() => { speakUnpromptedRef.current = (k, t, a) => { void speakUnprompted(k, t, a); }; }, [speakUnprompted]);
 
+  // ── Huddle runner ──
+  const huddleMs = useCallback((ms: number) => Math.max(0, Math.round(ms * huddleTimeScale)), [huddleTimeScale]);
+  const huddleTurnBusyRef = useRef(false);
+
+  const endHuddle = useCallback((end: HuddleEnd) => {
+    const h = huddleRef.current;
+    if (!h) return;
+    if (huddleTimerRef.current) { clearTimeout(huddleTimerRef.current); huddleTimerRef.current = null; }
+    huddleRef.current = null;
+    const now = Date.now();
+    saveTaste(settleHuddle(tasteRef.current, { end, h }, now));
+    lastHuddleAtRef.current = now;
+    const rest = { ...pressureRef.current };
+    delete rest[pairKey(h.pair[0], h.pair[1])];
+    pressureRef.current = rest;
+    showHuddle();
+  }, [saveTaste, showHuddle]);
+  endHuddleRef.current = endHuddle;
+
+  const startHuddle = useCallback((pair: [string, string], kind: Huddle['kind'], about: string): boolean => {
+    const a = huddleNpc(pair[0]);
+    const b = huddleNpc(pair[1]);
+    if (!a || !b || huddleRef.current) return false;
+    const now = Date.now();
+    const tense = energyScale(energyRef.current.energy, now - energyRef.current.at) < 1;
+    huddleSeqRef.current += 1;
+    const h = openHuddle({ pair, kind, about }, a, b, tasteRef.current, {
+      era: npcsRef.current.era, now, hushed: tense || (outranked(a.key) && outranked(b.key)), id: `huddle-${now}-${huddleSeqRef.current}`,
+    });
+    huddleRef.current = h;
+    huddleLastRef.current = null;
+    huddleLinesRef.current = { id: h.id, pair: h.pair, ids: [], liked: false };
+    showHuddle();
+    scheduleHuddleTurnRef.current(HUDDLE_RULES.afterRiderMs);
+    return true;
+  }, [huddleNpc, outranked, showHuddle]);
+  startHuddleRef.current = startHuddle;
+
+  /** One huddle line: the meter picks the speaker, the rules pick the beat, and the next line is scheduled. */
+  const runHuddleTurn = useCallback(() => enqueue(async () => {
+    const h0 = huddleRef.current;
+    if (!h0) return;
+    if (!urgeSettingsRef.current.enabled || urgeSettingsRef.current.huddles === false || pausedRef.current || !tableOpenRef.current || sceneRunningRef.current || dmSendingRef.current) {
+      endHuddle('interrupted');
+      return;
+    }
+    const now = Date.now();
+    // The rider is typing (a key in the last few seconds): wait for their line, up to a limit, instead of talking over them.
+    const typing = typingRef.current;
+    if (typing.since && now - typing.last < huddleMs(HUDDLE_RULES.typingIdleMs) && now - typing.since < huddleMs(HUDDLE_RULES.typingHoldMs)) {
+      huddleTurnBusyRef.current = false;
+      scheduleHuddleTurnRef.current(2_000);
+      return;
+    }
+    const urge: Record<string, number> = {};
+    for (const k of h0.members) urge[k] = urgeRef.current[k]?.urge ?? 0;
+    const key = nextSpeaker(h0, urge);
+    const e = npcsRef.current.entry(key);
+    const self = huddleNpc(key);
+    if (!e || !self) { endHuddle('interrupted'); return; }
+    const beat = nextBeat(h0);
+    const others = h0.members.filter(k => k !== key).map(k => npcsRef.current.entry(k)?.name).filter((n): n is string => !!n);
+    const last = huddleLastRef.current;
+    const rec = tasteRef.current.pairs[pairKey(h0.pair[0], h0.pair[1])];
+    const names = namesByKeyRef.current[key] ?? [e.name];
+    const recent = linesRef.current.slice(-3).map(m => heardLine(m) || '').join(' ');
+    const heard = tableHeard(linesRef.current, undefined, key);
+    const extra = [
+      heard ? `## AT THE TABLE JUST NOW (oldest first; everyone here heard it)\n${heard}` : '',
+      huddleBlock({
+        h: h0, self, others, riderName: riderName || 'the rider', beat, lastName: last?.name ?? null,
+        lowVoice: outranked(key), doneBefore: (rec?.topics ?? []).filter(t => t !== h0.about), tension: rec?.tension ?? 0,
+        memory: memoryFor(key, recent, e.memories, names, now),
+      }),
+    ].filter(Boolean).join('\n\n');
+    urgeRef.current = { ...urgeRef.current, [key]: resetUrge(urgeRef.current[key] ?? freshUrge(now), now) };
+    const spoken = await speak(e, last ? `${last.name}: ${last.text}` : `The talk turns to ${h0.about}.`, extra, 'banter', last?.id ?? null, undefined, true);
+    const h1 = huddleRef.current;
+    // Ended while this line was being written (Enough, Send to DM): the line stays, nothing follows.
+    if (!h1 || h1.id !== h0.id) return;
+    if (!spoken) { endHuddle('interrupted'); return; }
+    const line = npcLineForDm(spoken.text).replace(/\s+/g, ' ').trim().slice(0, LINE_CHARS);
+    // The rider cut in while this line was being written: their line still gets its answer next.
+    const riderCutIn = h1.riderLines > h0.riderLines;
+    let h2 = afterNpcLine(h1, key, line);
+    if (riderCutIn) h2 = { ...h2, riderSpokeLast: true, sinceRider: 0, named: h1.named.filter(k => k !== key) };
+    if (beat === 'turn-to-rider') h2 = { ...h2, turnedToRider: true };
+    huddleRef.current = h2;
+    if (!riderCutIn) huddleLastRef.current = { id: spoken.id, name: e.name, text: line, at: Date.now(), byRider: false };
+    if (huddleLinesRef.current?.id === h0.id) huddleLinesRef.current.ids.push(spoken.id);
+    // The others in it hear the line (it moves who speaks next), and it may pull one more voice in.
+    processHeardLineRef.current(spoken.text, 'npc', key, e.name, [], 1);
+    if (beat === 'close' || beat === 'break') { endHuddle(beat === 'break' ? 'broke' : 'dropped'); return; }
+    showHuddle();
+    huddleTurnBusyRef.current = false;
+    scheduleHuddleTurnRef.current(pauseMs(tasteRef.current, riderCutIn));
+  }).finally(() => { huddleTurnBusyRef.current = false; }), [enqueue, endHuddle, huddleMs, huddleNpc, outranked, memoryFor, riderName, speak, showHuddle]);
+
+  const scheduleHuddleTurn = useCallback((ms: number) => {
+    // A line already being written schedules the next one itself.
+    if (huddleTurnBusyRef.current) return;
+    if (huddleTimerRef.current) clearTimeout(huddleTimerRef.current);
+    huddleTimerRef.current = setTimeout(() => {
+      huddleTimerRef.current = null;
+      if (!huddleRef.current || huddleTurnBusyRef.current) return;
+      huddleTurnBusyRef.current = true;
+      void runHuddleTurn();
+    }, huddleMs(ms));
+  }, [huddleMs, runHuddleTurn]);
+  scheduleHuddleTurnRef.current = scheduleHuddleTurn;
+  useEffect(() => () => { if (huddleTimerRef.current) clearTimeout(huddleTimerRef.current); }, []);
+
+  /** A member the story moved away gets one parting line. */
+  partingLineRef.current = (key: string, h: Huddle) => {
+    const e = npcsRef.current.entry(key);
+    if (!e || e.status === 'dead' || e.status === 'hidden') return;
+    const others = h.members.filter(k => k !== key).map(k => npcsRef.current.entry(k)?.name).filter((n): n is string => !!n).join(' and ');
+    void enqueue(async () => {
+      if (!urgeSettingsRef.current.enabled || pausedRef.current || !tableOpenRef.current) return;
+      const spoken = await speak(e, `The talk about ${h.about} is cut short.`, `## HUDDLE\nYou were in the middle of it with ${others} about ${h.about}, and you are called away. THIS LINE: one parting line as you go, a sentence at most. Speak only as ${e.name}; never speak for ${riderName || 'the rider'}; never ask for rolls.`, 'banter', null, undefined, true);
+      if (spoken && huddleLinesRef.current?.id === h.id) { huddleLinesRef.current.ids.push(spoken.id); showHuddle(); }
+    });
+  };
+
+  /** "Enough": the rider ends the huddle. They learn from it. */
+  const huddleEnough = useCallback(() => endHuddle('enough'), [endHuddle]);
+
+  /** "Seal this conversation": tick every line of the huddle for the DM in one tap. */
+  const huddleSeal = useCallback(() => {
+    const lines = huddleLinesRef.current;
+    if (!lines) return;
+    for (const id of lines.ids) {
+      const m = linesRef.current.find(x => x.id === id);
+      if (m && !m.consumed && !m.selected) void chat.toggleSelected(id);
+    }
+    if (!lines.liked) { lines.liked = true; saveTaste(likedHuddle(tasteRef.current, lines.pair)); }
+  }, [chat, saveTaste]);
+
+  // A new DM post moves the story on: a finished huddle's lines are no longer offered for sealing.
+  useEffect(() => {
+    if (!huddleRef.current && huddleLinesRef.current) { huddleLinesRef.current = null; showHuddle(); }
+  }, [latestDmText, showHuddle]);
+
+  const huddleView = useMemo<HuddleView | null>(() => {
+    if (!huddleInfo) return null;
+    const canSeal = huddleInfo.ids.some(id => chat.messages.some(m => m.id === id && !m.consumed && !m.selected));
+    return huddleInfo.active || canSeal ? { active: huddleInfo.active, names: huddleInfo.names, heat: huddleInfo.heat, canSeal } : null;
+  }, [huddleInfo, chat.messages]);
+
   /** The clock: decay shows in the tells, silence builds urge, and a long lull can wake one NPC. */
   useEffect(() => {
     const iv = setInterval(() => {
@@ -973,5 +1122,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     // Urge meter (D-40)
     postRiderLine, tells, inviteNpc, hushNpc, setTableOpen,
     urge: { enabled: urgeSettings.enabled, perNpc: urgeSettings.perNpc, learned: urgeSettings.learned, setEnabled: setUrgeEnabled, setNpc: setNpcTalkativeness, reset: resetUrgeLearning, judge: urgeSettings.judge !== false, setJudge: setJudgeEnabled, huddles: urgeSettings.huddles !== false, setHuddles: setHuddlesEnabled },
+    // Huddles: NPCs talking among themselves, with the rider as a third voice.
+    huddle: huddleView, huddleEnough, huddleSeal, setTyping,
   };
 }

@@ -24,6 +24,9 @@ import { buildRoster, type RosterEntry } from '@/lib/solo-npcs';
 import { CANON_ERAS } from '@/lib/empyreanCanon/castNpcs';
 import type { SoloNpcs } from '@/hooks/use-solo-npcs';
 import type { RoundChatMessage } from '@/hooks/use-round-chat';
+import type { JudgedLine } from '@/lib/npc-urge';
+import type { JudgeAsk } from '@/lib/solo-judge';
+import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 
 const roster = buildRoster([], CANON_ERAS[0]);
 const someone = roster[0];
@@ -307,6 +310,8 @@ describe('urge meter: NPCs speak on their own', () => {
       story: `${jackE.name} and ${imogenE.name} glare across the yard.`,
       reply: (name, n) => (n === 1 ? `**Jack:** "Imogen and her traitor friends should be afraid."` : `**${name}:** "Answer ${n}."`),
     });
+    // Huddles off: this checks the plain one-reaction rule (with them on, these two would start a huddle).
+    act(() => h.result.current.urge.setHuddles(false));
     act(() => h.result.current.setTableOpen(true));
     vi.setSystemTime(Date.now() + 60_000);
     await act(async () => { await h.result.current.postRiderLine('Jack, the marked ones are useless', true); });
@@ -542,5 +547,203 @@ describe('urge upgrades: memory, whispers, taste, rank, questions, energy', () =
     vi.setSystemTime(Date.now() + 60_000);
     await act(async () => { await tense.result.current.postRiderLine(line, true); });
     await waitFor(() => expect(tense.asked.length).toBe(1));
+  });
+});
+
+describe('Tier 3 and huddles: memories, the judge, and NPCs talking among themselves', () => {
+  const rosterEntry = (key: string): RosterEntry => {
+    const found = roster.find(e => e.key === key);
+    if (!found) throw new Error(`The canon roster has no ${key}`);
+    return found;
+  };
+  const trinaE = rosterEntry('trina');
+  const xadenE = rosterEntry('xaden-riorson');
+  const imogenE = rosterEntry('imogen-cardulo');
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_700_000_000_000);
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  function setupT3(over: { story: string; entries?: RosterEntry[]; storageKey?: string; scale?: number; judged?: (ask: JudgeAsk) => JudgedLine | null; reply?: (name: string, n: number) => string }) {
+    const asked: Array<{ name: string; line: string; mind: string; controls?: string; model?: string }> = [];
+    const voiceNPC = vi.fn(async (name: string | string[], line: string, _s?: unknown, mind?: string, _off?: boolean, controls?: string, model?: string) => {
+      asked.push({ name: String(name), line, mind: mind || '', controls, model });
+      await new Promise(r => setTimeout(r, 3));
+      return over.reply ? over.reply(String(name), asked.length) : `**${name}:** "Answer ${asked.length}."`;
+    });
+    const judge = vi.fn(async (ask: JudgeAsk) => (over.judged ? over.judged(ask) : null));
+    const hook = renderHook(() => useSoloLiveTable({
+      userId: 'rider', riderName: 'Xeyle', npcs: fakeNpcs(over.entries ?? roster), latestDmText: over.story,
+      voiceNPC, sendToDm: vi.fn(async () => true), busy: false, storageKey: over.storageKey, judge, huddleTimeScale: over.scale ?? 0.002,
+    }));
+    return { ...hook, asked, judge };
+  }
+  const settle = (ms = 60) => new Promise(r => setTimeout(r, ms));
+  const topicLine = 'They say the marked ones cannot be trusted';
+  const huddleStory = `${xadenE.name} and ${imogenE.name} stand by the mat.`;
+
+  it('a line that touches a memory makes them speak, and the memory is handed to the AI', async () => {
+    const withMemory = roster.map(e => (e.key === 'trina' ? { ...e, memories: ['Xeyle shared her rations on the Gauntlet.'] } : e));
+    const h = setupT3({ story: `${trinaE.name} waits by the gate, a dagger at her hip.`, entries: withMemory });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    // name 6 + memory 4 = 10: enough to speak. Without the memory, 6 is not even a tell.
+    await act(async () => { await h.result.current.postRiderLine('Trina, remember the Gauntlet and those rations?', true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.asked[0].mind).toContain('shared her rations');
+    // The same memory rests before it can trigger again.
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Trina, the Gauntlet rations again', true); });
+    await settle();
+    expect(h.asked.length).toBe(1);
+  });
+
+  it('the judge reads lines the lists made little of, and its read can wake an NPC', async () => {
+    const h = setupT3({
+      story: `${trinaE.name} waits by the gate, a dagger at her hip.`,
+      judged: () => ({ tone: 'neutral', sidesWith: '', items: [{ key: 'trina', read: 'threat', strength: 3, memory: 0 }] }),
+    });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    // Lists: name 6. Judge: a veiled threat, 4. Together 10.
+    await act(async () => { await h.result.current.postRiderLine('Trina, it would be a shame if you slipped on the Parapet', true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.judge).toHaveBeenCalledTimes(1);
+    expect(h.judge.mock.calls[0][0]).toMatchObject({ huddle: false, line: 'Trina, it would be a shame if you slipped on the Parapet' });
+    expect(h.asked[0].mind).toContain('sounded like a threat');
+    expect(h.asked[0].controls).toBeUndefined();
+  });
+
+  it('the judge is not asked for short lines, lines aimed at nobody, lines the lists caught, too soon after the last, or when off', async () => {
+    const h = setupT3({ story: `${trinaE.name} waits by the gate.`, judged: () => ({ tone: 'neutral', sidesWith: '', items: [] }) });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Fine. Whatever.', true); });
+    await act(async () => { await h.result.current.postRiderLine('Trina, you are a useless coward today', true); });
+    await act(async () => { await h.result.current.postRiderLine('What a lovely quiet morning this is', true); });
+    await settle();
+    expect(h.judge).not.toHaveBeenCalled();
+    act(() => h.result.current.urge.setJudge(false));
+    expect(h.result.current.urge.judge).toBe(false);
+    await act(async () => { await h.result.current.postRiderLine('Well, you certainly know how to keep watch', true); });
+    await settle();
+    expect(h.judge).not.toHaveBeenCalled();
+    act(() => h.result.current.urge.setJudge(true));
+    await act(async () => { await h.result.current.postRiderLine('Well, you certainly know how to keep a watch', true); });
+    await waitFor(() => expect(h.judge).toHaveBeenCalledTimes(1));
+    // Straight after: not again. A little later: yes.
+    await act(async () => { await h.result.current.postRiderLine('And you never once looked up from it', true); });
+    await settle();
+    expect(h.judge).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(Date.now() + 20_000);
+    await act(async () => { await h.result.current.postRiderLine('Do you ever look up at all', true); });
+    await waitFor(() => expect(h.judge).toHaveBeenCalledTimes(2));
+  });
+
+  it('a shared topic starts a huddle: they take turns, on the cheap model, and it winds down by itself', async () => {
+    const h = setupT3({ story: huddleStory });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine(topicLine, true); });
+    await waitFor(() => expect(h.result.current.huddle?.active).toBe(true));
+    expect(h.result.current.huddle?.names.slice().sort()).toEqual(['Imogen', 'Xaden']);
+    await waitFor(() => expect(h.result.current.huddle?.active ?? false).toBe(false), { timeout: 3000 });
+    // Four lines of steam, nobody speaks twice running, first opens and last lets it drop.
+    expect(h.asked).toHaveLength(4);
+    for (let i = 1; i < h.asked.length; i++) expect(h.asked[i].name).not.toBe(h.asked[i - 1].name);
+    expect(h.asked[0].mind).toContain('## HUDDLE');
+    expect(h.asked[0].mind).toContain('Start it');
+    expect(h.asked[3].mind).toContain('Let it drop now');
+    expect(h.asked.every(a => a.model === 'google/gemini-2.5-flash' && a.controls === undefined)).toBe(true);
+    // The finished conversation can be sealed in one tap.
+    expect(h.result.current.huddle).toMatchObject({ active: false, canSeal: true });
+    act(() => h.result.current.huddleSeal());
+    await waitFor(() => expect(h.result.current.huddle).toBeNull());
+    expect(h.result.current.chat.messages.filter(m => m.npc_id && m.selected)).toHaveLength(4);
+    // No second huddle straight away.
+    await act(async () => { await h.result.current.postRiderLine('And the marked ones know it', true); });
+    await settle();
+    expect(h.result.current.huddle?.active ?? false).toBe(false);
+  });
+
+  it('the rider is a third voice: their line is answered, the huddle goes on, and whose side they took is known', async () => {
+    const h = setupT3({
+      story: huddleStory, scale: 0.03,
+      judged: ask => (ask.huddle ? { tone: 'heated', sidesWith: 'xaden-riorson', items: [] } : null),
+    });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine(topicLine, true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    await act(async () => { await h.result.current.postRiderLine('Imogen, that is not fair and you know it', true); });
+    await waitFor(() => expect(h.result.current.huddle?.active ?? false).toBe(false), { timeout: 3000 });
+    const answer = h.asked.find(a => a.mind.includes('just cut in'));
+    expect(answer?.name).toBe('Imogen Cardulo');
+    expect(answer?.line).toContain('that is not fair');
+    // The rider's line added steam: more than the four lines a silent huddle gets.
+    expect(h.asked.length).toBeGreaterThan(4);
+    expect(h.judge.mock.calls.some(c => c[0].huddle === true)).toBe(true);
+    expect(h.asked.some(a => a.name === 'Xaden Riorson' && a.mind.includes('has taken your side'))).toBe(true);
+    expect(h.asked.some(a => a.name === 'Imogen Cardulo' && a.mind.includes('taken the other side against you'))).toBe(true);
+  });
+
+  it('Enough ends it at once and they learn from it; the People switch turns huddles off', async () => {
+    const h = setupT3({ story: huddleStory, storageKey: 'solo-live-table:camp-huddle', scale: 0.03 });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine(topicLine, true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    act(() => h.result.current.huddleEnough());
+    expect(h.result.current.huddle?.active ?? false).toBe(false);
+    await settle(120);
+    expect(h.asked.length).toBeLessThanOrEqual(2);
+    const saved = JSON.parse(getScopedItem('solo-live-table:camp-huddle:huddle') ?? '{}') as { appetite?: number };
+    expect(saved.appetite).toBeCloseTo(0.85);
+    h.unmount();
+
+    const off = setupT3({ story: huddleStory });
+    act(() => { off.result.current.setTableOpen(true); off.result.current.urge.setHuddles(false); });
+    vi.setSystemTime(Date.now() + 600_000);
+    await act(async () => { await off.result.current.postRiderLine(topicLine, true); });
+    await settle();
+    expect(off.result.current.huddle).toBeNull();
+  });
+
+  it('reopening the app does not restart the five tense minutes', async () => {
+    const story = `${trinaE.name} waits by the gate. Blood on the stones, a scream, and someone is dead.`;
+    const first = setupT3({ story, storageKey: 'solo-live-table:camp-energy' });
+    act(() => first.result.current.setTableOpen(true));
+    await settle(20);
+    first.unmount();
+    vi.setSystemTime(Date.now() + 360_000);
+    const back = setupT3({ story, storageKey: 'solo-live-table:camp-energy' });
+    act(() => back.result.current.setTableOpen(true));
+    // 8 points: enough while the room is tense (bar 8), not once the five minutes are up (bar 10).
+    await act(async () => { await back.result.current.postRiderLine('Thank you, Trina', true); });
+    await settle();
+    expect(back.asked).toHaveLength(0);
+  });
+
+  it('a silent rider gets turned to, and a closed table never starts one', async () => {
+    // An eager rider (appetite 1.5) gets six lines of steam: enough for someone to turn to them.
+    setScopedItem('solo-live-table:camp-turn:huddle', JSON.stringify({ appetite: 1.5, paceMs: 14_000, pairs: {} }));
+    const eager = setupT3({ story: huddleStory, storageKey: 'solo-live-table:camp-turn' });
+    act(() => eager.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await eager.result.current.postRiderLine(topicLine, true); });
+    await waitFor(() => expect(eager.result.current.huddle?.active).toBe(true));
+    await waitFor(() => expect(eager.result.current.huddle?.active ?? false).toBe(false), { timeout: 3000 });
+    expect(eager.asked.some(a => a.mind.includes('Turn to them now'))).toBe(true);
+    eager.unmount();
+
+    const closed = setupT3({ story: huddleStory });
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await closed.result.current.postRiderLine(topicLine, true); });
+    await settle();
+    expect(closed.result.current.huddle).toBeNull();
+    expect(closed.asked).toHaveLength(0);
   });
 });
