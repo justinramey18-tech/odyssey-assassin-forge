@@ -30,6 +30,22 @@ import bodhi from '@/assets/npc-portraits/bodhi-durran.jpg';
 import jesinia from '@/assets/npc-portraits/jesinia-neilwart.jpg';
 import visia from '@/assets/npc-portraits/visia-hawelynn.jpg';
 import tara from '@/assets/npc-portraits/tara.jpg';
+import nolon from '@/assets/npc-portraits/nolon-colbersy.jpg';
+import winifred from '@/assets/npc-portraits/winifred.jpg';
+import nyra from '@/assets/npc-portraits/nyra-voldaren.jpg';
+import quinn from '@/assets/npc-portraits/quinn-hollis.jpg';
+import trager from '@/assets/npc-portraits/trager-karis.jpg';
+import drake from '@/assets/npc-portraits/drake-cordella.jpg';
+import bragen from '@/assets/npc-portraits/bragen.jpg';
+import kai from '@/assets/npc-portraits/kai.jpg';
+import cianna from '@/assets/npc-portraits/cianna.jpg';
+import heaton from '@/assets/npc-portraits/heaton.jpg';
+import emery from '@/assets/npc-portraits/emery-barnes.jpg';
+import nadine from '@/assets/npc-portraits/nadine.jpg';
+import eya from '@/assets/npc-portraits/eya.jpg';
+import mason from '@/assets/npc-portraits/mason.jpg';
+import neve from '@/assets/npc-portraits/neve.jpg';
+import luella from '@/assets/npc-portraits/luella.jpg';
 
 export const CAST_PORTRAITS: Record<string, string> = {
   'violet-sorrengail': violet, 'xaden-riorson': xaden, 'liam-mairi': liam, 'rhiannon-matthias': rhiannon,
@@ -40,6 +56,10 @@ export const CAST_PORTRAITS: Record<string, string> = {
   'kaori': kaori, 'carr': carr, 'emetterio': emetterio, 'devera': devera,
   'catriona-cordella': catriona, 'syrena-cordella': syrena, 'viscount-tecarus': tecarus, 'maren-zina': maren,
   'bodhi-durran': bodhi, 'jesinia-neilwart': jesinia, 'visia-hawelynn': visia, 'tara': tara,
+  'nolon-colbersy': nolon, 'winifred': winifred, 'nyra-voldaren': nyra, 'quinn-hollis': quinn,
+  'trager-karis': trager, 'drake-cordella': drake, 'bragen': bragen, 'kai': kai,
+  'cianna': cianna, 'heaton': heaton, 'emery-barnes': emery, 'nadine': nadine,
+  'eya': eya, 'mason': mason, 'neve': neve, 'luella': luella,
 };
 
 export function castPortrait(key: string): string | undefined {
