@@ -53,7 +53,8 @@ describe('useEmpyreanRules', () => {
     const { result } = renderHook(() => useEmpyreanRules(options(c)));
     await waitFor(() => expect(mock.invoke).toHaveBeenCalled());
     expect(result.current.active).toBe(false);
-    expect(await result.current.questPayout('q', 'easy', 'Quest')).toBe(false);
+    // Sent but never answered: the quest hook keeps it waiting instead of paying it twice.
+    expect(await result.current.questPayout({ questKey: 'q', challenge: 'easy', title: 'Quest', xp: 100, gold: 10 })).toBe('unconfirmed');
   });
 
   it("applies a fight's result as damage (a negative number, the way the sheet takes it) and reports it once", async () => {

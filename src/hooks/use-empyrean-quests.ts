@@ -6,18 +6,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   HUB_KEY,
+  PAYOUTS_KEY,
   currentQuest,
+  hubPayout,
   hubCategory,
   isHubCategory,
   normalizeHubState,
+  normalizePendingPayouts,
   planQuestUpdates,
   questCategory,
   rankInfo,
   signetStrainCeiling,
   storedHubState,
+  storedPendingPayouts,
+  withQuestRewards,
   type HubCategoryId,
   type HubState,
-  type QuestPayout,
+  type HubPayout,
+  type QuestPayResult,
   type SeekContext,
 } from '@/lib/empyrean-quest-hub';
 import { seekQuests } from '@/lib/empyrean-quest-seeker';
@@ -51,8 +57,8 @@ export interface UseEmpyreanQuestsOptions {
   onBondReward?: (bondDelta: number, trustDelta: number, reason: string) => void;
   /** Signet quests clear strain. */
   onStrainRelief?: (amount: number) => void;
-  /** Rules engine: the server pays this quest's XP and gold. Resolve false to pay on the phone instead. */
-  payQuest?: (payout: QuestPayout) => Promise<boolean>;
+  /** Rules engine: send this quest's XP and gold to the server (see QuestPayResult). Without it, quests pay on the phone. */
+  payQuest?: (payout: HubPayout) => Promise<QuestPayResult>;
   /** Sends a message to the Empyrean DM (used when a quest is accepted). */
   sendMessage?: (text: string) => void;
   /** Story context for "Seek a quest", read at the moment of the tap. */
@@ -63,7 +69,8 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
   const optsRef = useRef(opts);
   useEffect(() => { optsRef.current = opts; });
 
-  const quests = useMemo(() => normalizeQuestMap(opts.questFlags), [opts.questFlags]);
+  // Every quest shows (and pays) its listed reward kept inside its challenge's range.
+  const quests = useMemo(() => normalizeQuestMap(opts.questFlags).map(withQuestRewards), [opts.questFlags]);
   const worldState = useMemo(() => normalizeWorldState(opts.questFlags), [opts.questFlags]);
   const hub = useMemo(() => normalizeHubState(opts.questFlags?.[HUB_KEY]), [opts.questFlags]);
 
@@ -78,11 +85,53 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
 
   const writeQuest = useCallback((key: string, stored: Record<string, unknown>) => {
     optsRef.current.upsertQuest(key, stored);
-    const next = normalizeQuest(key, stored);
+    const next = withQuestRewards(normalizeQuest(key, stored));
     const list = questsRef.current.filter(q => q.key !== key);
     questsRef.current = [...list, next];
   }, []);
 
+  // Payouts sent to the rules server that never got an answer: sent again until it answers.
+  const pendingRef = useRef<HubPayout[]>(normalizePendingPayouts(opts.questFlags?.[PAYOUTS_KEY]));
+  const pendingJson = JSON.stringify(opts.questFlags?.[PAYOUTS_KEY]?.pending ?? []);
+  useEffect(() => { pendingRef.current = normalizePendingPayouts(opts.questFlags?.[PAYOUTS_KEY]); }, [pendingJson]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sendingRef = useRef(new Set<string>());
+  const writePending = useCallback((list: HubPayout[]) => {
+    pendingRef.current = list;
+    optsRef.current.upsertQuest(PAYOUTS_KEY, storedPendingPayouts(list));
+  }, []);
+
+  /** Pays a finished quest's XP and gold exactly once: through the rules server when it is on, else here. */
+  const settlePayout = useCallback(async (p: HubPayout, retry: boolean) => {
+    if (sendingRef.current.has(p.questKey)) return;
+    sendingRef.current.add(p.questKey);
+    try {
+      const o = optsRef.current;
+      let result: QuestPayResult = 'off';
+      try { result = o.payQuest ? await o.payQuest(p) : 'off'; } catch { result = 'unconfirmed'; }
+      // A retry while the engine is off waits: the first send may already be on the server.
+      if (result === 'unconfirmed' || (retry && result === 'off')) {
+        if (!pendingRef.current.some(x => x.questKey === p.questKey)) {
+          writePending([...pendingRef.current, p]);
+          toast(`${p.title}: reward waiting for the game server`, { description: 'It is sent again automatically and paid once.', icon: '⏳' });
+        }
+        return;
+      }
+      if (result !== 'paid') {
+        if (p.xp > 0) o.onAddXP?.(p.xp, `Quest: ${p.title}`);
+        if (p.gold > 0) o.onGoldChange?.(p.gold);
+      }
+      if (pendingRef.current.some(x => x.questKey === p.questKey)) writePending(pendingRef.current.filter(x => x.questKey !== p.questKey));
+    } finally {
+      sendingRef.current.delete(p.questKey);
+    }
+  }, [writePending]);
+
+  useEffect(() => {
+    const tick = () => { for (const p of pendingRef.current) void settlePayout(p, true); };
+    const first = window.setTimeout(tick, 5000);
+    const timer = window.setInterval(tick, 60000);
+    return () => { window.clearTimeout(first); window.clearInterval(timer); };
+  }, [settlePayout]);
   /** Record permanent outcomes on the world-state tracker, skipping repeats. */
   const recordWorldState = useCallback((raw: any[]) => {
     const { entries, added } = mergeWorldState(worldRef.current, raw ?? []);
@@ -105,19 +154,12 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
       toast(`New quest: ${questTitle(q)}`, { description: `${cat.emoji} ${cat.label} — open the Quest Hub to accept it.`, icon: '📜' });
     }
     for (const p of plan.payouts) {
-      const payHere = () => {
-        if (p.xp > 0) o.onAddXP?.(p.xp, `Quest: ${questTitle(p.quest)}`);
-        if (p.gold > 0) o.onGoldChange?.(p.gold);
-      };
-      // With the rules engine on, the server sets and records the XP and gold (once per quest).
-      // If it can't be reached, the quest still pays here.
-      const routed = !!o.payQuest;
-      if (o.payQuest) void o.payQuest(p).then(ok => { if (!ok) payHere(); }).catch(payHere);
-      else payHere();
+      // With the rules engine on, the server records the XP and gold once per quest; otherwise they pay here.
+      void settlePayout(hubPayout(p.quest), false);
       // Item rewards wait in the loot review (Accept / Discard) like the DM's own awards.
       const items = (p.quest.itemRewards ?? []).filter(it => it && typeof it.name === 'string' && it.name.trim());
       if (items.length > 0) addPendingDmItems(items.map(it => ({ ...it, name: it.name as string })));
-      const parts = [routed ? 'XP and gold on the way' : '', !routed && p.xp ? `${p.xp} XP` : '', !routed && p.gold ? `${p.gold} gold` : '', items.length ? `${items.length} item${items.length === 1 ? '' : 's'} to review` : '', `+${p.points} standing`].filter(Boolean);
+      const parts = [p.xp ? `${p.xp} XP` : '', p.gold ? `${p.gold} gold` : '', items.length ? `${items.length} item${items.length === 1 ? '' : 's'} to review` : '', `+${p.points} standing`].filter(Boolean);
       toast.success(`Quest complete: ${questTitle(p.quest)}`, { description: parts.join(', ') });
     }
     for (const q of plan.failed) toast(`Quest failed: ${questTitle(q)}`, { icon: '🥀' });
@@ -132,7 +174,7 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
     if (plan.bondDelta || plan.trustDelta) o.onBondReward?.(plan.bondDelta, plan.trustDelta, 'Dragon & Bond quest');
     if (plan.strainRelief > 0) o.onStrainRelief?.(plan.strainRelief);
     if (plan.settled.length) recordWorldState(plan.settled.map(worldEntryFromQuest));
-  }, [writeQuest, recordWorldState]);
+  }, [writeQuest, recordWorldState, settlePayout]);
 
   const accept = useCallback((key: string) => {
     const quest = questsRef.current.find(q => q.key === key);

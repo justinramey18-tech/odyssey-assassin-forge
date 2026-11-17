@@ -967,8 +967,8 @@ ${oocLines}`;
     onBondReward: dragonBond.processQuestReward,
     onStrainRelief: (amount: number) => moveStrain('quest', prev => Math.max(0, prev - amount), { amount }),
     payQuest: (p) => (rulesRef.current?.active
-      ? rulesRef.current.questPayout(p.quest.key, p.quest.challengeRating, p.quest.title || p.quest.key)
-      : Promise.resolve(false)),
+      ? rulesRef.current.questPayout(p)
+      : Promise.resolve('off' as const)),
     sendMessage,
     getSeekContext: () => {
       const lastDm = [...messages].reverse().find(m => m.role === 'assistant');

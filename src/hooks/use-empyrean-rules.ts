@@ -195,9 +195,12 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
       const snap = await run('battle_brief');
       return snap?.ok && snap.brief ? snap.brief : null;
     },
-    /** true when the server took the payout (the reward arrives through the inbox). */
-    questPayout: async (questKey: string, challenge: string | undefined, title: string): Promise<boolean> =>
-      !!(await run('quest_payout', { questKey, challenge, title }, true))?.ok,
+    /** A finished quest's XP and gold (once per quest on the server; the reward arrives through the inbox). */
+    questPayout: async (p: { questKey: string; challenge: string; title: string; xp: number; gold: number }): Promise<'paid' | 'off' | 'refused' | 'unconfirmed'> => {
+      if (!context()) return 'off';
+      const snap = await run('quest_payout', { questKey: p.questKey, challenge: p.challenge, title: p.title, xp: p.xp, gold: p.gold }, true);
+      return !snap ? 'unconfirmed' : snap.ok ? 'paid' : 'refused';
+    },
     storyReward: (kind: 'xp' | 'gold', amount: number, source: string) => { void run('story_reward', { kind, amount, source }, true); },
     setEvents: (level: EventLevel) => run('set_events', { level }),
     eventDone: () => { void run('event_done', {}, true); },
