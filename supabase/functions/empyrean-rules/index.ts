@@ -4,7 +4,7 @@
 // one-time token that only this function knows the hash of.
 //
 // POST { action, campaignId, riderKey?, dragonName?, bonded?, sheet?, place?, ... }
-//   state | ack | rest | pass_time | check | signet_used | quest_payout | story_reward
+//   state | ack | rest | pass_time | check | signet_used | quest_payout | story_reward | strain
 //   set_events | event_done | travel_launch | travel_sync | travel_cancel
 //   fight_start | fight_tick | fight_act | fight_clash | fight_close   (real-time solo fights, combat.ts)
 // Every reply carries the fresh snapshot: clock, rule state, mastery, unlocks, the rule half of
@@ -26,7 +26,7 @@ const JOURNEYS_PER_DAY = 10;
 const PLANNER_MODEL = 'qwen-3-6-plus';
 
 const Body = z.object({
-  action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward',
+  action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward', 'strain',
     'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel',
     'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief']),
   campaignId: uuid,
@@ -70,6 +70,11 @@ const Body = z.object({
   level: z.enum(['off', 'rare', 'normal']).optional(),
   dmContext: z.string().max(60000).optional(),
   dmModel: z.string().max(100).optional(),
+  // Signet Strain: the limit the phone works out (bond, Quest Hub rank, Prodigy), and the strain action's details.
+  strainLimit: z.number().optional(),
+  reason: z.enum(['cool', 'ground', 'ground_roll', 'quest', 'raise', 'revive', 'fallen']).optional(),
+  messageId: z.string().max(100).optional(),
+  channeled: z.boolean().optional(),
 });
 type Req = z.infer<typeof Body>;
 
@@ -123,6 +128,7 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
     dragonAssist: R.dragonAssist(l.bond),
     dragonBody: l.bonded && s.dragon && s.dragon.name === (b.dragonName || '') ? { hp: s.dragon.hp, maxHp: s.dragon.maxHp } : null,
     fightOpen: !!C.cleanFight(s.fight),
+    strain: s.strain,
     unlocks: R.unlockList(l.masteryXp, l.bond),
     facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling, sheet: R.normalizeSheet(b.sheet) }),
     prodigy: { tier: R.sheetProdigyTier(R.normalizeSheet(b.sheet)), briefsLeft: R.briefsLeft(s, l.minute, R.normalizeSheet(b.sheet)) },
@@ -172,7 +178,7 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
 /** A check-in this close to the next due moment waits for it, so a blow lands when its countdown ends. */
 const EARLY_WINDOW_MS = 800;
 
-interface FightStep { state: R.CampaignState; reply: Record<string, unknown> }
+interface FightStep { state: R.CampaignState; reply: Record<string, unknown>; events?: R.RuleEvent[] }
 /** Read the campaign's rule state, change its fight, save (version-checked). Lean: no map, no rider reads. */
 async function fightMutate(
   db: any, userId: string, b: Req, step: (state: R.CampaignState, fight: C.Fight | null, now: number) => Promise<FightStep | null> | FightStep | null,
@@ -184,8 +190,10 @@ async function fightMutate(
     const state = R.normalizeState(row?.state);
     const out = await step(state, C.cleanFight(state.fight), Date.now());
     if (!out) return { ok: true, fight: null };
+    const events = (out.events || []).map(e => ({ ...e, idem_key: `${b.campaignId}:${e.idem_key}` }));
     const { data, error: saveErr } = await db.rpc('empyrean_commit', {
       _user_id: userId, _campaign_id: b.campaignId, _rider_key: b.riderKey, _expected_version: row?.version ?? 0, _state: out.state,
+      ...(events.length ? { _events: events } : {}),
     });
     if (saveErr) throw new Error('commit_failed');
     if (data?.ok) return out.reply;
@@ -273,15 +281,20 @@ async function fightAct(db: any, userId: string, b: Req): Promise<Record<string,
   return fightMutate(db, userId, b, (state, fight, now) => {
     if (!fight) return null;
     C.advance(fight, now, rand);
+    // The room under the strain limit comes from the strain kept here; a phone that sends no limit uses its own room.
+    const limit = R.strainLimitOf(b.strainLimit);
+    const room = R.strainRoom(state, limit) ?? m.strainRoom ?? 0;
     const input: C.ActInput = m.type === 'attack' ? { type: 'attack', targetId: m.targetId || '', weapon: m.weapon }
-      : m.type === 'signet' ? { type: 'signet', targetId: m.targetId || '', intensity: m.intensity ?? 1, strainRoom: m.strainRoom ?? 0 }
+      : m.type === 'signet' ? { type: 'signet', targetId: m.targetId || '', intensity: m.intensity ?? 1, strainRoom: room }
       : m.type === 'potion' ? { type: 'potion', dice: m.dice, name: m.name }
       : { type: m.type };
     const r = C.act(fight, now, input, rand);
+    const charged = r.ok && r.strain > 0 ? R.raiseStrain(state, r.strain, limit, 'Channeled to the limit in a fight') : { state, events: [] as R.RuleEvent[] };
+    const next = { ...charged.state, fight };
     const reply: Record<string, unknown> = r.ok
-      ? { ok: true, fight: C.viewOf(fight, now), strain: r.strain, usedPotion: r.usedPotion }
-      : { ok: false, error: (r as { error: string }).error, fight: C.viewOf(fight, now) };
-    return { state: { ...state, fight }, reply };
+      ? { ok: true, fight: C.viewOf(fight, now), strain: r.strain, strainNow: next.strain, usedPotion: r.usedPotion }
+      : { ok: false, error: (r as { error: string }).error, fight: C.viewOf(fight, now), strainNow: next.strain };
+    return { state: next, reply, events: charged.events };
   });
 }
 
@@ -575,13 +588,20 @@ Deno.serve(async (req) => {
           const r = R.resolveCheck(l.state, l.minute, sheet, {
             d20: b.d20 ?? 1, modifier: b.modifier ?? 0, dc: b.dc ?? 15, risk: b.risk ?? 'mental', label: b.label ?? 'Check', masteryXp: l.masteryXp, bond: l.bond,
           }, rand);
-          return { state: r.state, events: r.events, extra: { check: { outcome: r.outcome, dc: r.dc, total: r.total, line: r.line, hp: r.hp, strain: r.strain, condition: r.condition?.name ?? null, injury: r.injury?.name ?? null } } };
+          const strained = R.raiseStrain(r.state, r.strain, R.strainLimitOf(b.strainLimit), 'A signet backlash pushed strain to the limit');
+          return { state: strained.state, events: [...r.events, ...strained.events], extra: { check: { outcome: r.outcome, dc: r.dc, total: r.total, line: r.line, hp: r.hp, strain: r.strain, condition: r.condition?.name ?? null, injury: r.injury?.name ?? null } } };
         });
         break;
       case 'signet_used':
         result = await mutate(db, userId, b, l => {
-          const r = R.signetUse(l.state, l.minute, b.intensity ?? 1, R.sheetProdigyTier(sheet));
-          return { state: r.state, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta } };
+          const limit = R.strainLimitOf(b.strainLimit);
+          // A phone that sends no limit keeps its own strain: only mastery is recorded, as before.
+          if (limit == null) {
+            const r = R.signetUse(l.state, l.minute, b.intensity ?? 1, R.sheetProdigyTier(sheet));
+            return { state: r.state, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta } };
+          }
+          const r = R.channelSignet(l.state, l.minute, b.intensity ?? 1, R.masteryRank(l.masteryXp), R.sheetProdigyTier(sheet), limit);
+          return { state: r.state, events: r.events, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta, strainCost: r.cost } };
         });
         break;
       case 'quest_payout':
@@ -593,6 +613,14 @@ Deno.serve(async (req) => {
         result = await mutate(db, userId, b, l => {
           const r = R.storyReward(l.state, l.minute, b.kind === 'gold' ? 'gold' : 'xp', b.amount ?? 0, sheet.level, b.source || 'Story');
           return r.events.length ? { state: r.state, events: r.events, extra: { granted: r.granted } } : null;
+        });
+        break;
+      case 'strain':
+        if (!b.reason) return json(400, { ok: false, error: 'Invalid request.' });
+        const strainReason = b.reason;
+        result = await mutate(db, userId, b, l => {
+          const r = R.changeStrain(l.state, strainReason, R.strainLimitOf(b.strainLimit), { messageId: b.messageId, channeled: b.channeled, amount: b.amount });
+          return r.state === l.state ? null : { state: r.state, events: r.events };
         });
         break;
       case 'battle_brief':
