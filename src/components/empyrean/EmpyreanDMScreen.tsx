@@ -113,7 +113,10 @@ import { Eye } from 'lucide-react';
 import { ScrollText } from 'lucide-react';
 import { HeartHandshake } from 'lucide-react';
 import { Bookmark, BookmarkCheck, PackageOpen, ImagePlus } from 'lucide-react';
-import { Users } from 'lucide-react';
+import { Users, MessagesSquare } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { RoundChatDrawer, type RoundChatDrawerHandle } from '@/components/ai-dm/RoundChatDrawer';
+import { useSoloLiveTable } from '@/hooks/use-solo-live-table';
 import { useSoloNpcs, type SoloNpcs } from '@/hooks/use-solo-npcs';
 import { SoloNpcRoster } from '@/components/empyrean/SoloNpcRoster';
 import type { RosterEntry } from '@/lib/solo-npcs';
@@ -1383,6 +1386,28 @@ ${oocLines}`;
   const [rosterOpen, setRosterOpen] = useState(false);
   const [npcFight, setNpcFight] = useState<{ key: string; foeKind: NonNullable<RosterEntry['fight']>['kind']; foeName: string; challenge: NonNullable<RosterEntry['fight']>['challenge'] } | null>(null);
 
+  // ─── Solo Live Table: the party Live Table, run on this phone (chat, seal, Send to DM, social rolls) ───
+  const [liveUserId, setLiveUserId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => { if (!cancelled) setLiveUserId(data.user?.id ?? undefined); });
+    return () => { cancelled = true; };
+  }, []);
+  const latestDmText = useMemo(() => {
+    const last = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
+    return last ? String(last.content) : '';
+  }, [messages]);
+  const liveTableRef = useRef<RoundChatDrawerHandle>(null);
+  const liveTable = useSoloLiveTable({
+    userId: liveUserId,
+    riderName: characterName,
+    npcs: soloNpcs,
+    latestDmText,
+    voiceNPC,
+    sendToDm: (prompt) => sendMessage(prompt),
+    busy: isLoading,
+  });
+
   // Send the opening message (a campaign the Empyrean Guide just built, the saved opening scene,
   // or a prompt from the library) once the chat is empty. A fresh start clears an older story
   // once only (CL-067).
@@ -2166,6 +2191,15 @@ ${oocLines}`;
           >
             <Users className="w-5 h-5 text-primary" />
           </Button>
+          <Button variant="ghost"
+            onClick={() => liveTableRef.current?.open()}
+            className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Live Table"
+            title="Live Table"
+          >
+            <MessagesSquare className="w-5 h-5 text-primary" />
+          </Button>
           <button
             onClick={() => setQuestHubOpen(true)}
             className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -2297,7 +2331,16 @@ ${oocLines}`;
               aria-label="People"
               title="People"
             >
-              <Users className="w-5 h-5 text-primary" />
+<Users className="w-5 h-5 text-primary" />
+            </Button>
+            <Button variant="ghost"
+              onClick={() => liveTableRef.current?.open()}
+              className="p-2 rounded-lg hover:bg-muted/50 transition-colors min-w-[48px] min-h-[48px] flex items-center justify-center"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="Live Table"
+              title="Live Table"
+            >
+              <MessagesSquare className="w-5 h-5 text-primary" />
             </Button>
             <button
               onClick={() => setQuestHubOpen(true)}
@@ -3122,12 +3165,55 @@ ${oocLines}`;
         prodigy={prodigy ? { tier: prodigy, level: characterContext?.level ?? 1, briefsLeft: rules.snapshot?.prodigy?.briefsLeft ?? 0 } : null}
         onBattleBrief={rules.active && prodigy ? () => void handleBattleBrief() : undefined}
       />
+      {open && typeof document !== 'undefined' && createPortal(
+        /* Zero-size layer: hides the closed dock; the open table is full screen above the solo screen. */
+        <div style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden', zIndex: 65 }}>
+          <RoundChatDrawer
+            ref={liveTableRef}
+            messages={liveTable.chat.messages}
+            reactions={liveTable.chat.reactions}
+            currentUserId={liveUserId || 'arena-player'}
+            characterName={characterName || 'Rider'}
+            style={liveTable.chat.style}
+            progress={liveTable.chat.progress}
+            sending={liveTable.chat.sending}
+            isGenerating={isLoading}
+            isHost
+            presenceIds={new Set(liveUserId ? [liveUserId] : [])}
+            presenceReady
+            readReceiptsLoaded
+            onSend={async (content, ic) => (await liveTable.chat.postLine(content, ic)) !== null}
+            onToggleReaction={(id, emoji) => { void liveTable.chat.toggleReaction(id, emoji, characterName || 'Rider'); }}
+            onDeleteMessage={(id) => { void liveTable.chat.deleteMessage(id); }}
+            onEditMessage={liveTable.chat.editMessage}
+            onClearAll={liveTable.chat.clearAllMessages}
+            onToggleSelected={(id) => { void liveTable.chat.toggleSelected(id); }}
+            onSelectAll={() => { void liveTable.chat.selectAllPending(); }}
+            onClearSelection={() => { void liveTable.chat.clearSelection(); }}
+            onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
+            orderedSelected={liveTable.chat.orderedSelected}
+            onReorderSelected={liveTable.chat.setSelectedOrder}
+            npcs={liveTable.tableNpcs}
+            npcThinking={liveTable.thinking}
+            onSendToNpcs={liveTable.onSendToNpcs}
+            characterContext={characterContext}
+            onNpcSocialCheck={liveTable.onNpcSocialCheck}
+            onOpenNpcRoster={() => setRosterOpen(true)}
+          />
+        </div>,
+        document.body,
+      )}
       <SoloNpcRoster
         open={rosterOpen}
         onOpenChange={setRosterOpen}
         npcs={soloNpcs}
         riderName={characterName}
-        onTalk={(name) => { empyreanInputRef.current?.setText(`@${name} `); empyreanInputRef.current?.focus(); }}
+        onTalk={(name) => {
+          const hit = soloNpcs.roster.find(e => e.name === name);
+          if (hit) liveTable.callOver(hit.key);
+          setRosterOpen(false);
+          liveTableRef.current?.open();
+        }}
         onFight={rules.active ? (e) => {
           if (!e.fight) return;
           setNpcFight({ key: e.key, foeKind: e.fight.kind, foeName: e.name, challenge: e.fight.challenge });

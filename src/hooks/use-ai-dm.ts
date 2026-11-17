@@ -556,8 +556,11 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
     },
     /** Solo Empyrean Live NPCs (D-38): the NPC's mind, feelings and memories, added to the voicing rules. */
     npcMind?: string,
-  ) => {
+    /** Solo Live Table: answer without adding anything to the story feed; resolves to the reply text. */
+    offFeed?: boolean,
+  ): Promise<string | undefined> => {
     if (!playerMessage.trim() || isLoading) return;
+    const feed: typeof setMessages = offFeed ? () => {} : setMessages;
 
     const names = Array.isArray(npcNames) ? npcNames : [npcNames];
     const nameLabel = names.join(' & ');
@@ -573,7 +576,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    feed(prev => [...prev, userMessage]);
     setIsLoading(true);
 
     const baseMessages = messages;
@@ -661,7 +664,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
       let textBuffer = '';
 
       const assistantMessageId = crypto.randomUUID();
-      setMessages(prev => [
+      feed(prev => [
         ...prev,
         {
           id: assistantMessageId,
@@ -700,7 +703,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
             const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (deltaContent) {
               assistantContent += deltaContent;
-              setMessages(prev =>
+              feed(prev =>
                 prev.map(m =>
                   m.id === assistantMessageId
                     ? { ...m, content: assistantContent }
@@ -729,7 +732,7 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
             const deltaContent = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (deltaContent) {
               assistantContent += deltaContent;
-              setMessages(prev =>
+              feed(prev =>
                 prev.map(m =>
                   m.id === assistantMessageId
                     ? { ...m, content: assistantContent }
@@ -752,21 +755,22 @@ export function useAIDM({ characterContext, customGuidesContent, worldStatePromp
 
       if (assistantContent) {
         const { narrative, whispers } = parseWhispers(assistantContent);
-        setMessages(prev =>
+        feed(prev =>
           prev.map(m =>
             m.id === assistantMessageId
               ? { ...m, content: narrative, whispers: whispers.length > 0 ? whispers : undefined }
               : m
           )
         );
-        onMessageCompleteRef.current?.(narrative);
+        if (!offFeed) onMessageCompleteRef.current?.(narrative);
+        return narrative;
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       console.error('AI DM NPC voice error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to get NPC response');
       if (!assistantContent) {
-        setMessages(prev => prev.filter(m => m.role !== 'assistant' || m.content));
+        feed(prev => prev.filter(m => m.role !== 'assistant' || m.content));
       }
     } finally {
       setIsLoading(false);
