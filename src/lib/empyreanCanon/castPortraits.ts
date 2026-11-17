@@ -46,6 +46,15 @@ import eya from '@/assets/npc-portraits/eya.jpg';
 import mason from '@/assets/npc-portraits/mason.jpg';
 import neve from '@/assets/npc-portraits/neve.jpg';
 import luella from '@/assets/npc-portraits/luella.jpg';
+import belden from '@/assets/npc-portraits/belden.jpg';
+import vaugh from '@/assets/npc-portraits/vaugh-penley.jpg';
+import calvin from '@/assets/npc-portraits/calvin-atwater.jpg';
+import ciaran from '@/assets/npc-portraits/ciaran.jpg';
+import baylor from '@/assets/npc-portraits/baylor-norris.jpg';
+import avalynn from '@/assets/npc-portraits/avalynn.jpg';
+import lynx from '@/assets/npc-portraits/lynx.jpg';
+import mischa from '@/assets/npc-portraits/mischa-levin.jpg';
+import trysten from '@/assets/npc-portraits/trysten.jpg';
 
 export const CAST_PORTRAITS: Record<string, string> = {
   'violet-sorrengail': violet, 'xaden-riorson': xaden, 'liam-mairi': liam, 'rhiannon-matthias': rhiannon,
@@ -60,6 +69,9 @@ export const CAST_PORTRAITS: Record<string, string> = {
   'trager-karis': trager, 'drake-cordella': drake, 'bragen': bragen, 'kai': kai,
   'cianna': cianna, 'heaton': heaton, 'emery-barnes': emery, 'nadine': nadine,
   'eya': eya, 'mason': mason, 'neve': neve, 'luella': luella,
+  'belden': belden, 'vaugh-penley': vaugh, 'calvin-atwater': calvin, 'ciaran': ciaran,
+  'baylor-norris': baylor, 'avalynn': avalynn, 'lynx': lynx, 'mischa-levin': mischa,
+  'trysten': trysten,
 };
 
 export function castPortrait(key: string): string | undefined {
