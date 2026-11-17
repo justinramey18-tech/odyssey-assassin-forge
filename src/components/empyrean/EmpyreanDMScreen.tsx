@@ -125,7 +125,7 @@ import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { removeScopedItem } from '@/lib/scoped-storage';
 import { useEmpyreanRules, type EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
 import { useSoloCampaignMap } from '@/hooks/use-solo-campaign-map';
-import { buildGameFacts, checkRisk, parseFightOffer, signetStrainCost, type FightView } from '@/lib/empyrean-rules-client';
+import { buildGameFacts, checkRisk, parseFightOffer, signetStrainCost, type FightView, type StrainReason } from '@/lib/empyrean-rules-client';
 import { clearLaunch, readLaunch } from '@/lib/empyrean-onboarding';
 import { useSoloFight, type FightStart } from '@/hooks/use-solo-fight';
 import { SoloBattleScreen, buildFightSheet } from '@/components/empyrean/SoloBattleScreen';
@@ -537,6 +537,13 @@ UNBONDED RIDER RULES:
   // The engine's hooks sit further down (they need the campaign id). The hooks above them reach
   // it through this ref, and the DM's GAME FACTS and area guides through these two strings.
   const rulesRef = useRef<EmpyreanRulesApi | null>(null);
+  // While the rules engine keeps Signet Strain on the server, every change below is sent there and
+  // shown at once; the server's number replaces it when its answer arrives. Engine off: phone only.
+  const moveStrain = useCallback((reason: StrainReason, next: (prev: number) => number, extra?: { messageId?: string; channeled?: boolean; amount?: number }) => {
+    const r = rulesRef.current;
+    if (r?.serverStrain != null) r.strain(reason, extra);
+    setBurnoutLevel(prev => next(prev));
+  }, []);
   const [gameFacts, setGameFacts] = useState('');
   const [areaGuidesText, setAreaGuidesText] = useState('');
   // While the engine is live, XP and gold the story hands out are sized and recorded by the
@@ -600,6 +607,8 @@ UNBONDED RIDER RULES:
   useEffect(() => {
     const prev = prevBurnoutForBondRef.current;
     prevBurnoutForBondRef.current = burnoutLevel;
+    // With strain on the server, the server reports a rise to the limit itself (onStrainLimit below).
+    if (rulesRef.current?.serverStrain != null) return;
     if (!isUnbonded && maxBurnout > 0 && burnoutLevel > prev && prev < maxBurnout && burnoutLevel >= maxBurnout) {
       dragonBond.processRecklessStrain();
     }
@@ -956,7 +965,7 @@ ${oocLines}`;
     onAddXP: autoSyncCallbacks?.onAddXP,
     onGoldChange: autoSyncCallbacks?.onGoldChange,
     onBondReward: dragonBond.processQuestReward,
-    onStrainRelief: (amount: number) => setBurnoutLevel(prev => Math.max(0, prev - amount)),
+    onStrainRelief: (amount: number) => moveStrain('quest', prev => Math.max(0, prev - amount), { amount }),
     payQuest: (p) => (rulesRef.current?.active
       ? rulesRef.current.questPayout(p.quest.key, p.quest.challengeRating, p.quest.title || p.quest.key)
       : Promise.resolve(false)),
@@ -1142,8 +1151,18 @@ ${oocLines}`;
     onMapChanged: () => { void soloMap.map.reload(); },
     onFightResult: (payload) => { fightResultRef.current = payload; },
     flying: soloMap.flying,
+    getStrainLimit: () => maxBurnout,
+    onStrainLimit: () => dragonBond.processRecklessStrain(),
   });
   useEffect(() => { rulesRef.current = rules; rulesTravelRef.current = rules.travel; });
+  // Every answer from the rules server carries the strain it keeps: show that number.
+  useEffect(() => {
+    const n = rules.serverStrain;
+    if (n == null) return;
+    prevBurnoutForBondRef.current = n;
+    setBurnoutLevel(n);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rules.snapshot]);
 
   // The Empyrean Guide's random-events choice, applied once the new campaign's engine is on.
   useEffect(() => {
@@ -1174,6 +1193,7 @@ ${oocLines}`;
     resume: rules.active && !!rules.snapshot?.fightOpen,
     onInbox: rules.absorbInbox,
     onStrain: (amount) => setBurnoutLevel(prev => Math.min(maxBurnout, prev + amount)),
+    onStrainNow: (n) => { prevBurnoutForBondRef.current = n; setBurnoutLevel(n); },
   });
   const startFight = async (input: FightStart): Promise<boolean> => {
     const ok = await soloFight.start(input);
@@ -1184,7 +1204,7 @@ ${oocLines}`;
   // saves, and at once when the dragon is killed in a real fight (the bond takes the rider too).
   const riderDies = () => {
     setShowDeathSaves(false);
-    setBurnoutLevel(0);
+    moveStrain('fallen', () => 0);
     setShowDeathTransition(true);
     // 2-second black transition then memorial (or inline rebirth if flag off)
     setTimeout(async () => {
@@ -1443,10 +1463,9 @@ ${oocLines}`;
     if (lastProcessedMsgIdRef.current === lastMsg.id) return;
     lastProcessedMsgIdRef.current = lastMsg.id;
 
-    // Recovery: if the signet was NOT used this round, burnout cools by 1.
-    if (!signetUsedThisRoundRef.current) {
-      setBurnoutLevel(prev => Math.max(0, prev - 1));
-    }
+    // Recovery: if the signet was NOT used this round, burnout cools by 1. The server counts each reply once.
+    const channeled = signetUsedThisRoundRef.current;
+    moveStrain('cool', prev => (channeled ? prev : Math.max(0, prev - 1)), { messageId: lastMsg.id, channeled });
     signetUsedThisRoundRef.current = false;
 
     const situationMatch = lastMsg.content.match(/<!--SITUATION:(\w+)-->/);
@@ -1925,14 +1944,9 @@ ${oocLines}`;
     const groundingPrompt = 'I take a moment to ground myself — breathe, feel my weight settle, let the signet heat bleed out through my skin. Describe the pause, what grounds me, and the scene as I steady.';
     handleUsePrompt(groundingPrompt);
     // Reduce burnout by 2, floored at 0.
-    setBurnoutLevel(prev => Math.max(0, prev - 2));
+    moveStrain('ground', prev => Math.max(0, prev - 2));
     setSignetManagementOpen(false);
-  }, [handleUsePrompt]);
-
-  const handleResetStrain = useCallback(() => {
-    // Silent reset — no DM beat.
-    setBurnoutLevel(0);
-  }, []);
+  }, [handleUsePrompt, moveStrain]);
 
   const lastAssistantMsg = useMemo(() => {
     const last = [...messages].reverse().find(m => m.role === 'assistant');
@@ -2097,8 +2111,7 @@ ${oocLines}`;
                 <span className="text-muted-foreground text-[10px]">No signet</span>
               ) : !isUnbonded && maxBurnout > 0 && (
                 <StrainMeter compact level={burnoutLevel} max={maxBurnout} label={`Signet Strain: ${BURNOUT_LABELS[burnoutLevel] ?? ''}`}
-                  onDown={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
-                  onUp={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))} />
+                  onUp={() => moveStrain('raise', prev => Math.min(maxBurnout, prev + 1))} />
               )}
             </p>
           </div>
@@ -2343,8 +2356,7 @@ ${oocLines}`;
             <span className="text-[11px] font-cinzel text-white/60">Signet Strain</span>
           </div>
           <StrainMeter level={burnoutLevel} max={maxBurnout} label={`Signet Strain: ${BURNOUT_LABELS[burnoutLevel] ?? ''}`}
-            onDown={() => setBurnoutLevel(Math.max(0, burnoutLevel - 1))}
-            onUp={() => setBurnoutLevel(Math.min(maxBurnout, burnoutLevel + 1))} />
+            onUp={() => moveStrain('raise', prev => Math.min(maxBurnout, prev + 1))} />
         </div>
       )}
 
@@ -2365,7 +2377,7 @@ ${oocLines}`;
           <BurnoutFlameOverlay
             level={burnoutLevel}
             max={maxBurnout}
-            onGround={() => setBurnoutLevel(prev => Math.max(0, prev - 1))}
+            onGround={() => moveStrain('ground_roll', prev => Math.max(0, prev - 1))}
             currentHP={autoSyncCallbacks?.getCurrentHP() ?? 10}
             maxHP={characterContext.maxHP}
             onHPChange={(change, type) => {
@@ -3028,7 +3040,6 @@ ${oocLines}`;
         burnoutLevel={burnoutLevel}
         maxBurnout={maxBurnout}
         onGroundYourself={handleGroundYourself}
-        onResetStrain={handleResetStrain}
       />
 
       {/* Empyrean Rider Loadout — full-screen paper doll */}
@@ -3084,7 +3095,6 @@ ${oocLines}`;
         dragonNotes={dragonNotes}
         onDragonNotesChange={handleDragonNotesChange}
         onReconfigureEmpyrean={onClose}
-        onResetBurnout={() => { setBurnoutLevel(0); toast.success('Signet burnout reset.'); }}
         onNpcScene={() => liveTableRef.current?.open()}
         onOocChat={() => setShowOocChat(true)}
         isUnbonded={isUnbonded}
@@ -3439,7 +3449,7 @@ ${oocLines}`;
           onStabilize={() => {
             setShowDeathSaves(false);
             autoSyncCallbacks?.onHPChange(1, 'healing');
-            setBurnoutLevel(7);
+            moveStrain('revive', () => (rulesRef.current?.serverStrain != null ? Math.max(0, maxBurnout - 1) : 7));
           }}
           onDeath={riderDies}
         />
@@ -3506,7 +3516,7 @@ ${oocLines}`;
 
             // 2. Existing logic
             setShowMemorial(false);
-            setBurnoutLevel(0);
+            moveStrain('fallen', () => 0);
             saveSoloHP({ current: 0, max: 0 });
             updateUnbondedStatus(true);
             resetBondState();
