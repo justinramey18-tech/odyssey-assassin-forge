@@ -26,6 +26,10 @@
 // - DM tandem (src/lib/live-npc-tandem.ts): the DM's hidden LIVE directions set the stage and the
 //   room's mood, cue an NPC to speak, or start a huddle; a hand-off carries a LIVE TABLE STATE note
 //   (dmNotes) back to the DM. With no directions in a post, everything works from names as before.
+// - Delivery (src/lib/npc-delivery.ts): every line here is written from the NPC's voice, mood and its
+//   own PRIVATE NOTE from last time (kept on the phone under the storage key plus :minds), not a fixed
+//   two-line shape. The app measures what came out and corrects sameness on the next request. A rare
+//   hidden action can change the scene: walk out, step between, square up, hand something over.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
@@ -35,7 +39,7 @@ import { temperamentFor } from '@/lib/empyreanCanon/castNpcs/temperament';
 import { rosterNameEntries, type RosterEntry } from '@/lib/solo-npcs';
 import {
   URGE_LINE_MODEL, URGE_RULES, addReasons, freshUrge, pickWakes, resetUrge, scoreLine,
-  silenceReasons, spotlightBonus, urgeStanding, whyBlock, type NpcUrgeState, type Talkativeness,
+  effectiveThreshold, silenceReasons, spotlightBonus, urgeStanding, whyBlock, type NpcUrgeState, type Talkativeness,
   URGE_TUNING, asksQuestion, energyScale, ignoredQuestionReasons, learnTaste, mentionsAny, rankFromRole, rankScale, tableEnergy,
   URGE_TIER3, judgeReasons, memoryMatch, memoryReason, needsJudge, type JudgedLine,
 } from '@/lib/npc-urge';
@@ -45,6 +49,11 @@ import {
   type Huddle, type HuddleEnd, type HuddleNpc, type HuddleTaste, type PairPressure,
 } from '@/lib/npc-huddle';
 import { askJudge, type JudgeAsk } from '@/lib/solo-judge';
+import {
+  deliveryBlock, isKeyLine, measureLine, moodFacts, readNotes, readTurn, samenessNote,
+  type LineShape, type MindNote, type NpcAction,
+} from '@/lib/npc-delivery';
+import { voiceFor } from '@/lib/empyreanCanon/castNpcs/voice';
 import { directionsSig, parseDirections, stripLiveTags, tableStateForDm, type DmDirections, type TableStateInput } from '@/lib/live-npc-tandem';
 import { getScopedItem, setScopedItem } from '@/lib/scoped-storage';
 import { formatReply, parseReply } from '@/lib/chatReply';
@@ -75,8 +84,22 @@ const URGE_TICK_MS = 10_000;
 type VoiceFn = (
   names: string | string[], line: string,
   social?: { skill: SocialCheckResult['skill']; opposingSkillLabel: string; playerTotal: number; npcTotal: number; outcome: SocialCheckResult['outcome']; rollBlockText?: string },
-  mind?: string, offFeed?: boolean, tableControls?: string, modelOverride?: string,
+  mind?: string, offFeed?: boolean, tableControls?: string, modelOverride?: string, delivery?: string,
 ) => Promise<string | undefined>;
+
+/** What a caller knows about the moment a line is spoken in. */
+interface SpeakMoment {
+  /** The rider put a direct question to this NPC. */
+  directQuestion?: boolean;
+  /** Words in the rider's line this answers. */
+  riderWords?: number;
+  /** The last line of a conversation. */
+  closing?: boolean;
+  /** A line that matters: written by the story's own model even when unprompted. */
+  keyLine?: boolean;
+  /** Urge over their bar before it was reset for speaking. */
+  stir?: number;
+}
 
 /** The Live Table rules for the DM (ai-dm `liveTable`), for a solo hand-off. */
 export interface SoloLiveTableContext {
@@ -194,7 +217,7 @@ export function tableNpcsFor(roster: RosterEntry[], stage: string[]) {
     .map(e => ({ id: e.key, name: e.name, portrait_url: castPortrait(e.key) ?? null, on_stage: stage.includes(e.key) && e.status !== 'dead', archived: false }));
 }
 
-export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check, paused = false, judge = askJudge, huddleTimeScale = 1 }: {
+export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check, paused = false, judge = askJudge, huddleTimeScale = 1, sparAvailable = false }: {
   userId: string | undefined;
   riderName: string;
   npcs: SoloNpcs;
@@ -214,10 +237,23 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   judge?: (ask: JudgeAsk) => Promise<JudgedLine | null>;
   /** Shrinks the pauses between huddle lines (tests). */
   huddleTimeScale?: number;
+  /** The screen can open a bout with an NPC (the rules engine is on): an NPC may square up. */
+  sparAvailable?: boolean;
 }) {
   const chat = useArenaRoundChat(userId, riderName, 'solo-live-table', storageKey);
   const me = userId || 'arena-player';
   const [called, setCalled] = useState<string[]>([]);
+  // NPCs who walked out since the DM's last post (an action of theirs): off stage until the story or the rider brings them back.
+  const [left, setLeft] = useState<string[]>([]);
+  const leftRef = useRef(left);
+  leftRef.current = left;
+  /** An NPC squared up to the rider: a bout is on offer. */
+  const [challenge, setChallenge] = useState<{ key: string; name: string } | null>(null);
+  const challengeRef = useRef(challenge);
+  challengeRef.current = challenge;
+  const clearChallenge = useCallback(() => setChallenge(null), []);
+  const sparAvailableRef = useRef(sparAvailable);
+  sparAvailableRef.current = sparAvailable;
   const [thinking, setThinking] = useState<Array<{ key: string; npcId: string; name: string; messageId: string; kind: 'answer' | 'banter' }>>([]);
   const [dmSending, setDmSending] = useState(false);
   const [sceneRunning, setSceneRunning] = useState(false);
@@ -246,13 +282,14 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
     [directions, latestDmText, npcs.roster],
   );
   // A new DM post resets who the rider called over; the post decides who is still here.
-  useEffect(() => { setCalled([]); }, [latestDmText]);
-  const stage = useMemo(() => Array.from(new Set([...storyStage, ...called])).slice(0, MAX_STAGE), [storyStage, called]);
+  useEffect(() => { setCalled([]); setLeft([]); setChallenge(null); }, [latestDmText]);
+  const stage = useMemo(() => Array.from(new Set([...storyStage, ...called])).filter(k => !left.includes(k)).slice(0, MAX_STAGE), [storyStage, called, left]);
 
   const tableNpcs = useMemo(() => tableNpcsFor(npcs.roster, stage), [npcs.roster, stage]);
 
   const callOver = useCallback((key: string) => {
     setCalled(prev => (prev.includes(key) ? prev : [...prev, key].slice(-MAX_STAGE)));
+    setLeft(prev => prev.filter(k => k !== key));
   }, []);
 
   const mindFor = useCallback((e: RosterEntry) => npcVoiceContext(e.mind, riderName || 'the rider', e.attitude, e.memories, CANON_ERA_LABELS[npcs.era]), [riderName, npcs.era]);
@@ -277,7 +314,9 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
 
   /** One NPC speaks. Resolves to the new line (id and words), or null when it said nothing.
    *  unprompted (urge meter): no roll or join controls, and the cheap urge model. */
-  const speak = useCallback(async (e: RosterEntry, said: string, mindExtra: string, kind: 'answer' | 'banter', replyToId: string | null, social?: SocialCheckResult, unprompted = false, whisper = false) => {
+  const deliveryForRef = useRef<(e: RosterEntry, o: { whisper: boolean; insight: boolean; moment: SpeakMoment }) => string>(() => '');
+  const afterTurnRef = useRef<(e: RosterEntry, lineId: string, shown: string, note: MindNote | null, action: NpcAction | null) => void>(() => {});
+  const speak = useCallback(async (e: RosterEntry, said: string, mindExtra: string, kind: 'answer' | 'banter', replyToId: string | null, social?: SocialCheckResult, unprompted = false, whisper = false, moment: SpeakMoment = {}) => {
     const t = { key: `${replyToId || 'scene'}:${e.key}:${Date.now()}`, npcId: e.key, name: e.name, messageId: replyToId || '', kind };
     setThinking(prev => [...prev, t]);
     try {
@@ -291,8 +330,11 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       const reply = await voiceRef.current(e.name, said, social ? {
         skill: social.skill, opposingSkillLabel: social.opposingSkillLabel, playerTotal: social.playerRoll.total,
         npcTotal: social.npcRoll.total, outcome: social.outcome, rollBlockText: social.rollBlockText,
-      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true, controls, unprompted ? URGE_LINE_MODEL : undefined);
-      const text = (reply || '').trim();
+      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true, controls, unprompted && !moment.keyLine ? URGE_LINE_MODEL : undefined,
+      deliveryForRef.current(e, { whisper, insight: social?.skill === 'insight' && social.outcome === 'success', moment }));
+      // The private note and any action are taken out here: they are never shown or sent to the DM as words.
+      const turn = readTurn(reply || '', Date.now());
+      const text = turn.text;
       if (!text) {
         toast.error(`${e.name} didn't answer`, { description: 'Try again in a moment.' });
         return null;
@@ -304,6 +346,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         id, party_id: 'arena-practice', user_id: `npc:${e.key}`, character_name: e.name, content, in_character: true,
         round_id: 'solo-live-table', consumed: false, selected: false, created_at: new Date().toISOString(), npc_id: e.key,
       }];
+      afterTurnRef.current(e, id, text, turn.note, turn.action);
       return { id, text };
     } finally {
       setThinking(prev => prev.filter(x => x.key !== t.key));
@@ -700,9 +743,11 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       heard ? `## AT THE TABLE JUST NOW (oldest first; everyone here heard it)\n${heard}` : '',
       whyBlock(e.name, riderName || 'the rider', s, temperamentFor(key).intent),
     ].filter(Boolean).join('\n\n');
+    const bar = effectiveThreshold(temperamentFor(key), talkFor(key), scaleFor(key, Date.now())) ?? URGE_RULES.threshold;
+    const moment: SpeakMoment = { stir: s.urge / bar, keyLine: isKeyLine({ reasons: s.reasons.map(r => r.text) }) };
     urgeRef.current = { ...urgeRef.current, [key]: resetUrge(s, Date.now()) };
     refreshTells();
-    const spoken = await speak(e, triggerText.trim() || 'The scene carries on around you.', extra, 'answer', null, undefined, true, whisper);
+    const spoken = await speak(e, triggerText.trim() || 'The scene carries on around you.', extra, 'answer', null, undefined, true, whisper, moment);
     if (spoken) {
       unpromptedIdsRef.current.add(spoken.id);
       seenUnpromptedRef.current.set(spoken.id, { selected: false, npc: key });
@@ -712,8 +757,93 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       saveLevels();
     }
     return spoken;
-  }), [enqueue, riderName, speak, refreshTells, saveLevels]);
+  }), [enqueue, riderName, speak, refreshTells, saveLevels, scaleFor, talkFor]);
   useEffect(() => { speakUnpromptedRef.current = (k, t, a) => { void speakUnprompted(k, t, a); }; }, [speakUnprompted]);
+
+  // ── Delivery: voice, mood, the private note, sameness, and actions ──
+  const mindsKey = storageKey ? `${storageKey}:minds` : undefined;
+  const mindsKeyRef = useRef<string | undefined>(undefined);
+  const mindsRef = useRef<Record<string, MindNote>>({});
+  const mindsLoadedRef = useRef(false);
+  if (!mindsLoadedRef.current || mindsKeyRef.current !== mindsKey) {
+    let raw: unknown = null;
+    try { raw = mindsKey ? JSON.parse(getScopedItem(mindsKey) || 'null') : null; } catch { raw = null; }
+    mindsRef.current = readNotes(raw, Date.now());
+    mindsLoadedRef.current = true;
+    mindsKeyRef.current = mindsKey;
+  }
+  /** Recent lines as measured (length, where the movement sat, which parts of the body). */
+  const shapeHistoryRef = useRef<LineShape[]>([]);
+  /** Scene-changing things NPCs did, by the line they happened in (reported to the DM when that line is sealed). */
+  const actionLogRef = useRef<Array<{ lineId: string; text: string }>>([]);
+  useEffect(() => { actionLogRef.current = []; }, [latestDmText]);
+
+  deliveryForRef.current = (e, o) => {
+    const key = e.key;
+    const now = Date.now();
+    const t = temperamentFor(key);
+    const h = huddleRef.current;
+    const inHuddle = !!h && h.members.includes(key);
+    const bar = effectiveThreshold(t, talkFor(key) === 'spoken-to' ? 'normal' : talkFor(key), scaleFor(key, now)) ?? URGE_RULES.threshold;
+    const stir = o.moment.stir ?? (urgeRef.current[key]?.urge ?? 0) / bar;
+    const low = outranked(key);
+    const direct = !!o.moment.directQuestion;
+    return deliveryBlock({
+      name: e.name,
+      riderName: riderName || 'the rider',
+      voice: voiceFor(key, t.style),
+      mood: moodFacts({ urgeRatio: stir, heat: inHuddle && h ? h.heat : null, attitude: e.attitude, style: t.style, outranked: low }, riderName || 'the rider'),
+      note: mindsRef.current[key] ?? null,
+      sameness: samenessNote(key, shapeHistoryRef.current),
+      directQuestion: direct,
+      riderWords: o.moment.riderWords ?? 0,
+      whisper: o.whisper,
+      outranked: low,
+      condition: e.status === 'knocked_out' ? 'knocked out and only just coming round' : '',
+      closing: !!o.moment.closing,
+      actions: {
+        // Never the last one at the table, and one exit per DM post.
+        leave: !direct && !o.whisper && leftRef.current.length === 0 && Object.keys(urgeRef.current).length > 1,
+        between: !!h && h.members.filter(k => k !== key).length >= 2,
+        squareUp: sparAvailableRef.current && !!e.fight && !challengeRef.current && !o.whisper,
+        give: !o.whisper,
+      },
+      insight: o.insight,
+    });
+  };
+
+  afterTurnRef.current = (e, lineId, shown, note, action) => {
+    const key = e.key;
+    if (note) {
+      mindsRef.current = { ...mindsRef.current, [key]: note };
+      const k = mindsKeyRef.current;
+      if (k) { try { setScopedItem(k, JSON.stringify(mindsRef.current)); } catch { /* best effort */ } }
+    }
+    shapeHistoryRef.current = [...shapeHistoryRef.current, measureLine(key, shown)].slice(-12);
+    if (!action) return;
+    const rider = riderName || 'the rider';
+    const log = (text: string) => { actionLogRef.current = [...actionLogRef.current, { lineId, text }].slice(-8); };
+    if (action.kind === 'leave') {
+      if (leftRef.current.length > 0 || Object.keys(urgeRef.current).length <= 1) return;
+      leftRef.current = [key];
+      setLeft([key]);
+      log(`${e.name} walked out.`);
+    } else if (action.kind === 'between') {
+      const h = huddleRef.current;
+      if (!h) return;
+      const self = huddleNpc(key);
+      const joined = self && !h.members.includes(key) ? joinHuddle(h, self) : h;
+      huddleRef.current = { ...joined, heat: Math.max(0, joined.heat - 2), stances: { ...joined.stances, [key]: 'calming' } };
+      showHuddle();
+      log(`${e.name} stepped between them.`);
+    } else if (action.kind === 'square-up') {
+      if (!sparAvailableRef.current || !e.fight || challengeRef.current) return;
+      setChallenge({ key, name: e.name });
+      log(`${e.name} squared up to ${rider}: a bout on the mat is on offer.`);
+    } else {
+      log(`${e.name} handed ${rider}: ${action.what}.`);
+    }
+  };
 
   // ── Huddle runner ──
   const huddleMs = useCallback((ms: number) => Math.max(0, Math.round(ms * huddleTimeScale)), [huddleTimeScale]);
@@ -785,17 +915,25 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const rec = tasteRef.current.pairs[pairKey(h0.pair[0], h0.pair[1])];
     const names = namesByKeyRef.current[key] ?? [e.name];
     const recent = linesRef.current.slice(-3).map(m => heardLine(m) || '').join(' ');
+    const memory = memoryFor(key, recent, e.memories, names, now);
     const heard = tableHeard(linesRef.current, undefined, key);
     const extra = [
       heard ? `## AT THE TABLE JUST NOW (oldest first; everyone here heard it)\n${heard}` : '',
       huddleBlock({
         h: h0, self, others, riderName: riderName || 'the rider', beat, lastName: last?.name ?? null,
         lowVoice: outranked(key), doneBefore: (rec?.topics ?? []).filter(t => t !== h0.about), tension: rec?.tension ?? 0,
-        memory: memoryFor(key, recent, e.memories, names, now),
+        memory,
       }),
     ].filter(Boolean).join('\n\n');
+    const moment: SpeakMoment = {
+      closing: beat === 'close' || beat === 'break',
+      keyLine: isKeyLine({ reasons: [], heat: h0.heat, beat, memory: !!memory }),
+      directQuestion: beat === 'answer-rider' && !!last?.byRider && /\?/.test(last.text),
+      riderWords: last?.byRider ? last.text.trim().split(/\s+/).filter(Boolean).length : 0,
+      stir: (urge[key] ?? 0) / (effectiveThreshold(temperamentFor(key), talkFor(key), scaleFor(key, now)) ?? URGE_RULES.threshold),
+    };
     urgeRef.current = { ...urgeRef.current, [key]: resetUrge(urgeRef.current[key] ?? freshUrge(now), now) };
-    const spoken = await speak(e, last ? `${last.name}: ${last.text}` : `The talk turns to ${h0.about}.`, extra, 'banter', last?.id ?? null, undefined, true);
+    const spoken = await speak(e, last ? `${last.name}: ${last.text}` : `The talk turns to ${h0.about}.`, extra, 'banter', last?.id ?? null, undefined, true, false, moment);
     const h1 = huddleRef.current;
     // Ended while this line was being written (Enough, Send to DM): the line stays, nothing follows.
     if (!h1 || h1.id !== h0.id) return;
@@ -815,7 +953,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     showHuddle();
     huddleTurnBusyRef.current = false;
     scheduleHuddleTurnRef.current(pauseMs(tasteRef.current, riderCutIn));
-  }).finally(() => { huddleTurnBusyRef.current = false; }), [enqueue, endHuddle, huddleMs, huddleNpc, outranked, memoryFor, riderName, speak, showHuddle]);
+  }).finally(() => { huddleTurnBusyRef.current = false; }), [enqueue, endHuddle, huddleMs, huddleNpc, outranked, memoryFor, riderName, speak, showHuddle, scaleFor, talkFor]);
 
   const scheduleHuddleTurn = useCallback((ms: number) => {
     // A line already being written schedules the next one itself.
@@ -834,7 +972,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   /** A member the story moved away gets one parting line. */
   partingLineRef.current = (key: string, h: Huddle) => {
     const e = npcsRef.current.entry(key);
-    if (!e || e.status === 'dead' || e.status === 'hidden') return;
+    // Someone who walked out already said their piece on the way.
+    if (!e || e.status === 'dead' || e.status === 'hidden' || leftRef.current.includes(key)) return;
     const others = h.members.filter(k => k !== key).map(k => npcsRef.current.entry(k)?.name).filter((n): n is string => !!n).join(' and ');
     void enqueue(async () => {
       if (!urgeSettingsRef.current.enabled || pausedRef.current || !tableOpenRef.current) return;
@@ -1019,7 +1158,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         heard ? `## AT THE TABLE JUST NOW (oldest first; everyone here heard it)\n${heard}` : '',
         `${riderName || 'The rider'} now says the line you answer (in quotes). If other NPCs already answered it above, you heard them: you may react to them, but never repeat them or speak for them.`,
       ].filter(Boolean).join('\n\n');
-      const spoken = await speak(e, parseReply(line).body.trim() || line, extra, 'answer', lineId, social);
+      const asked = parseReply(line).body.trim() || line;
+      const spoken = await speak(e, asked, extra, 'answer', lineId, social, false, false, { directQuestion: /\?/.test(asked), riderWords: asked.split(/\s+/).filter(Boolean).length });
       // The others overhear the answer (it can build urge, never wake anyone by itself).
       if (spoken) {
         if (asksQuestion(npcLineForDm(spoken.text))) questionsRef.current[key] = { at: Date.now(), missed: 0 };
@@ -1168,7 +1308,9 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     }
     const dmNotes = tableStateForDm({
       riderName,
-      onStage: stageKeys.map(k => ({ name: nameOf(k), wants: tells[k] ?? null })),
+      onStage: stageKeys.map(k => ({ name: nameOf(k), wants: tells[k] ?? null, aim: mindsRef.current[k]?.want || null, hiding: mindsRef.current[k]?.truth || null })),
+      // Only what happened in lines the rider sealed.
+      actions: actionLogRef.current.filter(a => selected.some(m => m.id === a.lineId)).map(a => a.text),
       whispered: selected.some(m => isWhisper(m)),
       pairs,
       lastHuddle: lastHuddleReportRef.current,
@@ -1189,7 +1331,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     setDmSending(true);
     try {
       const replied = await sendToDm(full, liveTable);
-      if (replied) { lastHuddleReportRef.current = null; await chat.consumePending(); }
+      if (replied) { lastHuddleReportRef.current = null; actionLogRef.current = []; await chat.consumePending(); }
       else toast.error('The DM did not reply', { description: 'Your sealed lines are still here. Try Send to DM again.' });
     } finally {
       sendingRef.current = false;
@@ -1205,5 +1347,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     urge: { enabled: urgeSettings.enabled, perNpc: urgeSettings.perNpc, learned: urgeSettings.learned, setEnabled: setUrgeEnabled, setNpc: setNpcTalkativeness, reset: resetUrgeLearning, judge: urgeSettings.judge !== false, setJudge: setJudgeEnabled, huddles: urgeSettings.huddles !== false, setHuddles: setHuddlesEnabled },
     // Huddles: NPCs talking among themselves, with the rider as a third voice.
     huddle: huddleView, huddleEnough, huddleSeal, setTyping,
+    // An NPC squared up to the rider: the screen can open the bout.
+    challenge, clearChallenge,
   };
 }

@@ -857,3 +857,156 @@ describe('DM tandem: the DM directs the table, and the table reports back', () =
     expect(h.sent[1].notes).not.toContain('just had it out');
   });
 });
+
+describe('delivery: voice, the private note, sameness and actions', () => {
+  const rosterEntry = (key: string): RosterEntry => {
+    const found = roster.find(e => e.key === key);
+    if (!found) throw new Error(`The canon roster has no ${key}`);
+    return found;
+  };
+  const trinaE = rosterEntry('trina');
+  const dainE = rosterEntry('dain-aetos');
+  const jackE = rosterEntry('jack-barlowe');
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_700_000_000_000);
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  function setupDelivery(over: { story: string; entries?: RosterEntry[]; storageKey?: string; sparAvailable?: boolean; reply?: (name: string, n: number) => string }) {
+    const asked: Array<{ name: string; delivery: string; model?: string }> = [];
+    const voiceNPC = vi.fn(async (name: string | string[], _line: string, _s?: unknown, _mind?: string, _off?: boolean, _controls?: string, model?: string, delivery?: string) => {
+      asked.push({ name: String(name), delivery: delivery || '', model });
+      await new Promise(r => setTimeout(r, 3));
+      return over.reply ? over.reply(String(name), asked.length) : `**${name}:** "Answer ${asked.length}."`;
+    });
+    const sent: string[] = [];
+    const sendToDm = vi.fn(async (_prompt: string, rules: { dmNotes?: string }) => { sent.push(rules.dmNotes ?? ''); return true; });
+    const hook = renderHook(() => useSoloLiveTable({
+      userId: 'rider', riderName: 'Xeyle', npcs: fakeNpcs(over.entries ?? roster), latestDmText: over.story,
+      voiceNPC, sendToDm, busy: false, storageKey: over.storageKey, judge: async () => null, huddleTimeScale: 0.002, sparAvailable: over.sparAvailable,
+    }));
+    return { ...hook, asked, sent };
+  }
+  const settle = (ms = 60) => new Promise(r => setTimeout(r, ms));
+  const onStage = (h: ReturnType<typeof setupDelivery>) => h.result.current.tableNpcs.filter(n => n.on_stage).map(n => n.id).sort();
+  const npcLines = (h: ReturnType<typeof setupDelivery>) => h.result.current.chat.messages.filter(m => m.npc_id);
+
+  it('every line is asked for with the NPC\'s voice and mood, and a direct question must get words', async () => {
+    const h = setupDelivery({ story: `${dainE.name} blocks the door.` });
+    await act(async () => { await h.result.current.onSendToNpcs('Dain, where were you last night?', ['dain-aetos']); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    const d = h.asked[0].delivery;
+    expect(d).toContain('## HOW DAIN AETOS SPEAKS AND MOVES');
+    expect(d).toContain('quotes regulations');
+    expect(d).toContain('Right now you are');
+    expect(d).toContain('put a direct question to you');
+    expect(d).toContain('about 6 words');
+    expect(d).toContain('You have no private note yet');
+    expect(d).not.toContain('⟪ACT leave⟫'); // never walks out on a direct question, never the last one at the table
+  });
+
+  it('the private note is hidden from the table, carried into their next line, and kept per campaign', async () => {
+    const reply = (name: string, n: number) => (n === 1
+      ? `**${name}:** "Asleep. Ask anyone." *He does not look up.*\n⟪MIND want: to get Xeyle out of this room | unsaid: I saw you leave | body: at the desk, quill in hand | truth: I was at the vault ⟫`
+      : `**${name}:** "Is that all?"`);
+    const h = setupDelivery({ story: `${dainE.name} sits at his desk.`, storageKey: 'solo-live-table:camp-mind', reply });
+    await act(async () => { await h.result.current.onSendToNpcs('Dain, where were you last night?', ['dain-aetos']); });
+    await waitFor(() => expect(npcLines(h).length).toBe(1));
+    expect(npcLines(h)[0].content).not.toContain('MIND');
+    expect(npcLines(h)[0].content).toContain('He does not look up.');
+    await act(async () => { await h.result.current.onSendToNpcs('Dain, try again', ['dain-aetos']); });
+    await waitFor(() => expect(h.asked.length).toBe(2));
+    expect(h.asked[1].delivery).toContain('- You want: to get Xeyle out of this room');
+    expect(h.asked[1].delivery).toContain('- Your body: at the desk, quill in hand');
+    expect(h.asked[1].delivery).toContain('- The truth you are keeping: I was at the vault');
+    // The DM is told what he is after and what he is hiding, once the line is sealed and sent.
+    const first = npcLines(h)[0];
+    await act(async () => { await h.result.current.chat.toggleSelected(first.id); });
+    await act(async () => { await h.result.current.onSendToDMNow(); });
+    expect(h.sent[0]).toContain('is after: to get Xeyle out of this room');
+    expect(h.sent[0]).toContain('is hiding from Xeyle: I was at the vault');
+    h.unmount();
+    const back = setupDelivery({ story: `${dainE.name} sits at his desk.`, storageKey: 'solo-live-table:camp-mind' });
+    await act(async () => { await back.result.current.onSendToNpcs('Dain, good morning', ['dain-aetos']); });
+    await waitFor(() => expect(back.asked.length).toBe(1));
+    expect(back.asked[0].delivery).toContain('- You want: to get Xeyle out of this room');
+  });
+
+  it('samey lines get a correction on the next request', async () => {
+    const h = setupDelivery({ story: `${trinaE.name} waits by the gate.`, reply: name => `**${name}:** "No. Not today." *She folds her arms.*` });
+    for (const line of ['Trina, one', 'Trina, two', 'Trina, three', 'Trina, four']) {
+      await act(async () => { await h.result.current.onSendToNpcs(line, ['trina']); });
+      await waitFor(() => expect(h.asked.length).toBeGreaterThan(0));
+      await settle(20);
+    }
+    await waitFor(() => expect(h.asked.length).toBe(4));
+    expect(h.asked[2].delivery).not.toContain('were all');
+    expect(h.asked[3].delivery).toContain('Your last 3 lines were all only a few words');
+    expect(h.asked[3].delivery).toContain('movement after the words');
+    expect(h.asked[3].delivery).toContain('your arms');
+  });
+
+  it('walking out takes them off stage (never the last one), and calling them over brings them back', async () => {
+    const story = `${dainE.name} and ${trinaE.name} wait by the mat.`;
+    const reply = (name: string) => `**${name}:** "I am done here."\n⟪ACT leave⟫`;
+    const h = setupDelivery({ story, reply });
+    expect(onStage(h)).toEqual(['dain-aetos', 'trina']);
+    await act(async () => { await h.result.current.onSendToNpcs('Dain, sit down', ['dain-aetos']); });
+    await waitFor(() => expect(onStage(h)).toEqual(['trina']));
+    expect(npcLines(h)[0].content).not.toContain('ACT');
+    // One exit per DM post, and never the last one at the table.
+    await act(async () => { await h.result.current.onSendToNpcs('Trina, stay', ['trina']); });
+    await waitFor(() => expect(h.asked.length).toBe(2));
+    await settle();
+    expect(onStage(h)).toEqual(['trina']);
+    expect(h.asked[1].delivery).not.toContain('⟪ACT leave⟫');
+    act(() => h.result.current.callOver('dain-aetos'));
+    await waitFor(() => expect(onStage(h)).toEqual(['dain-aetos', 'trina']));
+  });
+
+  it('squaring up offers a bout only when the screen can run one, and a hand-over reaches the DM only if sealed', async () => {
+    const story = `${jackE.name} circles the mat. ${trinaE.name} watches.`;
+    const reply = (name: string, n: number) => (n === 1 ? `**${name}:** "Mat. Now."\n⟪ACT square-up⟫` : `**${name}:** "Take it."\n⟪ACT give: a folded order⟫`);
+    const without = setupDelivery({ story, reply });
+    await act(async () => { await without.result.current.onSendToNpcs('Jack, back off', ['jack-barlowe']); });
+    await waitFor(() => expect(without.asked.length).toBe(1));
+    await settle();
+    expect(without.result.current.challenge).toBeNull();
+    expect(without.asked[0].delivery).not.toContain('⟪ACT square-up⟫');
+    without.unmount();
+
+    const h = setupDelivery({ story, reply, sparAvailable: true });
+    await act(async () => { await h.result.current.onSendToNpcs('Jack, back off', ['jack-barlowe']); });
+    await waitFor(() => expect(h.result.current.challenge).toEqual({ key: 'jack-barlowe', name: jackE.name }));
+    expect(h.asked[0].delivery).toContain('⟪ACT square-up⟫');
+    act(() => h.result.current.clearChallenge());
+    expect(h.result.current.challenge).toBeNull();
+    await act(async () => { await h.result.current.onSendToNpcs('Trina, what is that?', ['trina']); });
+    await waitFor(() => expect(npcLines(h).length).toBe(2));
+    const give = npcLines(h)[1];
+    await act(async () => { await h.result.current.chat.toggleSelected(give.id); });
+    await act(async () => { await h.result.current.onSendToDMNow(); });
+    expect(h.sent[0]).toContain(`${trinaE.name} handed Xeyle: a folded order.`);
+    expect(h.sent[0]).not.toContain('squared up'); // that line was not sealed
+  });
+
+  it('a line that matters is written by the story\'s own model; small talk stays on the cheap one', async () => {
+    const withMemory = roster.map(e => (e.key === 'trina' ? { ...e, memories: ['Xeyle shared her rations on the Gauntlet.'] } : e));
+    const h = setupDelivery({ story: `${trinaE.name} waits by the gate, a dagger at her hip.`, entries: withMemory });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Trina, remember the Gauntlet and those rations?', true); });
+    await waitFor(() => expect(h.asked.length).toBe(1));
+    expect(h.asked[0].model).toBeUndefined();
+    h.unmount();
+    const small = setupDelivery({ story: `${jackE.name} smirks from the doorway.` });
+    act(() => small.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await small.result.current.postRiderLine('Jack, you are useless', true); });
+    await waitFor(() => expect(small.asked.length).toBe(1));
+    expect(small.asked[0].model).toBe('google/gemini-2.5-flash');
+  });
+});
