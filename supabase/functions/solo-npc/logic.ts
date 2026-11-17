@@ -3,6 +3,8 @@
 // - remember: after a DM post, each roster NPC in the scene keeps at most one memory of the rider
 //   and moves its attitude at most one step.
 // - build: Quick Build turns a short description into a custom NPC.
+// - judge: reads one rider line at the Live Table for what word lists miss (sarcasm, veiled
+//   threats, taking a side) and which stored memory it touches. It only reports; nothing is saved.
 // The phone keeps the results (table solo_npcs); this function only asks the model.
 
 export const MAX_SCENE_CHARS = 6000;
@@ -175,4 +177,103 @@ export function readBuildResult(toolInput: Record<string, unknown> | null): Cust
     attitude: clampAttitude(toolInput.attitude),
     fight: toolInput.can_fight === false ? null : { kind, challenge },
   };
+}
+
+// ── judge (urge meter, Tier 3) ──
+
+export const MAX_JUDGE_LINE_CHARS = 600;
+export const MAX_JUDGE_HEARD_CHARS = 1500;
+export const MAX_JUDGE_MEMORIES = 8;
+export const JUDGE_READS = ["none", "insult", "mockery", "threat", "praise", "flirt", "secret_probe", "support", "challenge"] as const;
+export const JUDGE_TONES = ["neutral", "heated", "calm", "joking"] as const;
+export type JudgeRead = (typeof JUDGE_READS)[number];
+export type JudgeTone = (typeof JUDGE_TONES)[number];
+
+export interface JudgeNpc { key: string; name: string; personality: string; attitude: number; memories: string[] }
+export interface JudgeInput { riderName: string; line: string; heard: string; huddle: boolean; npcs: JudgeNpc[] }
+
+export function readJudgeInput(body: Record<string, unknown>): JudgeInput | null {
+  const line = text(body.line, MAX_JUDGE_LINE_CHARS);
+  if (!line || !Array.isArray(body.npcs)) return null;
+  const npcs: JudgeNpc[] = [];
+  for (const raw of body.npcs.slice(0, MAX_NPCS_PER_SCENE)) {
+    const n = raw as Record<string, unknown>;
+    const key = text(n?.key, 80);
+    const name = text(n?.name, 80);
+    if (!key || !name || npcs.some((x) => x.key === key)) continue;
+    npcs.push({ key, name, personality: text(n.personality, 300), attitude: clampAttitude(n.attitude), memories: list(n.memories, MAX_JUDGE_MEMORIES, MAX_MEMORY_CHARS) });
+  }
+  if (!npcs.length) return null;
+  const heard = typeof body.heard === "string" ? body.heard.trim().slice(-MAX_JUDGE_HEARD_CHARS) : "";
+  return { riderName: text(body.riderName, 80) || "the rider", line, heard, huddle: body.huddle === true, npcs };
+}
+
+export const JUDGE_TOOL = {
+  name: "judge_line",
+  description: "Report how the rider's line lands on each listed NPC.",
+  input_schema: {
+    type: "object",
+    properties: {
+      tone: { type: "string", enum: [...JUDGE_TONES], description: "The overall tone of the rider's line." },
+      sides_with: { type: "string", description: "The key of the one NPC the rider is clearly backing against another, or an empty string." },
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            key: { type: "string", description: "The NPC's key, exactly as given." },
+            read: { type: "string", enum: [...JUDGE_READS], description: "How the line lands on this NPC. Most lines are none." },
+            strength: { type: "integer", enum: [1, 2, 3], description: "1 faint, 2 clear, 3 strong." },
+            memory: { type: "integer", description: "The number of the one memory of theirs this line clearly touches, or 0 for none." },
+          },
+          required: ["key", "read", "strength", "memory"],
+        },
+      },
+    },
+    required: ["tone", "sides_with", "items"],
+  },
+};
+
+export function judgeSystem(input: JudgeInput): string {
+  const roster = input.npcs.map((n) => {
+    const mem = n.memories.length ? ` Memories of ${input.riderName}: ${n.memories.map((m, i) => `(${i + 1}) ${m}`).join(" ")}` : "";
+    return `- key "${n.key}": ${n.name}. ${n.personality} Attitude toward ${input.riderName}: ${n.attitude} (-3 hostile … +3 devoted).${mem}`;
+  }).join("\n");
+  return [
+    `You read one line that ${input.riderName} just said at a table of NPCs in a solo Fourth Wing campaign, and report how it lands on each NPC listed. You do not write dialogue.`,
+    input.huddle ? "The NPCs listed are in the middle of a conversation with each other, and the rider has cut in." : "",
+    "Rules:",
+    "- Read for what plain word lists miss: sarcasm, veiled insults and threats, flirting, sincere praise, probing at a secret, backing one NPC against another, a challenge.",
+    "- Judge each NPC by their own personality. Most lines are \"none\". Never invent a slight that is not there.",
+    "- memory: only when the line clearly touches one of that NPC's numbered memories; otherwise 0.",
+    "- sides_with: only when the rider plainly takes one listed NPC's side against another listed NPC; otherwise an empty string.",
+    "- Call judge_line once, with one item per NPC listed.",
+    "",
+    "NPCs:",
+    roster,
+  ].filter((l, i) => l !== "" || i > 1).join("\n");
+}
+
+export interface JudgeItem { key: string; read: JudgeRead; strength: 1 | 2 | 3; memory: number }
+export interface JudgeResult { tone: JudgeTone; sidesWith: string; items: JudgeItem[] }
+
+export function readJudgeResult(toolInput: Record<string, unknown> | null, input: JudgeInput): JudgeResult | null {
+  if (!toolInput) return null;
+  const tone = JUDGE_TONES.find((t) => t === toolInput.tone) ?? "neutral";
+  const side = text(toolInput.sides_with, 80);
+  const raw = Array.isArray(toolInput.items) ? toolInput.items as Array<Record<string, unknown>> : [];
+  const items: JudgeItem[] = [];
+  for (const item of raw) {
+    const key = text(item?.key, 80);
+    const npc = input.npcs.find((n) => n.key === key);
+    if (!npc || items.some((o) => o.key === key)) continue;
+    const read = JUDGE_READS.find((r) => r === item.read) ?? "none";
+    const s = Math.round(Number(item.strength));
+    const strength: 1 | 2 | 3 = s >= 3 ? 3 : s === 2 ? 2 : 1;
+    const m = Math.round(Number(item.memory));
+    const memory = Number.isFinite(m) && m >= 1 && m <= npc.memories.length ? m : 0;
+    if (read === "none" && memory === 0) continue;
+    items.push({ key, read, strength, memory });
+  }
+  return { tone, sidesWith: input.npcs.some((n) => n.key === side) ? side : "", items };
 }

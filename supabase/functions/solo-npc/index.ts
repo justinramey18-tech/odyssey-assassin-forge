@@ -2,6 +2,7 @@
 // Actions:
 // - remember: what each roster NPC in a scene remembers of the rider, and how they feel now.
 // - build: Quick Build, an original NPC from a short description.
+// - judge: how one rider line at the Live Table lands on the NPCs present (reports only).
 // Stateless: the phone stores the results in its own solo_npcs rows. Party Live NPCs (npc-reply,
 // npc-memory) are separate and untouched (INV-N2).
 
@@ -10,6 +11,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { askClaudeThenLovable } from "../_shared/claude.ts";
 import {
   BUILD_TOOL, buildSystem, readBuildInput, readBuildResult, readRememberInput, readRememberResult, REMEMBER_TOOL, rememberSystem,
+  JUDGE_TOOL, judgeSystem, readJudgeInput, readJudgeResult,
 } from "./logic.ts";
 
 const MEMORY_MODEL = "claude-haiku-5-5";
@@ -57,6 +59,19 @@ Deno.serve(async (req: Request) => {
       const npc = asked.ok ? readBuildResult(asked.toolInput) : null;
       if (!npc) return json(502, { error: "Quick Build could not make that NPC. Try again." });
       return json(200, { npc });
+    }
+
+    if (body.action === "judge") {
+      const input = readJudgeInput(body);
+      if (!input) return json(400, { error: "Nothing to judge." });
+      const asked = await askClaudeThenLovable({
+        claudeKey, model: MEMORY_MODEL, system: judgeSystem(input),
+        messages: [{ role: "user", content: `${input.heard ? `AT THE TABLE JUST BEFORE:\n${input.heard}\n\n` : ""}THE RIDER'S LINE:\n${input.line}` }],
+        maxTokens: 500, tag: "[solo-npc judge]", tools: [JUDGE_TOOL], toolName: JUDGE_TOOL.name, timeoutMs: 15_000,
+      });
+      const judged = asked.ok ? readJudgeResult(asked.toolInput, input) : null;
+      if (!judged) return json(asked.status === 429 ? 429 : 502, { error: "The line could not be judged." });
+      return json(200, { judged });
     }
 
     return json(400, { error: "Unknown action." });
