@@ -319,6 +319,8 @@ export function EmpyreanDMScreen({
   useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
   const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
   const [signetPickerOpen, setSignetPickerOpen] = useState(false);
+  // One chat: the Live Table draws its lines here, inside the story's own list.
+  const [tableFeedHost, setTableFeedHost] = useState<HTMLDivElement | null>(null);
   const signetUsedThisRoundRef = useRef(false);
   const lastProcessedMsgIdRef = useRef<string | null>(null);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
@@ -2223,6 +2225,19 @@ ${oocLines}`;
               )}
             </button>
           )}
+          {/* Unread dragon whispers: unread ones cost trust over time, so they stay in sight (the dragon is on the right wall). */}
+          {!isUnbonded && dragonBond.bondState.unreadDragonMessages.length > 0 && (
+            <Button
+              variant="ghost"
+              onClick={() => handleNavTabChange('oracle')}
+              className="inline-flex items-center gap-1 h-auto min-h-[40px] px-2 rounded-full border border-primary/40 bg-primary/10 text-xs font-semibold text-primary"
+              style={{ touchAction: 'manipulation' }}
+              aria-label={`${dragonBond.bondState.unreadDragonMessages.length} unread from your dragon. Open the dragon chat`}
+            >
+              <span aria-hidden="true">🐉</span>
+              {dragonBond.bondState.unreadDragonMessages.length}
+            </Button>
+          )}
           {pendingLoot.length > 0 && (
             <Button variant="ghost"
               onClick={() => setLootOpen(true)}
@@ -2352,6 +2367,19 @@ ${oocLines}`;
                 )}
               </button>
             )}
+            {/* Unread dragon whispers: unread ones cost trust over time, so they stay in sight (the dragon is on the right wall). */}
+            {!isUnbonded && dragonBond.bondState.unreadDragonMessages.length > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => handleNavTabChange('oracle')}
+                className="inline-flex items-center gap-1 h-auto min-h-[40px] px-2 rounded-full border border-primary/40 bg-primary/10 text-xs font-semibold text-primary"
+                style={{ touchAction: 'manipulation' }}
+                aria-label={`${dragonBond.bondState.unreadDragonMessages.length} unread from your dragon. Open the dragon chat`}
+              >
+                <span aria-hidden="true">🐉</span>
+                {dragonBond.bondState.unreadDragonMessages.length}
+              </Button>
+            )}
             {pendingLoot.length > 0 && (
               <Button variant="ghost"
                 onClick={() => setLootOpen(true)}
@@ -2438,6 +2466,8 @@ ${oocLines}`;
             onBag={() => handleNavTabChange('actions')}
             onSheet={() => setCharacterSheetOpen(true)}
             onTools={() => setShowToolsDrawer(true)}
+            dragonUnread={isUnbonded ? 0 : dragonBond.bondState.unreadDragonMessages.length}
+            onDirector={handleAskDirector}
           />
         )}
       >
@@ -2791,6 +2821,9 @@ ${oocLines}`;
           );
         })}
 
+        {/* One chat: this round's Live Table lines (the rider's and the NPCs') continue the story here. */}
+        <div ref={setTableFeedHost} />
+
         {/* Streaming indicator */}
         {isLoading && !showSlideshow && (cinematicModeEnabled || messages[messages.length - 1]?.role !== 'assistant') && (
           <div className="mb-3 flex justify-start">
@@ -2851,51 +2884,6 @@ ${oocLines}`;
         </div>
       )}
 
-      {/* Bottom Navigation */}
-      <DMBottomNav
-        activeTab={activeNavTab}
-        onTabChange={handleNavTabChange}
-        isExpanded={navExpanded}
-        onExpandedChange={setNavExpanded}
-        disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
-        hideDice={true}
-        hideAfk={true}
-        hidePrompts={true}
-        hideActions={false}
-        hideSettings={true}
-        showCharacterSheet={false}
-        onCharacterSheet={() => setCharacterSheetOpen(true)}
-        notchLabelOverride={config?.dragonName ? config.dragonName.toUpperCase() : undefined}
-        notchIconOverride="🐉"
-        oracleLabel={isUnbonded ? 'UNBONDED' : (config?.dragonName ? config.dragonName.toUpperCase() : 'DRAGON')}
-        oracleColor={isUnbonded ? 'text-red-400/50' : (() => {
-          const mood = dragonBond.bondState.mood;
-          if (mood === 'alert') return 'text-amber-400';
-          if (mood === 'protective') return 'text-blue-400';
-          if (mood === 'distant') return 'text-slate-500';
-          if (mood === 'ancestral') return 'text-purple-400';
-          if (mood === 'playful') return 'text-emerald-400';
-          return 'text-cyan-400';
-        })()}
-        oracleActiveBg={isUnbonded ? 'bg-red-500/5' : (() => {
-          const mood = dragonBond.bondState.mood;
-          if (mood === 'alert') return 'bg-amber-500/10';
-          if (mood === 'protective') return 'bg-blue-500/10';
-          if (mood === 'distant') return 'bg-slate-500/10';
-          if (mood === 'ancestral') return 'bg-purple-500/10';
-          if (mood === 'playful') return 'bg-emerald-500/10';
-          return 'bg-cyan-500/10';
-        })()}
-        oracleCount={isUnbonded ? 0 : dragonBond.bondState.unreadDragonMessages.length}
-        diceContent={activeNavTab === 'dice' ? (
-          <DMDiceRoller
-            characterContext={characterContext}
-            onRollResult={handleAppendPrompt}
-            disabled={isLoading}
-          />
-        ) : undefined}
-      />
-
       {/* Autopilot decision cards */}
       {autopilot.isAutopilotActive && autopilot.currentChoices.length > 0 && (
         <div className="shrink-0 px-3 py-2.5 bg-purple-950/40 border-t border-purple-500/15">
@@ -2952,62 +2940,6 @@ ${oocLines}`;
         </div>
       )}
 
-      {/* Contextual Actions + Ask Director shortcut */}
-      {messages.length > 0 && config && (
-        <div className="flex items-stretch gap-1.5">
-          <div className="flex-1 min-w-0">
-            <EmpyreanContextualActions
-              situation={currentSituation}
-              characterName={config?.characterName || characterName}
-              dragonName={config?.dragonName || ''}
-              signetType={config?.signetType || ''}
-              onAction={(prompt) => {
-                toTable(prompt);
-                setActiveNavTab(null);
-              }}
-              disabled={isLoading || (!isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout)}
-              isUnbonded={isUnbonded}
-              currentBurnout={burnoutLevel}
-              maxBurnout={maxBurnout}
-              onArmSignet={(intensity) => {
-                setArmedSignetIntensity(intensity);
-                toast(`🔥 Signet armed at intensity ${intensity}. Your next action channels it.`);
-              }}
-              fetchMasterworkPills={async (category, situationLabel) => {
-                const recentAssistantMessages = messages.filter(m => m.role === 'assistant').slice(-2);
-                const recentNarrative = recentAssistantMessages.map(m => m.content).join('\n\n').slice(0, 2500);
-                if (!recentNarrative.trim()) {
-                  throw new Error('No recent narrative to riff on yet.');
-                }
-                const { data, error } = await supabase.functions.invoke('empyrean-masterwork-pills', {
-                  body: {
-                    category,
-                    situation_label: situationLabel,
-                    recent_narrative: recentNarrative,
-                    character_name: config?.characterName || characterName,
-                    dragon_name: config?.dragonName || '',
-                    signet_type: config?.signetType || '',
-                  },
-                });
-                if (error) throw error;
-                if (data?.error) throw new Error(data.error);
-                if (!Array.isArray(data?.pills)) throw new Error('Invalid response from masterwork generator.');
-                return data.pills;
-              }}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleAskDirector}
-            aria-label="Ask the Director"
-            className="shrink-0 self-center mr-3 w-10 h-10 rounded-full border border-red-500/40 bg-red-500/15 text-red-300 hover:bg-red-500/25 active:bg-red-500/35 transition-colors flex items-center justify-center"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <HelpCircle className="w-5 h-5" />
-          </button>
-        </div>
-      )}
-
         {npcSceneConfig?.active && (
           <div className="flex items-center justify-center gap-2 py-1.5 bg-cyan-950/30 border-t border-cyan-500/20">
             <Loader2 className="w-3 h-3 text-cyan-400 animate-spin" />
@@ -3024,11 +2956,11 @@ ${oocLines}`;
           </div>
         )}
 
-      {/* The Live Table is the only way to play (like party mode): the Send to DM bar, then the
-          PLAY dock, above the fixed DMBottomNav (~54px collapsed height). No filter or transform
-          on this wrapper: the open table is position fixed and must cover the whole screen. */}
+      {/* One chat: the Send to DM bar, then the Live Table's composer. Its lines are drawn in the
+          story above (storyFeedHost). The bottom navigation and the pills are gone: their jobs are
+          big buttons on the round room's walls. */}
       <div className={cn(
-        "shrink-0 pb-[60px]",
+        "shrink-0",
         tableLocked && "pointer-events-none opacity-40 select-none"
       )}>
         {isLoading && liveTable.thinking.length === 0 && (
@@ -3053,6 +2985,7 @@ ${oocLines}`;
         />
         <RoundChatDrawer
           ref={liveTableRef}
+          storyFeedHost={tableFeedHost}
           messages={liveTable.chat.messages}
           reactions={liveTable.chat.reactions}
           currentUserId={liveUserId || 'arena-player'}
