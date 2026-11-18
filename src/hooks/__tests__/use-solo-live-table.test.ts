@@ -204,6 +204,33 @@ describe('solo Live Table hook', () => {
     expect(ok.result.current.chat.messages.find(m => m.id === id)?.consumed).toBe(true);
   });
 
+  it('Send to DM removes the lines left unsealed, only when the DM replied, and keeps lines posted while the DM writes', async () => {
+    const failed = setup({ replied: false });
+    let sealed = '';
+    let loose = '';
+    await act(async () => { loose = (await failed.result.current.chat.postLine('An old line I never sealed.', true)) || ''; });
+    await act(async () => { sealed = (await failed.result.current.chat.postLine('I draw my dagger.', true)) || ''; });
+    await act(async () => { await failed.result.current.chat.toggleSelected(sealed); });
+    await act(async () => { await failed.result.current.onSendToDMNow(); });
+    expect(failed.result.current.chat.messages.some(m => m.id === loose)).toBe(true);
+
+    let late = '';
+    const ok = setup({ replied: true });
+    ok.sendToDm.mockImplementation(async () => {
+      late = (await ok.result.current.chat.postLine('Said while the DM was writing.', true)) || '';
+      return true;
+    });
+    await act(async () => { loose = (await ok.result.current.chat.postLine('An old line I never sealed.', true)) || ''; });
+    await act(async () => { sealed = (await ok.result.current.chat.postLine('I draw my dagger.', true)) || ''; });
+    await act(async () => { await ok.result.current.chat.toggleSelected(sealed); });
+    await act(async () => { await ok.result.current.onSendToDMNow(); });
+    const [prompt] = ok.sendToDm.mock.calls[0] as unknown as [string];
+    expect(prompt).toBe('[Xeyle]: I draw my dagger.');
+    expect(ok.result.current.chat.messages.some(m => m.id === loose)).toBe(false);
+    expect(ok.result.current.chat.messages.find(m => m.id === sealed)?.consumed).toBe(true);
+    expect(ok.result.current.chat.messages.find(m => m.id === late)?.consumed).toBe(false);
+  });
+
   it('keeps the table on the phone per campaign', async () => {
     const first = setup({ storageKey: 'solo-live-table:camp-1' });
     await act(async () => { await first.result.current.chat.postLine('Remember me.', true); });
@@ -466,6 +493,20 @@ describe('urge upgrades: memory, whispers, taste, rank, questions, energy', () =
     await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id === 'jack-barlowe')).toBe(true));
     await act(async () => { await h.result.current.chat.clearAllMessages(); });
     await settle();
+    expect(h.result.current.urge.learned).toEqual({});
+  });
+
+  it('Send to DM removing an unsealed offered line teaches nothing', async () => {
+    const h = setupUp({ story: `${jackE.name} smirks from the doorway.` });
+    act(() => h.result.current.setTableOpen(true));
+    vi.setSystemTime(Date.now() + 60_000);
+    await act(async () => { await h.result.current.postRiderLine('Jack, you are useless', true); });
+    await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id === 'jack-barlowe')).toBe(true));
+    const mine = h.result.current.chat.messages.find(m => !m.npc_id);
+    await act(async () => { await h.result.current.chat.toggleSelected(mine?.id ?? ''); });
+    await act(async () => { await h.result.current.onSendToDMNow(); });
+    await settle();
+    expect(h.result.current.chat.messages.some(m => m.npc_id === 'jack-barlowe')).toBe(false);
     expect(h.result.current.urge.learned).toEqual({});
   });
 

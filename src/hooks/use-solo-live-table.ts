@@ -1333,6 +1333,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const full = [prompt, talk.length ? `TABLE TALK (out of character)\n${talk.join('\n')}` : ''].filter(Boolean).join('\n\n');
     if (!full) { toast('Seal a line first', { description: 'Tick the lines that really happened, then Send to DM.' }); return; }
     const selected = chat.orderedSelected;
+    // Lines left unsealed when the rider taps Send to DM: removed once the DM replies, so they never carry into the next round.
+    const leftUnsealed = chat.pendingMessages.filter(m => !m.selected).map(m => m.id);
     // A huddle still running ends here, so the note below can tell the DM how it went.
     endHuddleRef.current('interrupted');
     const nameOf = (k: string) => npcsRef.current.entry(k)?.name ?? k;
@@ -1374,6 +1376,12 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         lastHuddleReportRef.current = null;
         actionLogRef.current = [];
         await chat.consumePending();
+        // Not a verdict on the NPC: forget these lines first, so removing them never counts as the rider deleting an unprompted line.
+        for (const id of leftUnsealed) {
+          seenUnpromptedRef.current.delete(id);
+          unpromptedIdsRef.current.delete(id);
+          await chat.deleteMessage(id);
+        }
         // Everything on the table has now been dealt with: the unread badge on the PLAY button starts again from zero.
         void chat.markRead(new Date().toISOString());
       }
