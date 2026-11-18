@@ -1,6 +1,6 @@
 // Solo Empyrean round room: what hangs on each wall. Every button opens a screen that already
 // exists; nothing here holds game state.
-import { BookOpen, Backpack, Flame, HeartHandshake, Map as MapIcon, PackageOpen, ScrollText, Tent, User, Users } from 'lucide-react';
+import { BookOpen, Backpack, Flame, HeartHandshake, HelpCircle, Map as MapIcon, PackageOpen, ScrollText, Tent, User, Users } from 'lucide-react';
 import { RoomButton } from '@/components/empyrean/SoloRoom';
 
 export interface SoloWorldWallProps {
@@ -39,6 +39,10 @@ export interface SoloRiderWallProps {
   toolsAlert?: boolean;
   /** Tap Signet: choose an intensity, or lower an armed signet. */
   onSignet?: () => void;
+  /** Dragon whispers not read yet (a count on the dragon's button). */
+  dragonUnread?: number;
+  /** Ask the Director (out-of-story help). The button shows only when this is given. */
+  onDirector?: () => void;
   onDragon: () => void;
   onBond: () => void;
   onBag: () => void;
@@ -47,11 +51,11 @@ export interface SoloRiderWallProps {
 }
 
 /** Right wall: the rider's own things. */
-export function SoloRiderWall({ dragonName, bonded, signet, toolsAlert, onSignet, onDragon, onBond, onBag, onSheet, onTools }: SoloRiderWallProps) {
+export function SoloRiderWall({ dragonName, bonded, signet, toolsAlert, onSignet, dragonUnread, onDirector, onDragon, onBond, onBag, onSheet, onTools }: SoloRiderWallProps) {
   const burnedOut = !!signet && signet.armed == null && signet.strain >= signet.max;
   return (
     <>
-      <RoomButton label={bonded && dragonName ? dragonName : 'Dragon'} detail={bonded ? 'Speak mind to mind' : 'Unbonded'}
+      <RoomButton label={bonded && dragonName ? dragonName : 'Dragon'} detail={bonded ? 'Speak mind to mind' : 'Unbonded'} badge={bonded ? dragonUnread : undefined}
         icon={<span aria-hidden="true" className="text-4xl leading-none">🐉</span>} onClick={onDragon} />
       {signet && onSignet && (
         <RoomButton label="Signet" icon={<Flame />} disabled={burnedOut} onClick={onSignet}
@@ -61,6 +65,7 @@ export function SoloRiderWall({ dragonName, bonded, signet, toolsAlert, onSignet
       <RoomButton label="Bag" detail="Items and actions" icon={<Backpack />} onClick={onBag} />
       <RoomButton label="Sheet" icon={<User />} onClick={onSheet} />
       <RoomButton label="Tools" detail="Saves, notes, world" alert={toolsAlert} icon={<BookOpen />} onClick={onTools} />
+      {onDirector && <RoomButton label="Director" detail="Ask for help" icon={<HelpCircle />} onClick={onDirector} />}
     </>
   );
 }

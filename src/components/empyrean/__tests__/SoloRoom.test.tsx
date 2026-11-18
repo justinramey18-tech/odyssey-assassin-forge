@@ -53,6 +53,18 @@ describe('solo round room', () => {
     expect(screen.getByLabelText('Dragon. Unbonded')).toBeTruthy();
   });
 
+  it('the dragon button counts unread whispers for a bonded rider, and Director shows only when wired', () => {
+    const onDirector = vi.fn();
+    const r = render(<SoloRiderWall {...rider({ dragonUnread: 2, onDirector })} />);
+    expect(screen.getByLabelText('Tairn. Speak mind to mind').textContent).toContain('2');
+    fireEvent.click(screen.getByLabelText('Director. Ask for help'));
+    expect(onDirector).toHaveBeenCalledTimes(1);
+    r.unmount();
+    render(<SoloRiderWall {...rider({ bonded: false, dragonName: '', dragonUnread: 2 })} />);
+    expect(screen.getByLabelText('Dragon. Unbonded').textContent).not.toContain('2');
+    expect(screen.queryByText('Director')).toBeNull();
+  });
+
   it('the Signet button shows strain, an armed intensity or burned out, and is hidden without a signet', () => {
     const onSignet = vi.fn();
     const ready = render(<SoloRiderWall {...rider({ signet: { armed: null, strain: 2, max: 8 }, onSignet })} />);
