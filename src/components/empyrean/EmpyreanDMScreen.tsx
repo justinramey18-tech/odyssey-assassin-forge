@@ -49,6 +49,7 @@ import EmpyreanContextualActions from '@/components/empyrean/EmpyreanContextualA
 import DragonBondChat from '@/components/empyrean/DragonBondChat';
 import { useGMGuides } from '@/hooks/use-gm-guides';
 import empyreanDmBg from '@/assets/empyrean-dm-bg.jpg';
+import empyreanRoomWallpaper from '@/assets/empyrean-room-wallpaper.jpg';
 import { useDMGameState, buildMemoryAnchorsPrompt } from '@/hooks/use-dm-game-state';
 import { useNPCAutocomplete } from '@/hooks/use-npc-autocomplete';
 import { usePromptDrawers } from '@/components/drawers/PromptDrawerProvider';
@@ -2418,6 +2419,7 @@ ${oocLines}`;
         leftLabel="The College"
         rightLabel="Rider and Dragon"
         homeKey={messages.length}
+        wallpaper={empyreanRoomWallpaper}
         left={(
           <SoloWorldWall
             camp={rules.active && rules.snapshot ? {
@@ -2485,7 +2487,7 @@ ${oocLines}`;
               backgroundImage: `url(${empyreanDmBg})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              opacity: 0.18,
+              opacity: 0,
             }} />
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
           </div>
