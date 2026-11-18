@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DELIVERY_RULES, deliveryBlock, isKeyLine, measureLine, moodFacts, readNotes, readTurn, samenessNote, type LineShape } from '@/lib/npc-delivery';
+import {
+  DELIVERY_RULES, SHAPE_BANDS, bandOf, deliveryBlock, fitToShape, isKeyLine, measureLine, moodFacts, partsNote, planTurn, readNotes, readShapes,
+  readTurn, samenessNote, shapeAsk, stripSpeaker, type LengthBand, type LineShape, type ShapeInput, type TurnShape,
+} from '@/lib/npc-delivery';
 import { VOICES, voiceFor } from '@/lib/empyreanCanon/castNpcs/voice';
 import { TEMPERAMENTS } from '@/lib/empyreanCanon/castNpcs/temperament';
 
@@ -132,5 +135,134 @@ describe('what the NPC is told', () => {
     expect(isKeyLine({ reasons: [], heat: 4 })).toBe(true);
     expect(isKeyLine({ reasons: [], beat: 'turn-to-rider' })).toBe(true);
     expect(isKeyLine({ reasons: [], memory: true })).toBe(true);
+  });
+});
+
+describe('the shape of a turn is chosen by the app', () => {
+  // A fixed sequence of random numbers, so the runs below are the same every time.
+  const seeded = (seed: number) => () => {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const base = (over: Partial<ShapeInput> = {}): ShapeInput => ({
+    key: 'ridoc', history: [], style: 'normal', stir: 0.3, directQuestion: false, closing: false, whisper: false, riderWords: 12, needsRoom: false, roll: seeded(7), ...over,
+  });
+  /** One NPC speaking n turns in a row, each turn written to the middle of the shape it was given. */
+  const run = (n: number, over: Partial<ShapeInput> = {}): TurnShape[] => {
+    const roll = seeded(11);
+    let history: LineShape[] = [];
+    const shapes: TurnShape[] = [];
+    for (let i = 0; i < n; i++) {
+      const shape = planTurn(base({ ...over, history, roll }));
+      shapes.push(shape);
+      history = [...history, { key: 'ridoc', words: Math.round((shape.minWords + shape.maxWords) / 2), beat: shape.beat, parts: [] }].slice(-12);
+    }
+    return shapes;
+  };
+
+  it('over many turns one NPC uses every length, never the same length three times running, and moves the movement around', () => {
+    const shapes = run(300);
+    const bands = new Set(shapes.map(s => s.band));
+    expect([...bands].sort()).toEqual(['couple', 'few', 'long', 'one', 'silent']);
+    for (let i = 2; i < shapes.length; i++) {
+      expect(shapes[i].band === shapes[i - 1].band && shapes[i].band === shapes[i - 2].band).toBe(false);
+      const b = shapes[i].beat;
+      if (b !== 'only') expect(b === shapes[i - 1].beat && b === shapes[i - 2].beat).toBe(false);
+    }
+    const share = (band: LengthBand) => shapes.filter(s => s.band === band).length / shapes.length;
+    expect(share('long')).toBeLessThan(0.3);
+    expect(share('few') + share('one')).toBeGreaterThan(0.4);
+    expect(new Set(shapes.filter(s => s.band !== 'silent').map(s => s.beat)).size).toBe(4);
+    for (const s of shapes) {
+      expect(s.minWords).toBe(SHAPE_BANDS[s.band].min);
+      expect(s.maxWords).toBe(SHAPE_BANDS[s.band].max);
+      expect(s.band === 'silent' ? s.beat === 'only' : s.beat !== 'only').toBe(true);
+    }
+  });
+
+  it('the moment bends the odds: a direct question always gets words, a closing line or a whisper is never long, quiet people say less than loud ones', () => {
+    expect(run(200, { directQuestion: true }).some(s => s.band === 'silent')).toBe(false);
+    expect(run(200, { needsRoom: true }).some(s => s.band === 'silent')).toBe(false);
+    expect(run(200, { closing: true }).some(s => s.band === 'long')).toBe(false);
+    expect(run(200, { whisper: true }).some(s => s.band === 'long')).toBe(false);
+    const mean = (shapes: TurnShape[]) => shapes.reduce((sum, s) => sum + (s.minWords + s.maxWords) / 2, 0) / shapes.length;
+    expect(mean(run(300, { style: 'quiet' }))).toBeLessThan(mean(run(300, { style: 'loud' })) - 5);
+  });
+
+  it('steers away from what this NPC and the table just did', () => {
+    const long = (key: string): LineShape => ({ key, words: 60, beat: 'mid', parts: [] });
+    // Two long turns in a row: a third long one is impossible, whatever the dice say.
+    for (const r of [0, 0.25, 0.5, 0.75, 0.999]) {
+      const s = planTurn(base({ history: [long('ridoc'), long('ridoc')], roll: () => r }));
+      expect(s.band).not.toBe('long');
+      expect(s.beat).not.toBe('mid');
+    }
+    expect(bandOf(0)).toBe('silent');
+    expect(bandOf(6)).toBe('few');
+    expect(bandOf(18)).toBe('one');
+    expect(bandOf(40)).toBe('couple');
+    expect(bandOf(41)).toBe('long');
+  });
+
+  it('tells the NPC the shape in plain numbers, in place of the free-length rule', () => {
+    const few: TurnShape = { band: 'few', minWords: 1, maxWords: 6, beat: 'none' };
+    expect(shapeAsk(few)).toContain('between 1 and 6 spoken words');
+    expect(shapeAsk(few)).toContain('words only, nothing in italics');
+    expect(shapeAsk({ band: 'silent', minWords: 0, maxWords: 0, beat: 'only' })).toContain('no spoken words at all');
+    expect(shapeAsk({ band: 'long', minWords: 41, maxWords: 90, beat: 'after' })).toContain('41 to 90 spoken words');
+    const d = { name: 'Ridoc Gamlyn', riderName: 'Kylar', voice: { rhythm: 'quick', register: 'jokes', shows: 'hands', tell: 'too many jokes' }, mood: 'calm', note: null, sameness: '', directQuestion: false, riderWords: 9, whisper: false, outranked: false, condition: '', closing: false, actions: { leave: false, between: false, squareUp: false, give: false }, insight: false };
+    const shaped = deliveryBlock({ ...d, shape: few });
+    expect(shaped).toContain("THIS TURN'S SHAPE");
+    expect(shaped).toContain('never the shape of their past lines');
+    expect(shaped).not.toContain('Length is whatever is true to the moment');
+    expect(shaped).not.toContain(`At most ${DELIVERY_RULES.maxWords} words`);
+    expect(deliveryBlock(d)).toContain('Length is whatever is true to the moment');
+  });
+
+  it('trims a turn that badly overshoots its shape at the end of a sentence, and leaves the rest alone', () => {
+    const ridoc = '*He pops up from his ridiculous stealth crouch, dusting off his knees.* "Distraction it is. Prepare to witness a masterclass in pathetic desperation. I am going to ask him where the latrines are, and if he does not buy it, I will just start crying. Nobody wants to deal with a weeping first-year." *He flashes a quick, brittle grin.* "You have got maybe ten seconds once I start talking. If I die for this, tell my mother I was magnificent."';
+    const one: TurnShape = { band: 'one', minWords: 7, maxWords: 18, beat: 'before' };
+    const cut = fitToShape(ridoc, one);
+    expect(cut.startsWith('*He pops up from his ridiculous stealth crouch, dusting off his knees.* "Distraction it is.')).toBe(true);
+    expect(measureLine('ridoc', cut).words).toBeLessThanOrEqual(21);
+    expect(measureLine('ridoc', cut).words).toBeGreaterThanOrEqual(3);
+    expect((cut.match(/"/g) || []).length % 2).toBe(0);
+    expect(cut).not.toContain('magnificent');
+    // Inside the shape, or only a little over: untouched.
+    expect(fitToShape(ridoc, { band: 'long', minWords: 41, maxWords: 90, beat: 'mid' })).toBe(ridoc);
+    const short = '"Sunset bell. Do not be late."';
+    expect(fitToShape(short, { band: 'few', minWords: 1, maxWords: 6, beat: 'none' })).toBe(short);
+    expect(fitToShape(ridoc, null)).toBe(ridoc);
+    // One very long sentence is never cut in half.
+    const breathless = '"I went down there and I looked and I counted every crate twice and I swear on my mother there was nothing in any of them but dust and one very old boot"';
+    expect(fitToShape(breathless, { band: 'few', minWords: 1, maxWords: 6, beat: 'none' })).toBe(breathless);
+  });
+
+  it('never trims away the sense line or a roll request that follows the turn', () => {
+    const body = '"No. I was nowhere near the armory. I was in the mess hall the whole evening with half the squad. Ask any of them. Ask Rhiannon. Ask the cook, he will remember me, I dropped a whole tray."';
+    const few: TurnShape = { band: 'few', minWords: 1, maxWords: 6, beat: 'none' };
+    const withSense = fitToShape(`${body}\n*(You sense: he is lying about the mess hall)*`, few);
+    expect(withSense.startsWith('"No.')).toBe(true);
+    expect(withSense).not.toContain('Rhiannon');
+    expect(withSense.endsWith('*(You sense: he is lying about the mess hall)*')).toBe(true);
+    const withRoll = fitToShape(`${body} ⟪ROLL⟫{"check":"Insight","dc":12}⟪/ROLL⟫`, few);
+    expect(withRoll).not.toContain('Rhiannon');
+    expect(withRoll.endsWith('⟪ROLL⟫{"check":"Insight","dc":12}⟪/ROLL⟫')).toBe(true);
+  });
+
+  it('drops the bold name from the start of a turn, reports worn body parts only, and reads saved shapes safely', () => {
+    expect(stripSpeaker('**Ridoc Gamlyn:** "I swear to the gods."')).toBe('"I swear to the gods."');
+    expect(stripSpeaker('"No name here."')).toBe('"No name here."');
+    const h: LineShape[] = [
+      { key: 'a', words: 60, beat: 'mid', parts: ['hands'] }, { key: 'a', words: 60, beat: 'mid', parts: ['hands'] }, { key: 'a', words: 60, beat: 'mid', parts: [] },
+    ];
+    expect(partsNote('a', h)).toContain('hands');
+    expect(partsNote('a', h)).not.toContain('shorter');
+    expect(partsNote('b', h)).toBe('');
+    expect(readShapes(h)).toEqual(h);
+    expect(readShapes([{ key: 'a', words: 'many' }, null, { key: 'a', words: 3.6, beat: 'sideways', parts: 'x' }])).toEqual([{ key: 'a', words: 4, beat: 'none', parts: [] }]);
+    expect(readShapes('nope')).toEqual([]);
   });
 });
