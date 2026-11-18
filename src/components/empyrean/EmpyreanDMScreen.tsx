@@ -160,6 +160,7 @@ import { hubUnlocks, questCardsFor, standingFactsLine } from '@/lib/empyrean-que
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
 import { SoloRoom } from '@/components/empyrean/SoloRoom';
+import { SignetIntensitySelector } from '@/components/empyrean/SignetIntensitySelector';
 import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
 import { normalizeWorldState } from '@/lib/quests';
@@ -317,6 +318,7 @@ export function EmpyreanDMScreen({
   const burnoutLevelRef = useRef(burnoutLevel);
   useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
   const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
+  const [signetPickerOpen, setSignetPickerOpen] = useState(false);
   const signetUsedThisRoundRef = useRef(false);
   const lastProcessedMsgIdRef = useRef<string | null>(null);
   const [currentSituation, setCurrentSituation] = useState<string>('exploration');
@@ -2207,7 +2209,20 @@ ${oocLines}`;
               <NarrationSpeedPopover iconSize="w-5 h-5" />
             </>
           )}
-          <EmpyreanEngineButtons rules={rules} mapReady={soloMap.ready} onCamp={() => setCampOpen(true)} onMap={() => setMapOpen(true)} />
+          {/* The clock (opens Camp). Everything else that sat here is a big button on the room's walls. */}
+          {rules.active && rules.snapshot && (
+            <button
+              onClick={() => setCampOpen(true)}
+              className="relative inline-flex items-center min-h-[40px] px-2 text-[11px] text-muted-foreground whitespace-nowrap"
+              style={{ touchAction: 'manipulation' }}
+              aria-label={`${rules.snapshot.clock}. Open Camp`}
+            >
+              {rules.snapshot.clock.replace(', ', ' · ')}
+              {(rules.snapshot.rules.injuries.length > 0 || rules.snapshot.rules.conditions.length > 0 || rules.snapshot.rules.unmetNeeds.length > 0) && (
+                <span className="absolute top-1.5 right-0.5 w-2 h-2 rounded-full bg-destructive" aria-hidden="true" />
+              )}
+            </button>
+          )}
           {pendingLoot.length > 0 && (
             <Button variant="ghost"
               onClick={() => setLootOpen(true)}
@@ -2220,39 +2235,19 @@ ${oocLines}`;
               <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">{pendingLoot.length}</span>
             </Button>
           )}
-          <Button variant="ghost"
-            onClick={() => setRosterOpen(true)}
-            className="empyrean-rune-btn"
-            style={{ touchAction: 'manipulation' }}
-            aria-label="People"
-            title="People"
-          >
-            <Users className="w-5 h-5 text-primary" />
-          </Button>
-          <button
-            onClick={() => setQuestHubOpen(true)}
-            className="empyrean-rune-btn"
-            style={{ touchAction: 'manipulation' }}
-            aria-label="Quest Hub"
-            title="Quest Hub"
-          >
-            <ScrollText className="w-5 h-5 text-amber-300" />
-          </button>
-          <Button variant="ghost"
-            onClick={() => setBondScreenOpen(true)}
-            className="empyrean-rune-btn"
-            style={{ touchAction: 'manipulation' }}
-            aria-label="Bond"
-            title="Bond"
-          >
-            <HeartHandshake className="w-5 h-5 text-primary" />
-          </Button>
-          <button
-            onClick={() => setShowToolsDrawer(true)}
-            className="empyrean-rune-btn"
-          >
-            <BookOpen className="w-5 h-5 text-purple-400" />
-          </button>
+          {/* Unbonded and the Threshing not authorized yet: the way to the tools stays in sight (it is also on the right wall). */}
+          {isUnbonded && !threshingAuthorized && (
+            <button
+              onClick={() => setShowToolsDrawer(true)}
+              className="empyrean-rune-btn"
+              style={{ touchAction: 'manipulation' }}
+              aria-label="DM tools: authorize the Threshing"
+              title="DM tools: authorize the Threshing"
+            >
+              <BookOpen className="w-5 h-5 text-purple-400" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400" aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>}
 
@@ -2343,7 +2338,20 @@ ${oocLines}`;
                 <NarrationSpeedPopover iconSize="w-5 h-5" />
               </>
             )}
-            <EmpyreanEngineButtons rules={rules} mapReady={soloMap.ready} onCamp={() => setCampOpen(true)} onMap={() => setMapOpen(true)} />
+            {/* The clock (opens Camp). Everything else that sat here is a big button on the room's walls. */}
+            {rules.active && rules.snapshot && (
+              <button
+                onClick={() => setCampOpen(true)}
+                className="relative inline-flex items-center min-h-[40px] px-2 text-[11px] text-muted-foreground whitespace-nowrap"
+                style={{ touchAction: 'manipulation' }}
+                aria-label={`${rules.snapshot.clock}. Open Camp`}
+              >
+                {rules.snapshot.clock.replace(', ', ' · ')}
+                {(rules.snapshot.rules.injuries.length > 0 || rules.snapshot.rules.conditions.length > 0 || rules.snapshot.rules.unmetNeeds.length > 0) && (
+                  <span className="absolute top-1.5 right-0.5 w-2 h-2 rounded-full bg-destructive" aria-hidden="true" />
+                )}
+              </button>
+            )}
             {pendingLoot.length > 0 && (
               <Button variant="ghost"
                 onClick={() => setLootOpen(true)}
@@ -2356,45 +2364,19 @@ ${oocLines}`;
                 <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">{pendingLoot.length}</span>
               </Button>
             )}
-            <Button variant="ghost"
-              onClick={() => setRosterOpen(true)}
-              className="empyrean-rune-btn"
-              style={{ touchAction: 'manipulation' }}
-              aria-label="People"
-              title="People"
-            >
-<Users className="w-5 h-5 text-primary" />
-            </Button>
-            <button
-              onClick={() => setQuestHubOpen(true)}
-              className="empyrean-rune-btn"
-              style={{ touchAction: 'manipulation' }}
-              aria-label="Quest Hub"
-              title="Quest Hub"
-            >
-              <ScrollText className="w-5 h-5 text-amber-300" />
-            </button>
-            <Button variant="ghost"
-              onClick={() => setBondScreenOpen(true)}
-              className="empyrean-rune-btn"
-              style={{ touchAction: 'manipulation' }}
-              aria-label="Bond"
-              title="Bond"
-            >
-              <HeartHandshake className="w-5 h-5 text-primary" />
-            </Button>
-            <button
-              onClick={() => setShowToolsDrawer(true)}
-              className="empyrean-rune-btn"
-              style={{ touchAction: 'manipulation' }}
-              aria-label="DM tools"
-              title="DM tools"
-            >
-              <BookOpen className="w-5 h-5 text-purple-400" />
-              {isUnbonded && !threshingAuthorized && (
+            {/* Unbonded and the Threshing not authorized yet: the way to the tools stays in sight (it is also on the right wall). */}
+            {isUnbonded && !threshingAuthorized && (
+              <button
+                onClick={() => setShowToolsDrawer(true)}
+                className="empyrean-rune-btn"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="DM tools: authorize the Threshing"
+                title="DM tools: authorize the Threshing"
+              >
+                <BookOpen className="w-5 h-5 text-purple-400" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400" aria-hidden="true" />
-              )}
-            </button>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -2440,6 +2422,17 @@ ${oocLines}`;
           <SoloRiderWall
             dragonName={config?.dragonName || ''}
             bonded={!isUnbonded}
+            signet={!isUnbonded && maxBurnout > 0 ? { armed: armedSignetIntensity, strain: burnoutLevel, max: maxBurnout } : null}
+            toolsAlert={isUnbonded && !threshingAuthorized}
+            onSignet={() => {
+              if (armedSignetIntensity != null) {
+                setArmedSignetIntensity(null);
+                setSignetPickerOpen(false);
+                toast('Signet lowered. Your next action will not channel it.');
+                return;
+              }
+              setSignetPickerOpen(open => !open);
+            }}
             onDragon={() => handleNavTabChange('oracle')}
             onBond={() => setBondScreenOpen(true)}
             onBag={() => handleNavTabChange('actions')}
@@ -2840,6 +2833,23 @@ ${oocLines}`;
       </div>
 
       </SoloRoom>
+
+      {/* Signet intensity (opened from the Signet button on the room's right wall). In the flow, so it shows wherever the room is turned. */}
+      {signetPickerOpen && !isUnbonded && maxBurnout > 0 && (
+        <div className="shrink-0 px-3 py-2 border-t border-primary/20 bg-background/95">
+          <SignetIntensitySelector
+            currentBurnout={burnoutLevel}
+            maxBurnout={maxBurnout}
+            selected={armedSignetIntensity}
+            onSelect={(intensity) => {
+              setSignetPickerOpen(false);
+              setArmedSignetIntensity(intensity);
+              toast(`🔥 Signet armed at intensity ${intensity}. Your next action channels it.`);
+            }}
+            onCancel={() => setSignetPickerOpen(false)}
+          />
+        </div>
+      )}
 
       {/* Bottom Navigation */}
       <DMBottomNav
