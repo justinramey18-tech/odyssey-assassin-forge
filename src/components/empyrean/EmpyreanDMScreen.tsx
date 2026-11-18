@@ -155,8 +155,9 @@ import { DragonBondScreen } from '@/components/empyrean/DragonBondScreen';
 import { strainCeiling } from '@/lib/dragon-meters';
 import { PRODIGY_STRAIN_CAP, prodigyStrainBonus, prodigyTier } from '@/lib/empyreanClasses/prodigy';
 import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
-import { hubUnlocks, standingFactsLine } from '@/lib/empyrean-quest-hub';
+import { hubUnlocks, questCardsFor, standingFactsLine } from '@/lib/empyrean-quest-hub';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
+import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
 import { normalizeWorldState } from '@/lib/quests';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
@@ -569,7 +570,9 @@ UNBONDED RIDER RULES:
   }, [autoSyncCallbacks]);
   // A fight's damage is applied by the app when the fight ends. The DM reply that narrates that
   // result (the reply to a message carrying the FIGHT RESULT line) must not apply it a second time.
-  const storyMessagesRef = useRef<Array<{ role: string; content?: string | null }>>([]);
+  const storyMessagesRef = useRef<Array<{ id?: string; role: string; content?: string | null }>>([]);
+  // The DM reply the story extractor is reading: quest cards are drawn under it.
+  const questSourceRef = useRef<string | undefined>(undefined);
   // Solo Live NPCs (D-38); read by onMessageComplete, which is set up before the hook below.
   const soloNpcsRef = useRef<SoloNpcs | null>(null);
   const syncRestOccurred = useCallback((type: 'short' | 'long') => {
@@ -591,7 +594,7 @@ UNBONDED RIDER RULES:
     getGridSize: useCallback(() => ({ cols: 10, rows: 10 } as any), []),
     getActiveQuests: useCallback(() => questApiRef.current?.getActiveQuests() ?? [], []),
     onQuestUpdate: useCallback((offers: any[], progress: any[]) => {
-      questApiRef.current?.applyExtraction(offers, progress);
+      questApiRef.current?.applyExtraction(offers, progress, questSourceRef.current);
     }, []),
     onWorldStateUpdate: useCallback((changes: any[]) => {
       questApiRef.current?.recordWorldState(changes);
@@ -793,6 +796,7 @@ ${oocLines}`;
         // Items the DM awards wait in the loot review instead of being dropped.
         const lastSent = [...storyMessagesRef.current].reverse().find(m => m.role === 'user');
         const fightAlreadyApplied = String(lastSent?.content ?? '').includes('[FIGHT RESULT');
+        questSourceRef.current = [...storyMessagesRef.current].reverse().find(m => m.role === 'assistant')?.id;
         autoSync.extractAndApply(content, empyreanCharacterContext, { fightAlreadyApplied }).then(result => {
           if (result?.items_acquired?.length) {
             addPendingDmItems(result.items_acquired);
@@ -2722,6 +2726,14 @@ ${oocLines}`;
                             </Button>
                           );
                         })}
+                        {/* Quests this reply offered, finished or failed: the same quests as the Quest Hub. */}
+                        <SoloQuestCards
+                          views={questCardsFor(questApi.cards, questApi.quests, message.id)}
+                          busy={isLoading}
+                          onAccept={questApi.accept}
+                          onDecline={questApi.decline}
+                          onOpenHub={() => setQuestHubOpen(true)}
+                        />
                         {sceneBusyId === message.id && !message.sceneImageUrl && (
                           <div className="mt-2 aspect-square w-full max-w-[320px] rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-center text-[11px] text-primary/80 gap-1.5">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Picturing the scene…
