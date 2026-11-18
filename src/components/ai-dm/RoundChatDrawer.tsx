@@ -279,6 +279,10 @@ interface RoundChatDrawerProps {
   travelOffer?: { name: string; place: string } | null;
   onAcceptTravel?: () => void;
   onDismissTravel?: () => void;
+  /** Solo one-chat: when given (an element, or null while it mounts), the table is always open and in the page flow,
+   *  with no RETURN TO STORY banner, and its lines are drawn inside this element (the story's own scroll list)
+   *  while the composer stays here. Party never passes it. */
+  storyFeedHost?: HTMLElement | null;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -1166,12 +1170,18 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   travelOffer,
   onAcceptTravel,
   onDismissTravel,
+  storyFeedHost,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
-  const [open, setOpen] = useState(initialOpen);
-  const launchRevealRef = useRef(initialOpen);
+  // Solo one-chat (storyFeedHost given): always open, never full screen, lines drawn in the story.
+  const merged = storyFeedHost !== undefined;
+  const mergedRef = useRef(merged);
+  mergedRef.current = merged;
+  const [open, setOpen] = useState(initialOpen || merged);
+  const launchRevealRef = useRef(initialOpen || merged);
   const onOpenChange = (next: boolean) => {
+    if (merged && !next) return;
     if (!next) launchRevealRef.current = false;
     setOpen(next);
   };
@@ -1211,7 +1221,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   // The table is always full screen while open. Deriving it (instead of setting it in an
   // effect) means the very first open frame is already full size: no in-page → full-screen jump.
-  const fullScreen = open;
+  const fullScreen = open && !merged;
   const [actionsFor, setActionsFor] = useState<string | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -1390,7 +1400,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   // removed, which only uncovers what is already drawn: nothing has to be painted on
   // the reveal frame, so there is no blank flash and no stall.
   const prefersReducedMotion = useReducedMotion();
-  const [contentShown, setContentShown] = useState(initialOpen);
+  const [contentShown, setContentShown] = useState(initialOpen || merged);
   const revealTimerRef = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     window.clearTimeout(revealTimerRef.current);
@@ -1437,7 +1447,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   // the player can edit before sending.
   useImperativeHandle(ref, () => ({
     open: () => setOpen(true),
-    close: () => { launchRevealRef.current = false; setOpen(false); },
+    close: () => { if (mergedRef.current) return; launchRevealRef.current = false; setOpen(false); },
     openWithDraft: (draft: string) => {
       if (draft) {
         setText(prev => (prev.trim() ? `${prev.trim()} ${draft}` : draft));
@@ -1450,6 +1460,12 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   }), []);
 
   const scrollToLatest = (behavior: ScrollBehavior = 'smooth') => {
+    if (merged) {
+      // The story's list does the scrolling. Follow new lines only when the reader is already near the end.
+      const list = storyFeedHost?.parentElement;
+      if (list && list.scrollHeight - list.scrollTop - list.clientHeight < 480) list.scrollTo({ top: list.scrollHeight, behavior });
+      return;
+    }
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior });
@@ -1676,6 +1692,23 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   const [portraitDraft, setPortraitDraft] = useState('');
   const [portraitBusy, setPortraitBusy] = useState(false);
   const portraitFileRef = useRef<HTMLInputElement>(null);
+  // "Grukk is thinking…" rows: under the lines, wherever the lines are drawn.
+  const thinkingRows = (npcThinking || []).map(t => (
+    <div key={t.key} className="mt-2 flex items-end gap-1.5" aria-live="polite">
+      <NpcPortrait url={npcById.get(t.npcId)?.portrait_url} name={t.name} className="w-10 h-10 text-[13px]" />
+      <div className="rounded-2xl rounded-bl-md border border-amber-300/30 bg-amber-950/40 px-3 py-2 flex items-center gap-2">
+        <span aria-hidden className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce [animation-delay:150ms]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce [animation-delay:300ms]" />
+        </span>
+        <span className="font-body text-[12px] text-amber-100/85">
+          {t.kind === 'regenerate' ? `${t.name} is rethinking…` : t.kind === 'banter' ? `${t.name} is in the scene…` : t.kind === 'spell' ? `${t.name} saw the spell…` : `${t.name} is thinking…`}
+        </span>
+      </div>
+    </div>
+  ));
+
   const listProps: RoundChatMessageListProps = {
     rows: visibleRows, allMessages: messages, reactions, currentUserId, avatars, oocNames, npcs, inCharacter,
     onlineStatus, sharedReady, sharedIds, actionsFor, setActionsFor, editingMessageId, setEditingMessageId,
@@ -1701,7 +1734,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black/10" />
       </div>
-      {open ? (
+      {merged ? null : open ? (
         /* Expanded header — RETURN TO STORY banner artwork collapses the table.
            Its own layer, so it's painted under the curtain and just uncovered on reveal. */
         <button
@@ -1813,7 +1846,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
               {/* Status pops + messages */}
               <div className="flex-1 min-h-0 flex flex-col">
               {/* Compact DM status banner */}
-              {dmStatus && (
+              {dmStatus && !merged && (
                 <div
                   className={cn(
                     "mb-1.5 flex items-center gap-1.5 rounded-md border px-2 py-1",
@@ -1841,7 +1874,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
               )}
 
               {/* Host-only: wipe the whole table chat */}
-              {isHost && onClearAll && messages.length > 0 && (
+              {isHost && onClearAll && messages.length > 0 && !merged && (
                 <div className="mb-1.5 flex justify-end">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -1875,7 +1908,14 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                 </div>
               )}
 
-              {/* Feed — roughly half the DM chat window */}
+              {/* Feed — roughly half the DM chat window. Solo one-chat draws the same lines inside the story's list instead. */}
+              {merged ? (storyFeedHost ? createPortal(
+                <div className="space-y-0" data-table-feed="">
+                  {visibleRows.length > 0 && <RoundChatMessageList {...listProps} />}
+                  {thinkingRows}
+                </div>,
+                storyFeedHost,
+              ) : null) : (
               <div
                 ref={scrollRef}
                 onScroll={handleScroll}
@@ -1903,22 +1943,9 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                     </p>
                   </div>
                 ) : <RoundChatMessageList {...listProps} />}
-                {(npcThinking || []).map(t => (
-                  <div key={t.key} className="mt-2 flex items-end gap-1.5" aria-live="polite">
-                    <NpcPortrait url={npcById.get(t.npcId)?.portrait_url} name={t.name} className="w-10 h-10 text-[13px]" />
-                    <div className="rounded-2xl rounded-bl-md border border-amber-300/30 bg-amber-950/40 px-3 py-2 flex items-center gap-2">
-                      <span aria-hidden className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce [animation-delay:150ms]" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-200/80 motion-safe:animate-bounce [animation-delay:300ms]" />
-                      </span>
-                      <span className="font-body text-[12px] text-amber-100/85">
-                        {t.kind === 'regenerate' ? `${t.name} is rethinking…` : t.kind === 'banter' ? `${t.name} is in the scene…` : t.kind === 'spell' ? `${t.name} saw the spell…` : `${t.name} is thinking…`}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                {thinkingRows}
               </div>
+              )}
               </div>
 
               {!pinned && messages.length > 0 && (
