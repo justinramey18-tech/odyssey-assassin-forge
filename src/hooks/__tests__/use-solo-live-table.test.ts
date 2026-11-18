@@ -116,7 +116,9 @@ describe('solo Live Table hook', () => {
     await waitFor(() => expect(asked.length).toBe(2));
     expect(asked.map(x => x.name)).toEqual([c.name, a.name]);
     expect(asked[1].mind).toContain('AT THE TABLE JUST NOW');
-    expect(asked[1].mind).toContain(`${c.name}: **${c.name}:** "Answer 1."`);
+    // The line is shown and heard without the bold name the model was told to start with.
+    expect(asked[1].mind).toContain(`${c.name}: "Answer 1."`);
+    expect(asked[1].mind).not.toContain(`**${c.name}:**`);
     await waitFor(() => expect(result.current.chat.messages.filter(m => m.npc_id).length).toBe(2));
     const answers = result.current.chat.messages.filter(m => m.npc_id);
     expect(answers.map(m => m.character_name)).toEqual([c.name, a.name]);
@@ -944,7 +946,10 @@ describe('delivery: voice, the private note, sameness and actions', () => {
     expect(d).toContain('quotes regulations');
     expect(d).toContain('Right now you are');
     expect(d).toContain('put a direct question to you');
-    expect(d).toContain('about 6 words');
+    // The app chooses the turn's shape: a direct question never gets a wordless one.
+    expect(d).toContain("THIS TURN'S SHAPE");
+    expect(d).not.toContain('no spoken words at all');
+    expect(d).not.toContain('Length is whatever is true to the moment');
     expect(d).toContain('You have no private note yet');
     expect(d).not.toContain('⟪ACT leave⟫'); // never walks out on a direct question, never the last one at the table
   });
@@ -976,18 +981,44 @@ describe('delivery: voice, the private note, sameness and actions', () => {
     expect(back.asked[0].delivery).toContain('- You want: to get Xeyle out of this room');
   });
 
-  it('samey lines get a correction on the next request', async () => {
-    const h = setupDelivery({ story: `${trinaE.name} waits by the gate.`, reply: name => `**${name}:** "No. Not today." *She folds her arms.*` });
+  it('the app picks each turn\'s shape: never the same length three times running, and worn body parts are still called out', async () => {
+    const h = setupDelivery({ story: `${trinaE.name} waits by the gate.`, storageKey: 'solo-live-table:camp-shape', reply: name => `**${name}:** "No. Not today." *She folds her arms.*` });
     for (const line of ['Trina, one', 'Trina, two', 'Trina, three', 'Trina, four']) {
       await act(async () => { await h.result.current.onSendToNpcs(line, ['trina']); });
       await waitFor(() => expect(h.asked.length).toBeGreaterThan(0));
       await settle(20);
     }
     await waitFor(() => expect(h.asked.length).toBe(4));
-    expect(h.asked[2].delivery).not.toContain('were all');
-    expect(h.asked[3].delivery).toContain('Your last 3 lines were all only a few words');
-    expect(h.asked[3].delivery).toContain('movement after the words');
+    for (const a of h.asked) expect(a.delivery).toContain("THIS TURN'S SHAPE");
+    // Her first two lines were both a few words with the movement after them: the third and fourth asks cannot be that again.
+    for (const a of [h.asked[2], h.asked[3]]) {
+      expect(a.delivery).not.toContain('between 1 and 6 spoken words');
+      expect(a.delivery).not.toContain('after the words');
+      expect(a.delivery).not.toContain('were all');
+    }
     expect(h.asked[3].delivery).toContain('your arms');
+    // The line is shown without the bold name, and the measured shapes are kept for this campaign.
+    expect(npcLines(h)[0].content).not.toContain('**');
+    const saved = JSON.parse(getScopedItem('solo-live-table:camp-shape:minds:shapes') || '[]');
+    expect(saved).toHaveLength(4);
+    expect(saved[0]).toMatchObject({ key: 'trina', words: 3, beat: 'after' });
+  });
+
+  it('a turn that badly overshoots the shape it was asked for is trimmed at a sentence end before it is shown', async () => {
+    const long = '"No. I was nowhere near the armory. I was in the mess hall the whole evening with half the squad. Ask any of them. Ask Rhiannon. Ask the cook, he will remember me, I dropped a whole tray. Ask the quartermaster too, he shouted at me about the tray for a quarter of an hour in front of everyone."';
+    const h = setupDelivery({ story: `${trinaE.name} waits by the gate.`, reply: name => `**${name}:** ${long}` });
+    const roll = vi.spyOn(Math, 'random').mockReturnValue(0.1); // a short shape: a few words
+    try {
+      await act(async () => { await h.result.current.onSendToNpcs('Trina, where were you?', ['trina']); });
+      await waitFor(() => expect(npcLines(h).length).toBe(1));
+    } finally {
+      roll.mockRestore();
+    }
+    expect(h.asked[0].delivery).toContain('between 1 and 6 spoken words');
+    const shown = npcLines(h)[0].content;
+    expect(shown).toContain('"No.');
+    expect(shown).not.toContain('quartermaster');
+    expect(shown).not.toContain('**');
   });
 
   it('walking out takes them off stage (never the last one), and calling them over brings them back', async () => {

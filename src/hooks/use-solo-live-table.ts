@@ -52,7 +52,7 @@ import {
 } from '@/lib/npc-huddle';
 import { askJudge, type JudgeAsk } from '@/lib/solo-judge';
 import {
-  deliveryBlock, isKeyLine, measureLine, moodFacts, readNotes, readTurn, samenessNote,
+  deliveryBlock, fitToShape, isKeyLine, measureLine, moodFacts, partsNote, planTurn, readNotes, readShapes, readTurn, stripSpeaker, type TurnShape,
   type LineShape, type MindNote, type NpcAction,
 } from '@/lib/npc-delivery';
 import { voiceFor } from '@/lib/empyreanCanon/castNpcs/voice';
@@ -345,6 +345,8 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
    *  unprompted (urge meter): no roll or join controls, and the cheap urge model. */
   const deliveryForRef = useRef<(e: RosterEntry, o: { whisper: boolean; insight: boolean; moment: SpeakMoment }) => string>(() => '');
   const afterTurnRef = useRef<(e: RosterEntry, lineId: string, shown: string, note: MindNote | null, action: NpcAction | null) => void>(() => {});
+  /** The shape each NPC's turn in flight was asked for (set when its delivery is built, read when its reply lands). */
+  const plannedShapeRef = useRef<Record<string, TurnShape>>({});
   const speak = useCallback(async (e: RosterEntry, said: string, mindExtra: string, kind: 'answer' | 'banter', replyToId: string | null, social?: SocialCheckResult, unprompted = false, whisper = false, moment: SpeakMoment = {}) => {
     const t = { key: `${replyToId || 'scene'}:${e.key}:${Date.now()}`, npcId: e.key, name: e.name, messageId: replyToId || '', kind };
     setThinking(prev => [...prev, t]);
@@ -363,7 +365,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       deliveryForRef.current(e, { whisper, insight: social?.skill === 'insight' && social.outcome === 'success', moment }));
       // The private note and any action are taken out here: they are never shown or sent to the DM as words.
       const turn = readTurn(reply || '', Date.now());
-      const text = turn.text;
+      // The table already names the speaker; a turn that badly overshoots the shape it was asked for is trimmed at a sentence end.
+      const text = fitToShape(stripSpeaker(turn.text), plannedShapeRef.current[e.key]);
       if (!text) {
         toast.error(`${e.name} didn't answer`, { description: 'Try again in a moment.' });
         return null;
@@ -790,6 +793,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
   useEffect(() => { speakUnpromptedRef.current = (k, t, a) => { void speakUnprompted(k, t, a); }; }, [speakUnprompted]);
 
   // ── Delivery: voice, mood, the private note, sameness, and actions ──
+  /** Recent lines as measured (length, where the movement sat, which parts of the body). */
+  const shapeHistoryRef = useRef<LineShape[]>([]);
   const mindsKey = storageKey ? `${storageKey}:minds` : undefined;
   const mindsKeyRef = useRef<string | undefined>(undefined);
   const mindsRef = useRef<Record<string, MindNote>>({});
@@ -800,9 +805,11 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     mindsRef.current = readNotes(raw, Date.now());
     mindsLoadedRef.current = true;
     mindsKeyRef.current = mindsKey;
+    // The measured shapes of recent lines are kept with the notes, so variety carries across a reload.
+    let savedShapes: unknown = null;
+    try { savedShapes = mindsKey ? JSON.parse(getScopedItem(`${mindsKey}:shapes`) || 'null') : null; } catch { savedShapes = null; }
+    shapeHistoryRef.current = readShapes(savedShapes);
   }
-  /** Recent lines as measured (length, where the movement sat, which parts of the body). */
-  const shapeHistoryRef = useRef<LineShape[]>([]);
   /** Scene-changing things NPCs did, by the line they happened in (reported to the DM when that line is sealed). */
   const actionLogRef = useRef<Array<{ lineId: string; text: string }>>([]);
   useEffect(() => { actionLogRef.current = []; }, [latestDmText]);
@@ -817,13 +824,28 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     const stir = o.moment.stir ?? (urgeRef.current[key]?.urge ?? 0) / bar;
     const low = outranked(key);
     const direct = !!o.moment.directQuestion;
+    // The app chooses this turn's length and where its one movement goes (weighted chance, never the same three times running).
+    const shape = planTurn({
+      key,
+      history: shapeHistoryRef.current,
+      style: t.style,
+      stir,
+      directQuestion: direct,
+      closing: !!o.moment.closing,
+      whisper: o.whisper,
+      riderWords: o.moment.riderWords ?? 0,
+      needsRoom: o.insight || !!o.moment.keyLine,
+      roll: Math.random,
+    });
+    plannedShapeRef.current = { ...plannedShapeRef.current, [key]: shape };
     return deliveryBlock({
+      shape,
       name: e.name,
       riderName: riderName || 'the rider',
       voice: voiceFor(key, t.style),
       mood: moodFacts({ urgeRatio: stir, heat: inHuddle && h ? h.heat : null, attitude: e.attitude, style: t.style, outranked: low }, riderName || 'the rider'),
       note: mindsRef.current[key] ?? null,
-      sameness: samenessNote(key, shapeHistoryRef.current),
+      sameness: partsNote(key, shapeHistoryRef.current),
       directQuestion: direct,
       riderWords: o.moment.riderWords ?? 0,
       whisper: o.whisper,
@@ -851,6 +873,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       if (k) { try { setScopedItem(k, JSON.stringify(mindsRef.current)); } catch { /* best effort */ } }
     }
     shapeHistoryRef.current = [...shapeHistoryRef.current, measureLine(key, shown)].slice(-12);
+    const shapesKey = mindsKeyRef.current;
+    if (shapesKey) { try { setScopedItem(`${shapesKey}:shapes`, JSON.stringify(shapeHistoryRef.current)); } catch { /* best effort */ } }
     if (!action) return;
     const rider = riderName || 'the rider';
     const log = (text: string) => { actionLogRef.current = [...actionLogRef.current, { lineId, text }].slice(-8); };
