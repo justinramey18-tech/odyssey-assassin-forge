@@ -27,7 +27,7 @@ export const DELIVERY_RULES = {
 // ── The private mind ──
 
 export interface MindNote { want: string; unsaid: string; body: string; truth: string; at: number }
-export type NpcAction = { kind: 'leave' } | { kind: 'between' } | { kind: 'square-up' } | { kind: 'give'; what: string };
+export type NpcAction = { kind: 'leave' } | { kind: 'between' } | { kind: 'square-up' } | { kind: 'give'; what: string } | { kind: 'travel'; place: string };
 
 const MIND_RE = /⟪MIND\b([^⟫]*)⟫/;
 const ACT_RE = /⟪ACT\b([^⟫]*)⟫/;
@@ -57,6 +57,7 @@ export function readTurn(reply: string, now: number): { text: string; note: Mind
     else if (lower.startsWith('between')) action = { kind: 'between' };
     else if (lower.startsWith('square')) action = { kind: 'square-up' };
     else if (lower.startsWith('give')) { const what = cut(body.replace(/^give\s*:?/i, ''), 80); if (what) action = { kind: 'give', what }; }
+    else if (lower.startsWith('travel')) { const place = cut(body.replace(/^travel\s*:?/i, ''), 80); if (place) action = { kind: 'travel', place }; }
   }
   // Take out every marker of ours, closed or cut off by the length limit.
   text = text.replace(/⟪MIND\b[^⟫]*⟫/g, '').replace(/⟪ACT\b[^⟫]*⟫/g, '').replace(/⟪(?:MIND|ACT)\b[^⟫]*$/, '').replace(/\n{3,}/g, '\n\n').trim();
@@ -184,7 +185,7 @@ export interface DeliveryInput {
   /** The last line of a conversation: a parting shot. */
   closing: boolean;
   /** Which scene-changing actions are open to them right now. */
-  actions: { leave: boolean; between: boolean; squareUp: boolean; give: boolean };
+  actions: { leave: boolean; between: boolean; squareUp: boolean; give: boolean; /** Places they may propose going to with the rider; empty or missing = no travel offers. */ travel?: string[] };
   /** An Insight check on this NPC succeeded: add the sense line. */
   insight: boolean;
 }
@@ -208,6 +209,7 @@ export function deliveryBlock(d: DeliveryInput): string {
     d.actions.between ? '⟪ACT between⟫ you step between the people arguing' : '',
     d.actions.squareUp ? `⟪ACT square-up⟫ you offer ${rider} a bout on the mat, here and now` : '',
     d.actions.give ? `⟪ACT give: what it is⟫ you hand ${rider} something` : '',
+    d.actions.travel && d.actions.travel.length ? `⟪ACT travel: place name⟫ you want ${rider} to come with you there, now (only one of: ${d.actions.travel.slice(0, 16).join('; ')})` : '',
   ].filter(Boolean);
   return [
     `## HOW ${d.name.toUpperCase()} SPEAKS AND MOVES (this replaces any fixed format or length given elsewhere)`,

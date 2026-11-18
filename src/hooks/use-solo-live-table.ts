@@ -30,6 +30,8 @@
 //   own PRIVATE NOTE from last time (kept on the phone under the storage key plus :minds), not a fixed
 //   two-line shape. The app measures what came out and corrects sameness on the next request. A rare
 //   hidden action can change the scene: walk out, step between, square up, hand something over.
+// - Travel (src/lib/travel-offers.ts): an NPC may propose going somewhere with the rider (travelOffer);
+//   NPCs who came along (companions) stay on stage through the trip and the first DM post after it.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useArenaRoundChat } from '@/hooks/use-arena-round-chat';
@@ -217,7 +219,7 @@ export function tableNpcsFor(roster: RosterEntry[], stage: string[]) {
     .map(e => ({ id: e.key, name: e.name, portrait_url: castPortrait(e.key) ?? null, on_stage: stage.includes(e.key) && e.status !== 'dead', archived: false }));
 }
 
-export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check, paused = false, judge = askJudge, huddleTimeScale = 1, sparAvailable = false }: {
+export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceNPC, sendToDm, busy, storageKey, characterContext, check, paused = false, judge = askJudge, huddleTimeScale = 1, sparAvailable = false, travelPlaces, traveling = false }: {
   userId: string | undefined;
   riderName: string;
   npcs: SoloNpcs;
@@ -239,6 +241,10 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   huddleTimeScale?: number;
   /** The screen can open a bout with an NPC (the rules engine is on): an NPC may square up. */
   sparAvailable?: boolean;
+  /** Places a trip can start for right now (from the map): an NPC may propose going to one with the rider. */
+  travelPlaces?: string[];
+  /** A journey is under way. */
+  traveling?: boolean;
 }) {
   const chat = useArenaRoundChat(userId, riderName, 'solo-live-table', storageKey);
   const me = userId || 'arena-player';
@@ -254,6 +260,29 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   const clearChallenge = useCallback(() => setChallenge(null), []);
   const sparAvailableRef = useRef(sparAvailable);
   sparAvailableRef.current = sparAvailable;
+  /** An NPC proposed going somewhere with the rider. */
+  const [travelOffer, setTravelOffer] = useState<{ key: string; name: string; place: string } | null>(null);
+  const travelOfferRef = useRef(travelOffer);
+  travelOfferRef.current = travelOffer;
+  const clearTravelOffer = useCallback(() => setTravelOffer(null), []);
+  const travelPlacesRef = useRef<string[]>([]);
+  travelPlacesRef.current = travelPlaces ?? [];
+  const travelingRef = useRef(traveling);
+  travelingRef.current = traveling;
+  const latestDmRef = useRef(latestDmText);
+  latestDmRef.current = latestDmText;
+  // NPCs who set out with the rider: on stage through the trip and the first DM post after it; then the story decides.
+  const [companions, setCompanionKeys] = useState<string[]>([]);
+  const companionPostsRef = useRef({ sig: '', posts: 0 });
+  const setCompanions = useCallback((keys: string[]) => {
+    companionPostsRef.current = { sig: latestDmRef.current, posts: 0 };
+    setCompanionKeys(Array.from(new Set(keys)).slice(0, MAX_STAGE));
+  }, []);
+  useEffect(() => {
+    if (busy || travelingRef.current || companionPostsRef.current.sig === latestDmText) return;
+    companionPostsRef.current = { sig: latestDmText, posts: companionPostsRef.current.posts + 1 };
+    if (companionPostsRef.current.posts >= 2) setCompanionKeys(prev => (prev.length ? [] : prev));
+  }, [busy, latestDmText]);
   const [thinking, setThinking] = useState<Array<{ key: string; npcId: string; name: string; messageId: string; kind: 'answer' | 'banter' }>>([]);
   const [dmSending, setDmSending] = useState(false);
   const [sceneRunning, setSceneRunning] = useState(false);
@@ -282,8 +311,8 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
     [directions, latestDmText, npcs.roster],
   );
   // A new DM post resets who the rider called over; the post decides who is still here.
-  useEffect(() => { setCalled([]); setLeft([]); setChallenge(null); }, [latestDmText]);
-  const stage = useMemo(() => Array.from(new Set([...storyStage, ...called])).filter(k => !left.includes(k)).slice(0, MAX_STAGE), [storyStage, called, left]);
+  useEffect(() => { setCalled([]); setLeft([]); setChallenge(null); setTravelOffer(null); }, [latestDmText]);
+  const stage = useMemo(() => Array.from(new Set([...storyStage, ...called, ...companions])).filter(k => !left.includes(k)).slice(0, MAX_STAGE), [storyStage, called, left, companions]);
 
   const tableNpcs = useMemo(() => tableNpcsFor(npcs.roster, stage), [npcs.roster, stage]);
 
@@ -807,6 +836,8 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
         between: !!h && h.members.filter(k => k !== key).length >= 2,
         squareUp: sparAvailableRef.current && !!e.fight && !challengeRef.current && !o.whisper,
         give: !o.whisper,
+        // One proposal at a time, and never while a trip is already under way.
+        travel: !o.whisper && !direct && !travelOfferRef.current && !travelingRef.current ? travelPlacesRef.current : [],
       },
       insight: o.insight,
     });
@@ -840,6 +871,13 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       if (!sparAvailableRef.current || !e.fight || challengeRef.current) return;
       setChallenge({ key, name: e.name });
       log(`${e.name} squared up to ${rider}: a bout on the mat is on offer.`);
+    } else if (action.kind === 'travel') {
+      // Only a place the map can really start a trip for; anything else is dropped.
+      const wanted = action.place.toLowerCase().replace(/^the /, '');
+      const place = travelPlacesRef.current.find(p => p.toLowerCase().replace(/^the /, '') === wanted);
+      if (!place || travelOfferRef.current || travelingRef.current) return;
+      setTravelOffer({ key, name: e.name, place });
+      log(`${e.name} proposed going to ${place} with ${rider}.`);
     } else {
       log(`${e.name} handed ${rider}: ${action.what}.`);
     }
@@ -1311,6 +1349,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       onStage: stageKeys.map(k => ({ name: nameOf(k), wants: tells[k] ?? null, aim: mindsRef.current[k]?.want || null, hiding: mindsRef.current[k]?.truth || null })),
       // Only what happened in lines the rider sealed.
       actions: actionLogRef.current.filter(a => selected.some(m => m.id === a.lineId)).map(a => a.text),
+      companions: companions.map(nameOf),
       whispered: selected.some(m => isWhisper(m)),
       pairs,
       lastHuddle: lastHuddleReportRef.current,
@@ -1338,7 +1377,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       dmSendingRef.current = false;
       setDmSending(false);
     }
-  }, [chat, sendToDm, busy, riderName, tells]);
+  }, [chat, sendToDm, busy, riderName, tells, companions]);
 
   return {
     chat, tableNpcs, thinking, dmSending, sceneRunning, callOver, onSendToNpcs, onNpcSocialCheck, onStartScene, onSendToDMNow, onSpeakAsNpc, onRegenerateNpcLine, onNpcRoll, onNpcJoin,
@@ -1349,5 +1388,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     huddle: huddleView, huddleEnough, huddleSeal, setTyping,
     // An NPC squared up to the rider: the screen can open the bout.
     challenge, clearChallenge,
+    // Travel: an NPC's proposal to go somewhere together, and who is travelling with the rider.
+    travelOffer, clearTravelOffer, companions, setCompanions,
   };
 }

@@ -28,6 +28,8 @@ describe('the private mind and actions', () => {
     expect(readTurn('**A:** "Enough."\n⟪ACT between⟫', NOW).action).toEqual({ kind: 'between' });
     expect(readTurn('**A:** "Mat. Now."\n⟪ACT square-up⟫', NOW).action).toEqual({ kind: 'square-up' });
     expect(readTurn('**A:** "Here."\n⟪ACT dance⟫', NOW).action).toBeNull();
+    expect(readTurn('**A:** "Come on. The Archives."\n⟪ACT travel: The Archives⟫', NOW).action).toEqual({ kind: 'travel', place: 'The Archives' });
+    expect(readTurn('**A:** "Come on."\n⟪ACT travel⟫', NOW).action).toBeNull();
     expect(readTurn('**A:** "I was asleep."\n⟪MIND want: to be believed | truth: I was at the vault ⟫', NOW).note?.truth).toBe('I was at the vault');
     const cutOff = readTurn('**A:** "I was asleep."\n⟪MIND want: to be belie', NOW);
     expect(cutOff.text).toBe('**A:** "I was asleep."');
@@ -119,6 +121,8 @@ describe('what the NPC is told', () => {
     expect(block).toContain('⟪ACT leave⟫');
     expect(block).toContain('⟪ACT square-up⟫');
     expect(block).not.toContain('⟪ACT between⟫');
+    expect(block).not.toContain('⟪ACT travel');
+    expect(deliveryBlock({ ...base, actions: { leave: false, between: false, squareUp: false, give: false, travel: ['Archives', 'Montserrat'] } })).toContain('⟪ACT travel: place name⟫ you want Kylar to come with you there, now (only one of: Archives; Montserrat)');
     expect(block).toContain('(You sense:');
   });
 

@@ -1010,3 +1010,74 @@ describe('delivery: voice, the private note, sameness and actions', () => {
     expect(small.asked[0].model).toBe('google/gemini-2.5-flash');
   });
 });
+
+describe('travel: an NPC proposes a trip, and companions stay on stage', () => {
+  const rosterEntry = (key: string): RosterEntry => {
+    const found = roster.find(e => e.key === key);
+    if (!found) throw new Error(`The canon roster has no ${key}`);
+    return found;
+  };
+  const trinaE = rosterEntry('trina');
+  const dainE = rosterEntry('dain-aetos');
+
+  function setupTravel(over: { story: string; travelPlaces?: string[]; traveling?: boolean; reply?: (name: string, n: number) => string }) {
+    const asked: Array<{ name: string; delivery: string }> = [];
+    const voiceNPC = vi.fn(async (name: string | string[], _line: string, _s?: unknown, _mind?: string, _off?: boolean, _controls?: string, _model?: string, delivery?: string) => {
+      asked.push({ name: String(name), delivery: delivery || '' });
+      await new Promise(r => setTimeout(r, 3));
+      return over.reply ? over.reply(String(name), asked.length) : `**${name}:** "Answer ${asked.length}."`;
+    });
+    const hook = renderHook((props: { story: string; traveling: boolean }) => useSoloLiveTable({
+      userId: 'rider', riderName: 'Xeyle', npcs: fakeNpcs(roster), latestDmText: props.story,
+      voiceNPC, sendToDm: vi.fn(async () => true), busy: false, judge: async () => null, travelPlaces: over.travelPlaces, traveling: props.traveling,
+    }), { initialProps: { story: over.story, traveling: over.traveling ?? false } });
+    return { ...hook, asked };
+  }
+  const onStage = (h: ReturnType<typeof setupTravel>) => h.result.current.tableNpcs.filter(n => n.on_stage).map(n => n.id).sort();
+
+  it('an NPC can propose only a place the map offers, one proposal at a time', async () => {
+    const reply = (name: string, n: number) => (n === 1 ? `**${name}:** "Come with me."\n⟪ACT travel: the archives⟫` : `**${name}:** "Now."\n⟪ACT travel: Atlantis⟫`);
+    const h = setupTravel({ story: `${dainE.name} and ${trinaE.name} wait.`, travelPlaces: ['Archives', 'Montserrat'], reply });
+    await act(async () => { await h.result.current.onSendToNpcs('Dain, what now', ['dain-aetos']); });
+    await waitFor(() => expect(h.result.current.travelOffer).toEqual({ key: 'dain-aetos', name: dainE.name, place: 'Archives' }));
+    expect(h.asked[0].delivery).toContain('⟪ACT travel: place name⟫');
+    expect(h.asked[0].delivery).toContain('Archives; Montserrat');
+    expect(h.result.current.chat.messages.find(m => m.npc_id)?.content).not.toContain('ACT');
+    // While one proposal is open nobody is offered the action, and a made-up place is dropped.
+    await act(async () => { await h.result.current.onSendToNpcs('Trina, and you', ['trina']); });
+    await waitFor(() => expect(h.asked.length).toBe(2));
+    expect(h.asked[1].delivery).not.toContain('⟪ACT travel');
+    expect(h.result.current.travelOffer?.place).toBe('Archives');
+    act(() => h.result.current.clearTravelOffer());
+    expect(h.result.current.travelOffer).toBeNull();
+  });
+
+  it('with no places from the map, or on the road, nobody can propose a trip', async () => {
+    const none = setupTravel({ story: `${dainE.name} waits.` });
+    await act(async () => { await none.result.current.onSendToNpcs('Dain, what now', ['dain-aetos']); });
+    await waitFor(() => expect(none.asked.length).toBe(1));
+    expect(none.asked[0].delivery).not.toContain('⟪ACT travel');
+    none.unmount();
+    const moving = setupTravel({ story: `${dainE.name} waits.`, travelPlaces: ['Montserrat'], traveling: true });
+    await act(async () => { await moving.result.current.onSendToNpcs('Dain, what now', ['dain-aetos']); });
+    await waitFor(() => expect(moving.asked.length).toBe(1));
+    expect(moving.asked[0].delivery).not.toContain('⟪ACT travel');
+  });
+
+  it('a companion stays on stage through the trip and the first post after it, then the story decides', async () => {
+    const h = setupTravel({ story: 'You stand alone in the courtyard.' });
+    expect(onStage(h)).toEqual([]);
+    act(() => h.result.current.setCompanions(['dain-aetos']));
+    await waitFor(() => expect(onStage(h)).toEqual(['dain-aetos']));
+    // Posts written on the road do not count.
+    h.rerender({ story: 'Wind and cold. The road climbs.', traveling: true });
+    h.rerender({ story: 'A second day of it.', traveling: true });
+    expect(onStage(h)).toEqual(['dain-aetos']);
+    h.rerender({ story: 'Montserrat rises ahead. You are here.', traveling: false });
+    await waitFor(() => expect(h.result.current.companions).toEqual(['dain-aetos']));
+    expect(onStage(h)).toEqual(['dain-aetos']);
+    h.rerender({ story: 'The gate guard waves you in.', traveling: false });
+    await waitFor(() => expect(h.result.current.companions).toEqual([]));
+    expect(onStage(h)).toEqual([]);
+  });
+});
