@@ -3008,6 +3008,8 @@ ${oocLines}`;
           presenceIds={new Set(liveUserId ? [liveUserId] : [])}
           presenceReady
           readReceiptsLoaded
+          readReceipts={liveTable.chat.readReceipts}
+          onMarkRead={(iso) => { void liveTable.chat.markRead(iso); }}
           onSend={async (content, ic) => (await liveTable.postRiderLine(content, ic)) !== null}
           onToggleReaction={(id, emoji) => { void liveTable.chat.toggleReaction(id, emoji, characterName || 'Rider'); }}
           onDeleteMessage={(id) => { void liveTable.chat.deleteMessage(id); }}

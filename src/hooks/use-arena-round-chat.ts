@@ -33,17 +33,19 @@ export function linesToKeep(lines: RoundChatMessage[], sentToKeep = 40): RoundCh
   return lines.filter((m) => !m.consumed || keepSent.has(m.id)).slice(-300);
 }
 
-function readSaved(key: string | undefined): { messages: RoundChatMessage[]; reactions: RoundChatReaction[] } {
-  if (!key) return { messages: [], reactions: [] };
+function readSaved(key: string | undefined): { messages: RoundChatMessage[]; reactions: RoundChatReaction[]; readAt: string } {
+  if (!key) return { messages: [], reactions: [], readAt: '' };
   try {
     const raw = getScopedItem(key);
     const data = raw ? JSON.parse(raw) : null;
     return {
       messages: Array.isArray(data?.messages) ? data.messages : [],
       reactions: Array.isArray(data?.reactions) ? data.reactions : [],
+      // How far the table has been read, so the unread badge does not come back after reopening the app.
+      readAt: typeof data?.readAt === 'string' ? data.readAt : '',
     };
   } catch {
-    return { messages: [], reactions: [] };
+    return { messages: [], reactions: [], readAt: '' };
   }
 }
 
@@ -57,6 +59,10 @@ export function useArenaRoundChat(userId: string | undefined, characterName: str
   const [style, setStyle] = useState<RoundStyle>({ ...DEFAULT_ROUND_STYLE, mode: 'live' });
   const [messages, setMessages] = useState<RoundChatMessage[]>(() => readSaved(storageKey).messages);
   const [reactions, setReactions] = useState<RoundChatReaction[]>(() => readSaved(storageKey).reactions);
+  const [readReceipts, setReadReceipts] = useState<Record<string, string>>(() => {
+    const at = readSaved(storageKey).readAt;
+    return at ? { [me]: at } : {};
+  });
   // A different key (another campaign) loads that table; saving waits until it has loaded.
   const loadedKeyRef = useRef<string | undefined>(storageKey);
   useEffect(() => {
@@ -65,16 +71,16 @@ export function useArenaRoundChat(userId: string | undefined, characterName: str
     loadedKeyRef.current = storageKey;
     setMessages(saved.messages);
     setReactions(saved.reactions);
-  }, [storageKey]);
+    setReadReceipts(saved.readAt ? { [me]: saved.readAt } : {});
+  }, [storageKey, me]);
   useEffect(() => {
     if (!storageKey || loadedKeyRef.current !== storageKey) return;
     try {
       const kept = linesToKeep(messages);
       const ids = new Set(kept.map((m) => m.id));
-      setScopedItem(storageKey, JSON.stringify({ messages: kept, reactions: reactions.filter((r) => ids.has(r.message_id)) }));
+      setScopedItem(storageKey, JSON.stringify({ messages: kept, reactions: reactions.filter((r) => ids.has(r.message_id)), readAt: readReceipts[me] ?? '' }));
     } catch { /* storage full or blocked: the table still works for this visit */ }
-  }, [storageKey, messages, reactions]);
-  const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
+  }, [storageKey, messages, reactions, readReceipts, me]);
   const [orderOverride, setOrderOverride] = useState<string[]>([]);
   const roundRef = useRef(roundId);
   roundRef.current = roundId;

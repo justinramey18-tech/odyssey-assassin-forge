@@ -1081,3 +1081,60 @@ describe('travel: an NPC proposes a trip, and companions stay on stage', () => {
     expect(onStage(h)).toEqual([]);
   });
 });
+
+describe('the unread badge on the PLAY button', () => {
+  const rosterEntry = (key: string): RosterEntry => {
+    const found = roster.find(e => e.key === key);
+    if (!found) throw new Error(`The canon roster has no ${key}`);
+    return found;
+  };
+  const dainE = rosterEntry('dain-aetos');
+  /** The count the Live Table shows on the closed PLAY button: lines from others (NPCs included) newer than the rider's read marker. */
+  const unread = (chat: { messages: RoundChatMessage[]; readReceipts: Record<string, string> }) => {
+    const readAt = chat.readReceipts['rider'];
+    return chat.messages.filter(m => (m.user_id !== 'rider' || !!m.npc_id) && (!readAt || m.created_at > readAt)).length;
+  };
+
+  function setupBadge(storageKey?: string, replied = true) {
+    const voiceNPC = vi.fn(async (name: string | string[]) => { await new Promise(r => setTimeout(r, 3)); return `**${name}:** "Noted."`; });
+    return renderHook(() => useSoloLiveTable({
+      userId: 'rider', riderName: 'Xeyle', npcs: fakeNpcs(roster), latestDmText: `${dainE.name} waits.`,
+      voiceNPC, sendToDm: vi.fn(async () => replied), busy: false, storageKey, judge: async () => null,
+    }));
+  }
+
+  it('Send to DM resets it; a failed send does not', async () => {
+    for (const replied of [true, false]) {
+      localStorage.clear();
+      const h = setupBadge(undefined, replied);
+      await act(async () => { await h.result.current.onSendToNpcs('Dain, report', ['dain-aetos']); });
+      await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id)).toBe(true));
+      expect(unread(h.result.current.chat)).toBe(1);
+      const first = h.result.current.chat.messages.find(m => !m.npc_id);
+      expect(first).toBeDefined();
+      await act(async () => { await h.result.current.chat.toggleSelected(first?.id ?? ''); });
+      await new Promise(r => setTimeout(r, 5));
+      await act(async () => { await h.result.current.onSendToDMNow(); });
+      expect(unread(h.result.current.chat)).toBe(replied ? 0 : 1);
+      h.unmount();
+    }
+  });
+
+  it('what was read stays read after reopening the app, per campaign', async () => {
+    localStorage.clear();
+    const h = setupBadge('solo-live-table:camp-badge');
+    await act(async () => { await h.result.current.onSendToNpcs('Dain, report', ['dain-aetos']); });
+    await waitFor(() => expect(h.result.current.chat.messages.some(m => m.npc_id)).toBe(true));
+    expect(unread(h.result.current.chat)).toBe(1);
+    const newest = h.result.current.chat.messages[h.result.current.chat.messages.length - 1];
+    await act(async () => { await h.result.current.chat.markRead(newest.created_at); });
+    expect(unread(h.result.current.chat)).toBe(0);
+    h.unmount();
+    const back = setupBadge('solo-live-table:camp-badge');
+    expect(back.result.current.chat.messages.length).toBeGreaterThan(0);
+    expect(unread(back.result.current.chat)).toBe(0);
+    back.unmount();
+    const other = setupBadge('solo-live-table:camp-badge-other');
+    expect(other.result.current.chat.readReceipts).toEqual({});
+  });
+});

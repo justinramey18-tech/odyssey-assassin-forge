@@ -1370,7 +1370,13 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
     setDmSending(true);
     try {
       const replied = await sendToDm(full, liveTable);
-      if (replied) { lastHuddleReportRef.current = null; actionLogRef.current = []; await chat.consumePending(); }
+      if (replied) {
+        lastHuddleReportRef.current = null;
+        actionLogRef.current = [];
+        await chat.consumePending();
+        // Everything on the table has now been dealt with: the unread badge on the PLAY button starts again from zero.
+        void chat.markRead(new Date().toISOString());
+      }
       else toast.error('The DM did not reply', { description: 'Your sealed lines are still here. Try Send to DM again.' });
     } finally {
       sendingRef.current = false;
