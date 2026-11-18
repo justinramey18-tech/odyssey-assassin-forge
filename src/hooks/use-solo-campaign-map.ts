@@ -12,6 +12,7 @@ import { buildDmLogisticsContext } from '@/lib/campaign-map';
 import { composeLocationGuides, resolveGuideScopes, type LocationGuideRow } from '@/lib/location-guides';
 import { buildEmpyreanStarterAtlas } from '@/lib/empyreanCanon/continentMap';
 import { missingSoloStarterGuides, soloTravelFlags } from '@/lib/solo-map-setup';
+import { travelFactsForDm } from '@/lib/travel-offers';
 import { toast } from 'sonner';
 
 export const SOLO_GUIDE_TABLE = 'solo_location_guides';
@@ -147,10 +148,12 @@ export function useSoloCampaignMap(opts: SoloMapOptions) {
     const active = projectActive(resolved);
     const scopes = resolveGuideScopes(resolved);
     const facts = active.imageUrl || active.locations.length ? buildDmLogisticsContext(active, now) : '';
-    return [scopes.ok ? `RIDER'S AREA: ${scopes.pathLabel}` : '', facts,
-      'Only the app moves the rider on the map. If the story calls for travel, tell the player to use the Map; never narrate an arrival the facts above do not show.']
+    // Where a travel button may point, and how the DM offers one (src/lib/travel-offers.ts).
+    return [scopes.ok ? `RIDER'S AREA: ${scopes.pathLabel}` : '', facts, travelFactsForDm(resolved)]
       .filter(Boolean).join('\n');
   }, [atlas, serverNow]);
+  /** The atlas as it stands this moment (finished travel folded in), for travel offers. Null until the map is ready. */
+  const travelAtlas = useCallback(() => (atlas ? resolveAtlasAt(atlas, serverNow()) : null), [atlas, serverNow]);
   /** Where the rider stands, for the rules (random events differ by kind of place). */
   const place = useCallback((): { name?: string; kind?: string } | undefined => {
     const here = rawState?.locations.find(l => l.id === rawState.currentLocationId);
@@ -158,7 +161,7 @@ export function useSoloCampaignMap(opts: SoloMapOptions) {
   }, [rawState]);
   const { flying, traveling } = soloTravelFlags(rawState);
 
-  return { map, ready: !!campaignId && !!rawState, flying, traveling, areaGuides, mapFacts, place, reloadGuides };
+  return { map, ready: !!campaignId && !!rawState, flying, traveling, areaGuides, mapFacts, place, reloadGuides, travelAtlas };
 }
 
 export type SoloCampaignMapApi = ReturnType<typeof useSoloCampaignMap>;

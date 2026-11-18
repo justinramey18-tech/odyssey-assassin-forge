@@ -275,6 +275,10 @@ interface RoundChatDrawerProps {
   challenge?: { name: string } | null;
   onAcceptChallenge?: () => void;
   onDismissChallenge?: () => void;
+  /** Solo: an NPC proposed going somewhere with the rider. */
+  travelOffer?: { name: string; place: string } | null;
+  onAcceptTravel?: () => void;
+  onDismissTravel?: () => void;
 }
 
 /** Small circular face beside a message. Tapping your own opens the picker. */
@@ -1159,6 +1163,9 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   challenge,
   onAcceptChallenge,
   onDismissChallenge,
+  travelOffer,
+  onAcceptTravel,
+  onDismissTravel,
 }, ref) {
   // Open/closed lives here, not in PartyDMScreen: toggling the table re-renders this
   // component only. The parent drives it through the ref handle below.
@@ -2080,6 +2087,33 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
 
                 {/* The input field (reply chip, text box, picture + send, actions banner). */}
                 <div className="space-y-1.5">
+
+                {/* Solo: an NPC proposed going somewhere together. */}
+                {travelOffer && onAcceptTravel && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-2 py-1.5" role="status">
+                    <p className="flex-1 min-w-0 text-[12px] font-cinzel text-foreground break-words">{travelOffer.name} wants to go to {travelOffer.place} with you</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onAcceptTravel}
+                      style={{ touchAction: 'manipulation' }}
+                      className="shrink-0 min-h-[48px] px-3 rounded-lg border-primary/50 bg-primary/10 text-primary text-[11px] font-cinzel"
+                    >
+                      Go
+                    </Button>
+                    {onDismissTravel && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onDismissTravel}
+                        style={{ touchAction: 'manipulation' }}
+                        className="shrink-0 min-h-[48px] px-3 rounded-lg border-border/25 bg-background/30 text-foreground/80 text-[11px] font-cinzel"
+                      >
+                        Not now
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                 {/* Solo: an NPC squared up to the rider. */}
                 {challenge && onAcceptChallenge && (

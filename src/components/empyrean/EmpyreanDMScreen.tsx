@@ -134,6 +134,10 @@ import { clearLaunch, readLaunch } from '@/lib/empyrean-onboarding';
 import { useSoloFight, type FightStart } from '@/hooks/use-solo-fight';
 import { SoloBattleScreen, buildFightSheet } from '@/components/empyrean/SoloBattleScreen';
 import { SoloFightSetupSheet } from '@/components/empyrean/SoloFightSetupSheet';
+import { SoloTravelSheet, type TravelRequest } from '@/components/empyrean/SoloTravelSheet';
+import { useSoloTravel } from '@/hooks/use-solo-travel';
+import { parseTravelOffers, resolveTravelTarget, travelButtonLabel, travelPlaceNames } from '@/lib/travel-offers';
+import { Compass } from 'lucide-react';
 import { EmpyreanCampSheet, EmpyreanEngineButtons } from '@/components/empyrean/EmpyreanCampSheet';
 import { CampaignMapPanel } from '@/components/ai-dm/CampaignMapPanel';
 
@@ -265,6 +269,7 @@ function stripAllMetaTags(content: string): string {
     .replace(/<!--FIGHT:[^>]*?-->/gi, '')
     .replace(/<!--(?:SFX|AMBIENCE|VFX|MOOD|MUSIC):.+?-->/g, '')
     .replace(/<!--LIVE:[^>]*?-->/g, '')
+    .replace(/<!--TRAVEL:[^>]*?-->/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -1192,6 +1197,16 @@ ${oocLines}`;
 
   // ─── Solo fights (the server referees them in real time; see use-solo-fight) ───
   const [fightSetup, setFightSetup] = useState<'spar' | 'fight' | null>(null);
+  // Travel offers (src/lib/travel-offers.ts): the trip waiting for its confirm, and the map as it stands now.
+  const [travelRequest, setTravelRequest] = useState<TravelRequest | null>(null);
+  const soloTravel = useSoloTravel(soloMap.map);
+  const travelAtlas = useMemo(
+    () => (rules.active && soloMap.ready && !soloMap.traveling ? soloMap.travelAtlas() : null),
+    // A new post or a finished trip can change where the rider stands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rules.active, soloMap.ready, soloMap.traveling, soloMap.travelAtlas, messages.length],
+  );
+  const travelPlaces = useMemo(() => (travelAtlas ? travelPlaceNames(travelAtlas) : []), [travelAtlas]);
   // The DM reply whose offered fight has been fought (its Fight button goes away).
   const [foughtOfferId, setFoughtOfferId] = useState<string | null>(null);
   const soloFight = useSoloFight({
@@ -1452,6 +1467,8 @@ ${oocLines}`;
     // A fight freezes the urge meter (D-40): no unprompted NPC lines mid-fight.
     paused: fightOpen,
     sparAvailable: rules.active,
+    travelPlaces,
+    traveling: soloMap.traveling,
   });
   // At full Signet Strain the rider can't act: the table locks like the old message box did.
   const tableLocked = !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout;
@@ -2685,6 +2702,26 @@ ${oocLines}`;
                             </Button>
                           );
                         })()}
+                        {/* Travel offers from the DM: a button per real, reachable place. The confirm sheet starts the trip. */}
+                        {travelAtlas && msgIndex === messages.length - 1 && !isLoading && !soloFight.fight && parseTravelOffers(message.content).map(offer => {
+                          const target = resolveTravelTarget(travelAtlas, offer.place);
+                          if (!target) return null;
+                          const label = travelButtonLabel(offer, target);
+                          return (
+                            <Button
+                              key={offer.place}
+                              variant="outline"
+                              onClick={() => setTravelRequest({ target, label })}
+                              disabled={soloTravel.busy}
+                              style={{ touchAction: 'manipulation' }}
+                              className="mt-2 w-full min-h-[52px] h-auto py-2 gap-2 text-base whitespace-normal"
+                              aria-label={`${label}: travel to ${target.name}`}
+                            >
+                              <Compass className="w-5 h-5 shrink-0" />
+                              <span>{label} <span className="text-xs opacity-80">({target.name})</span></span>
+                            </Button>
+                          );
+                        })}
                         {sceneBusyId === message.id && !message.sceneImageUrl && (
                           <div className="mt-2 aspect-square w-full max-w-[320px] rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-center text-[11px] text-primary/80 gap-1.5">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Picturing the scene…
@@ -3022,6 +3059,15 @@ ${oocLines}`;
           onTypingChange={liveTable.setTyping}
           challenge={liveTable.challenge}
           onDismissChallenge={liveTable.clearChallenge}
+          travelOffer={liveTable.travelOffer}
+          onDismissTravel={liveTable.clearTravelOffer}
+          onAcceptTravel={() => {
+            const offer = liveTable.travelOffer;
+            const target = offer && travelAtlas ? resolveTravelTarget(travelAtlas, offer.place) : null;
+            if (!offer || !target) { liveTable.clearTravelOffer(); toast("That trip isn't possible right now", { description: 'Open the Map to see what can be reached.' }); return; }
+            liveTableRef.current?.close();
+            setTravelRequest({ target, label: `Go to ${target.name}`, companion: { key: offer.key, name: offer.name } });
+          }}
           onAcceptChallenge={() => {
             const foe = soloNpcs.roster.find(e => e.key === liveTable.challenge?.key);
             liveTable.clearChallenge();
@@ -3249,6 +3295,27 @@ ${oocLines}`;
           setNpcFight({ key: e.key, foeKind: e.fight.kind, foeName: e.name, challenge: e.fight.challenge });
           setFightSetup('spar');
         } : undefined}
+      />
+      <SoloTravelSheet
+        request={travelRequest}
+        atlas={travelAtlas}
+        canFly={!isUnbonded && !!config?.dragonName}
+        busy={soloTravel.busy}
+        onOpenChange={(next) => { if (!next && !soloTravel.busy) setTravelRequest(null); }}
+        onGo={(pace) => {
+          const req = travelRequest;
+          if (!req) return;
+          void soloTravel.go(req.target, pace).then((r) => {
+            if (r.ok === false) { toast.error("Couldn't set out", { description: r.error }); return; }
+            setTravelRequest(null);
+            liveTable.setCompanions(req.companion ? [req.companion.key] : []);
+            liveTable.clearTravelOffer();
+            void soloMap.reloadGuides();
+            void rules.refresh();
+            // The rider tells the DM in their own words: the line is ready at the table, not sent for them.
+            toTable(`I ${req.target.kind === 'move' ? 'head to' : req.target.kind === 'enter' ? 'go into' : req.target.kind === 'leave' ? 'leave for' : 'set out for'} ${req.target.name}${req.companion ? ` with ${req.companion.name}` : ''}.`);
+          });
+        }}
       />
       <SoloFightSetupSheet
         mode={fightSetup}
