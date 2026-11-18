@@ -158,6 +158,8 @@ import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
 import { hubUnlocks, questCardsFor, standingFactsLine } from '@/lib/empyrean-quest-hub';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
+import { SoloRoom } from '@/components/empyrean/SoloRoom';
+import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
 import { normalizeWorldState } from '@/lib/quests';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
@@ -2411,14 +2413,43 @@ ${oocLines}`;
       {/* Quest Hub: the active quest's next step; tap to open the hub */}
       <QuestObjectiveStrip quest={questApi.current} onOpen={() => setQuestHubOpen(true)} />
 
-      {/* Messages */}
+      {/* Messages: the middle of the round room. Drag sideways to look around: a wall of big buttons sits on each side. */}
+      <SoloRoom
+        leftLabel="The College"
+        rightLabel="Rider and Dragon"
+        homeKey={messages.length}
+        left={(
+          <SoloWorldWall
+            camp={rules.active && rules.snapshot ? {
+              clock: rules.snapshot.clock,
+              alert: rules.snapshot.rules.injuries.length > 0 || rules.snapshot.rules.conditions.length > 0 || rules.snapshot.rules.unmetNeeds.length > 0,
+            } : null}
+            mapReady={soloMap.ready}
+            offeredQuests={questApi.quests.filter(q => q.status === 'offered').length}
+            pendingLoot={pendingLoot.length}
+            onCamp={() => setCampOpen(true)}
+            onMap={() => setMapOpen(true)}
+            onPeople={() => setRosterOpen(true)}
+            onQuests={() => setQuestHubOpen(true)}
+            onLoot={() => setLootOpen(true)}
+          />
+        )}
+        right={(
+          <SoloRiderWall
+            dragonName={config?.dragonName || ''}
+            bonded={!isUnbonded}
+            onDragon={() => handleNavTabChange('oracle')}
+            onBond={() => setBondScreenOpen(true)}
+            onBag={() => handleNavTabChange('actions')}
+            onSheet={() => setCharacterSheetOpen(true)}
+            onTools={() => setShowToolsDrawer(true)}
+          />
+        )}
+      >
       <div className={cn(
         "flex-1 min-h-0 relative flex flex-col overflow-hidden",
         !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout ? "animate-[screen-shake_0.6s_ease-in-out_infinite]" : ""
       )}
-        onTouchStart={swipeHandlers?.onTouchStart}
-        onTouchMove={swipeHandlers?.onTouchMove}
-        onTouchEnd={swipeHandlers?.onTouchEnd}
       >
         {/* Burnout flame overlay — hidden when unbonded */}
         {!isUnbonded && maxBurnout > 0 && (
@@ -2460,7 +2491,7 @@ ${oocLines}`;
           </div>
         )}
       <div className={cn(
-        "flex-1 overflow-y-auto overscroll-contain px-3 pr-6 py-3 relative z-[1]",
+        "flex-1 overflow-y-auto overscroll-y-contain px-3 pr-6 py-3 relative z-[1]",
         (() => {
           const ratio = maxBurnout > 0 ? burnoutLevel / maxBurnout : 0;
           if (ratio >= 0.875) return "animate-[text-waver-intense_2s_ease-in-out_infinite,text-color-bleed_3s_ease-in-out_infinite]";
@@ -2805,6 +2836,8 @@ ${oocLines}`;
         <div ref={messagesEndRef} />
       </div>
       </div>
+
+      </SoloRoom>
 
       {/* Bottom Navigation */}
       <DMBottomNav
