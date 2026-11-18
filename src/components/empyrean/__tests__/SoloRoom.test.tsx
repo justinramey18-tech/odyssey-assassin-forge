@@ -53,6 +53,25 @@ describe('solo round room', () => {
     expect(screen.getByLabelText('Dragon. Unbonded')).toBeTruthy();
   });
 
+  it('the Signet button shows strain, an armed intensity or burned out, and is hidden without a signet', () => {
+    const onSignet = vi.fn();
+    const ready = render(<SoloRiderWall {...rider({ signet: { armed: null, strain: 2, max: 8 }, onSignet })} />);
+    fireEvent.click(screen.getByLabelText('Signet. Strain 2/8'));
+    expect(onSignet).toHaveBeenCalledTimes(1);
+    ready.unmount();
+    const armed = render(<SoloRiderWall {...rider({ signet: { armed: 3, strain: 8, max: 8 }, onSignet })} />);
+    const lower = screen.getByLabelText('Signet. Armed at 3 · tap to lower') as HTMLButtonElement;
+    expect(lower.disabled).toBe(false);
+    fireEvent.click(lower);
+    expect(onSignet).toHaveBeenCalledTimes(2);
+    armed.unmount();
+    const spent = render(<SoloRiderWall {...rider({ signet: { armed: null, strain: 8, max: 8 }, onSignet })} />);
+    expect((screen.getByLabelText('Signet. Burned out') as HTMLButtonElement).disabled).toBe(true);
+    spent.unmount();
+    render(<SoloRiderWall {...rider({ signet: null, onSignet })} />);
+    expect(screen.queryByText('Signet')).toBeNull();
+  });
+
   it('is one wide surface with the story between two walls: it opens on the story, has no tabs or snap points, and a new message looks back at the story', () => {
     const scrollTo = vi.fn();
     const proto = HTMLElement.prototype as unknown as { scrollTo: unknown };

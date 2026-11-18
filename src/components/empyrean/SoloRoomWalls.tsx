@@ -1,6 +1,6 @@
 // Solo Empyrean round room: what hangs on each wall. Every button opens a screen that already
 // exists; nothing here holds game state.
-import { BookOpen, Backpack, HeartHandshake, Map as MapIcon, PackageOpen, ScrollText, Tent, User, Users } from 'lucide-react';
+import { BookOpen, Backpack, Flame, HeartHandshake, Map as MapIcon, PackageOpen, ScrollText, Tent, User, Users } from 'lucide-react';
 import { RoomButton } from '@/components/empyrean/SoloRoom';
 
 export interface SoloWorldWallProps {
@@ -33,6 +33,12 @@ export interface SoloRiderWallProps {
   /** The dragon's name; empty for an unbonded rider. */
   dragonName: string;
   bonded: boolean;
+  /** Signet Strain and the armed intensity; null or missing hides the Signet button (an unbonded rider has no signet). */
+  signet?: { armed: number | null; strain: number; max: number } | null;
+  /** A warning dot on Tools (an unbonded rider whose Threshing is not authorized yet). */
+  toolsAlert?: boolean;
+  /** Tap Signet: choose an intensity, or lower an armed signet. */
+  onSignet?: () => void;
   onDragon: () => void;
   onBond: () => void;
   onBag: () => void;
@@ -41,15 +47,20 @@ export interface SoloRiderWallProps {
 }
 
 /** Right wall: the rider's own things. */
-export function SoloRiderWall({ dragonName, bonded, onDragon, onBond, onBag, onSheet, onTools }: SoloRiderWallProps) {
+export function SoloRiderWall({ dragonName, bonded, signet, toolsAlert, onSignet, onDragon, onBond, onBag, onSheet, onTools }: SoloRiderWallProps) {
+  const burnedOut = !!signet && signet.armed == null && signet.strain >= signet.max;
   return (
     <>
       <RoomButton label={bonded && dragonName ? dragonName : 'Dragon'} detail={bonded ? 'Speak mind to mind' : 'Unbonded'}
         icon={<span aria-hidden="true" className="text-4xl leading-none">🐉</span>} onClick={onDragon} />
+      {signet && onSignet && (
+        <RoomButton label="Signet" icon={<Flame />} disabled={burnedOut} onClick={onSignet}
+          detail={signet.armed != null ? `Armed at ${signet.armed} · tap to lower` : burnedOut ? 'Burned out' : `Strain ${signet.strain}/${signet.max}`} />
+      )}
       <RoomButton label="Bond" icon={<HeartHandshake />} onClick={onBond} />
       <RoomButton label="Bag" detail="Items and actions" icon={<Backpack />} onClick={onBag} />
       <RoomButton label="Sheet" icon={<User />} onClick={onSheet} />
-      <RoomButton label="Tools" detail="Saves, notes, world" icon={<BookOpen />} onClick={onTools} />
+      <RoomButton label="Tools" detail="Saves, notes, world" alert={toolsAlert} icon={<BookOpen />} onClick={onTools} />
     </>
   );
 }
