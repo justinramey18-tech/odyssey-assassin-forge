@@ -159,7 +159,7 @@ import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
 import { hubUnlocks, questCardsFor, standingFactsLine } from '@/lib/empyrean-quest-hub';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
-import { SoloRoom } from '@/components/empyrean/SoloRoom';
+import { SoloHallScene } from '@/components/empyrean/SoloHallScene';
 import { SignetIntensitySelector } from '@/components/empyrean/SignetIntensitySelector';
 import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
@@ -279,6 +279,10 @@ function stripAllMetaTags(content: string): string {
     .trim();
 }
 
+// The hall scene: the story over one wide painted hall whose objects are the buttons.
+// false brings back the round room with its two walls of big buttons (the fastest rollback).
+const SCENE_ROOM = true;
+
 export function EmpyreanDMScreen({
   open,
   onClose,
@@ -319,6 +323,7 @@ export function EmpyreanDMScreen({
   useEffect(() => { burnoutLevelRef.current = burnoutLevel; }, [burnoutLevel]);
   const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
   const [signetPickerOpen, setSignetPickerOpen] = useState(false);
+  const [dragonMenuOpen, setDragonMenuOpen] = useState(false);
   // One chat: the Live Table draws its lines here, inside the story's own list.
   const [tableFeedHost, setTableFeedHost] = useState<HTMLDivElement | null>(null);
   const signetUsedThisRoundRef = useRef(false);
@@ -2425,7 +2430,47 @@ ${oocLines}`;
       <QuestObjectiveStrip quest={questApi.current} onOpen={() => setQuestHubOpen(true)} />
 
       {/* Messages: the middle of the round room. Drag sideways to look around: a wall of big buttons sits on each side. */}
-      <SoloRoom
+      <SoloHallScene
+        enabled={SCENE_ROOM}
+        spots={{
+          camp: rules.active && rules.snapshot ? {
+            onTap: () => setCampOpen(true),
+            caption: rules.snapshot.clock.replace(', ', ' · '),
+            alert: rules.snapshot.rules.injuries.length > 0 || rules.snapshot.rules.conditions.length > 0 || rules.snapshot.rules.unmetNeeds.length > 0,
+          } : { onTap: () => { toast('Camp opens once this campaign is saved and its rules are running.'); } },
+          map: rules.active && rules.snapshot && soloMap.ready
+            ? { onTap: () => setMapOpen(true) }
+            : { onTap: () => { toast('The map is not ready yet.'); } },
+          loot: pendingLoot.length > 0
+            ? { onTap: () => setLootOpen(true), badge: pendingLoot.length }
+            : { onTap: () => { toast('The chest is empty.'); } },
+          quests: { onTap: () => setQuestHubOpen(true), badge: questApi.quests.filter(q => q.status === 'offered').length },
+          people: { onTap: () => setRosterOpen(true) },
+          bag: { onTap: () => handleNavTabChange('actions') },
+          sheet: { onTap: () => setCharacterSheetOpen(true) },
+          signet: !isUnbonded && maxBurnout > 0 ? {
+            caption: armedSignetIntensity != null ? `Signet · armed ${armedSignetIntensity}` : `Signet ${burnoutLevel}/${maxBurnout}`,
+            onTap: () => {
+              if (armedSignetIntensity != null) {
+                setArmedSignetIntensity(null);
+                setSignetPickerOpen(false);
+                toast('Signet lowered. Your next action will not channel it.');
+                return;
+              }
+              setDragonMenuOpen(false);
+              setSignetPickerOpen(open => !open);
+            },
+          } : { onTap: () => { toast('No signet yet. A dragon must choose you first.'); } },
+          tools: { onTap: () => setShowToolsDrawer(true), alert: isUnbonded && !threshingAuthorized },
+          director: { onTap: handleAskDirector },
+          dragon: isUnbonded
+            ? { onTap: () => handleNavTabChange('oracle'), caption: 'Unbonded' }
+            : {
+                caption: config?.dragonName || 'Dragon',
+                badge: dragonBond.bondState.unreadDragonMessages.length,
+                onTap: () => { setSignetPickerOpen(false); setDragonMenuOpen(open => !open); },
+              },
+        }}
         leftLabel="The College"
         rightLabel="Rider and Dragon"
         homeKey={messages.length}
@@ -2865,7 +2910,37 @@ ${oocLines}`;
       </div>
       </div>
 
-      </SoloRoom>
+      </SoloHallScene>
+
+      {/* The dragon (tapped in the hall scene): speak with it, or open the Bond screen. In the flow, so it shows wherever the hall is turned. */}
+      {dragonMenuOpen && !isUnbonded && (
+        <div className="shrink-0 flex items-stretch gap-2 px-3 py-2 border-t border-primary/20 bg-background/95">
+          <Button
+            className="flex-1 min-h-[52px] h-auto py-2 text-base"
+            style={{ touchAction: 'manipulation' }}
+            onClick={() => { setDragonMenuOpen(false); handleNavTabChange('oracle'); }}
+          >
+            Speak with {config?.dragonName || 'your dragon'}
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 min-h-[52px] h-auto py-2 text-base"
+            style={{ touchAction: 'manipulation' }}
+            onClick={() => { setDragonMenuOpen(false); setBondScreenOpen(true); }}
+          >
+            Bond
+          </Button>
+          <Button
+            variant="ghost"
+            className="min-h-[52px] h-auto px-3"
+            style={{ touchAction: 'manipulation' }}
+            onClick={() => setDragonMenuOpen(false)}
+            aria-label="Close the dragon menu"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+      )}
 
       {/* Signet intensity (opened from the Signet button on the room's right wall). In the flow, so it shows wherever the room is turned. */}
       {signetPickerOpen && !isUnbonded && maxBurnout > 0 && (
