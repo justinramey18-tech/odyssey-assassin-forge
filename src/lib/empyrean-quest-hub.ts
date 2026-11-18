@@ -553,3 +553,223 @@ export function currentQuest(quests: Quest[]): Quest | null {
   const byRecent = [...active].sort((a, b) => String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? '')));
   return byRecent.find(q => q.questType === 'main') ?? byRecent[0];
 }
+
+// ─── Quest cards in the story (which DM reply offered or settled a quest) ────
+
+// Kept in the same quest_flags map under a reserved key, so no migration is needed.
+
+
+
+export const CARDS_KEY = '__empyrean_quest_cards__';
+
+export const MAX_QUEST_CARDS = 80;
+
+
+
+export type QuestCardKind = 'offered' | 'completed' | 'failed';
+
+
+
+/** One card under a DM reply: that reply offered, finished or failed this quest. */
+
+export interface QuestCard {
+
+  messageId: string;
+
+  questKey: string;
+
+  kind: QuestCardKind;
+
+  title: string;
+
+  /** ISO timestamp of when the card was made. */
+
+  at: string;
+
+  /** What a finished quest paid (completed cards only). */
+
+  xp?: number;
+
+  gold?: number;
+
+  points?: number;
+
+}
+
+
+
+const CARD_KINDS: QuestCardKind[] = ['offered', 'completed', 'failed'];
+
+
+
+export function normalizeQuestCards(raw: unknown): QuestCard[] {
+
+  const list = (raw as { cards?: unknown } | null)?.cards;
+
+  if (!Array.isArray(list)) return [];
+
+  const out: QuestCard[] = [];
+
+  for (const c of list.slice(-MAX_QUEST_CARDS)) {
+
+    const messageId = typeof c?.messageId === 'string' ? c.messageId.slice(0, 80) : '';
+
+    const questKey = typeof c?.questKey === 'string' ? c.questKey.slice(0, 150) : '';
+
+    const kind = CARD_KINDS.includes(c?.kind) ? (c.kind as QuestCardKind) : null;
+
+    if (!messageId || !questKey || !kind) continue;
+
+    const card: QuestCard = {
+
+      messageId, questKey, kind,
+
+      title: String(c?.title ?? questKey).slice(0, 120),
+
+      at: typeof c?.at === 'string' ? c.at : '',
+
+    };
+
+    if (kind === 'completed') {
+
+      const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : 0);
+
+      card.xp = num(c?.xp);
+
+      card.gold = num(c?.gold);
+
+      card.points = num(c?.points);
+
+    }
+
+    out.push(card);
+
+  }
+
+  return out;
+
+}
+
+
+
+export function storedQuestCards(cards: QuestCard[]): Record<string, unknown> {
+
+  // status 'unknown' keeps panels that count quest_flags by status from treating this as a quest.
+
+  return { status: 'unknown', cards: cards.slice(-MAX_QUEST_CARDS), updated_at: new Date().toISOString() };
+
+}
+
+
+
+/**
+
+ * The cards one story update makes for the DM reply it was read from.
+
+ * An offer already on the board and still waiting for an answer (the reply was written again)
+
+ * gets its card under the new reply.
+
+ */
+
+export function cardsFromUpdate(
+
+  plan: QuestUpdatePlan,
+
+  quests: Quest[],
+
+  offers: RawQuestOffer[] | null | undefined,
+
+  messageId: string,
+
+  at: string,
+
+): QuestCard[] {
+
+  if (!messageId) return [];
+
+  const out: QuestCard[] = [];
+
+  const has = (key: string, kind: QuestCardKind) => out.some(c => c.questKey === key && c.kind === kind);
+
+  for (const q of plan.offered) out.push({ messageId, questKey: q.key, kind: 'offered', title: questTitle(q), at });
+
+  for (const offer of offers ?? []) {
+
+    const made = questFromOffer(offer);
+
+    if (!made || has(made.key, 'offered')) continue;
+
+    const waiting = quests.find(q => q.key === made.key && q.status === 'offered');
+
+    if (waiting) out.push({ messageId, questKey: waiting.key, kind: 'offered', title: questTitle(waiting), at });
+
+  }
+
+  for (const p of plan.payouts) {
+
+    out.push({ messageId, questKey: p.quest.key, kind: 'completed', title: questTitle(p.quest), at, xp: p.xp, gold: p.gold, points: p.points });
+
+  }
+
+  for (const q of plan.failed) out.push({ messageId, questKey: q.key, kind: 'failed', title: questTitle(q), at });
+
+  return out;
+
+}
+
+
+
+/** Adds cards, newest last. A quest has one card of each kind: a newer one replaces the older. */
+
+export function addQuestCards(existing: QuestCard[], added: QuestCard[]): QuestCard[] {
+
+  if (added.length === 0) return existing;
+
+  const replaced = (c: QuestCard) => added.some(a => a.questKey === c.questKey && a.kind === c.kind);
+
+  return [...existing.filter(c => !replaced(c)), ...added].slice(-MAX_QUEST_CARDS);
+
+}
+
+
+
+/** What a card shows right now. An offer the rider declined (the quest is gone) shows nothing. */
+
+export type QuestCardView =
+
+  | { card: QuestCard; state: 'offer'; quest: Quest }
+
+  | { card: QuestCard; state: 'accepted'; quest: Quest }
+
+  | { card: QuestCard; state: 'completed' }
+
+  | { card: QuestCard; state: 'failed' };
+
+
+
+export function questCardsFor(cards: QuestCard[], quests: Quest[], messageId: string): QuestCardView[] {
+
+  const out: QuestCardView[] = [];
+
+  for (const card of cards) {
+
+    if (card.messageId !== messageId) continue;
+
+    if (card.kind === 'completed') { out.push({ card, state: 'completed' }); continue; }
+
+    if (card.kind === 'failed') { out.push({ card, state: 'failed' }); continue; }
+
+    const quest = quests.find(q => q.key === card.questKey);
+
+    if (!quest) continue;
+
+    if (quest.status === 'offered') out.push({ card, state: 'offer', quest });
+
+    else if (quest.status === 'active') out.push({ card, state: 'accepted', quest });
+
+  }
+
+  return out;
+
+}

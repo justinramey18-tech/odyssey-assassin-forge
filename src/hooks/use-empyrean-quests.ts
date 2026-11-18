@@ -18,6 +18,12 @@ import {
   rankInfo,
   signetStrainCeiling,
   storedHubState,
+  CARDS_KEY,
+  addQuestCards,
+  cardsFromUpdate,
+  normalizeQuestCards,
+  storedQuestCards,
+  type QuestCard,
   storedPendingPayouts,
   withQuestRewards,
   type HubCategoryId,
@@ -73,6 +79,8 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
   const quests = useMemo(() => normalizeQuestMap(opts.questFlags).map(withQuestRewards), [opts.questFlags]);
   const worldState = useMemo(() => normalizeWorldState(opts.questFlags), [opts.questFlags]);
   const hub = useMemo(() => normalizeHubState(opts.questFlags?.[HUB_KEY]), [opts.questFlags]);
+  // Which DM reply offered or settled each quest (the cards under the story's replies).
+  const cards = useMemo(() => normalizeQuestCards(opts.questFlags?.[CARDS_KEY]), [opts.questFlags]);
 
   // Refs hold the newest values, including writes not yet re-rendered, so two quick
   // updates can never pay the same quest twice or lose a standing point.
@@ -81,6 +89,8 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
   const worldRef = useRef<WorldStateEntry[]>(worldState);
   useEffect(() => { questsRef.current = quests; }, [quests]);
   useEffect(() => { hubRef.current = hub; }, [hub]);
+  const cardsRef = useRef<QuestCard[]>(cards);
+  useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { worldRef.current = worldState; }, [worldState]);
 
   const writeQuest = useCallback((key: string, stored: Record<string, unknown>) => {
@@ -144,10 +154,18 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
     });
   }, []);
 
-  /** The story extractor's quest results (useDmAutoSync onQuestUpdate). */
-  const applyExtraction = useCallback((offers: RawQuestOffer[], progress: any[]) => {
-    const plan = planQuestUpdates(questsRef.current, hubRef.current, offers, progress);
+  /** The story extractor's quest results (useDmAutoSync onQuestUpdate). sourceMessageId: the DM reply they were read from. */
+  const applyExtraction = useCallback((offers: RawQuestOffer[], progress: any[], sourceMessageId?: string) => {
+    const before = questsRef.current;
+    const plan = planQuestUpdates(before, hubRef.current, offers, progress);
     const o = optsRef.current;
+    if (sourceMessageId) {
+      const made = cardsFromUpdate(plan, before, offers, sourceMessageId, new Date().toISOString());
+      if (made.length > 0) {
+        cardsRef.current = addQuestCards(cardsRef.current, made);
+        o.upsertQuest(CARDS_KEY, storedQuestCards(cardsRef.current));
+      }
+    }
     for (const u of plan.upserts) writeQuest(u.key, u.stored);
     for (const q of plan.offered) {
       const cat = hubCategory(questCategory(q));
@@ -241,6 +259,7 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
     quests,
     worldState,
     hub,
+    cards,
     current,
     strainCeiling,
     seeking,

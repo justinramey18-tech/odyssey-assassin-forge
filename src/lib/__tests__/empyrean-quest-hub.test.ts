@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   HUB_CATEGORIES,
   HUB_KEY,
+  MAX_QUEST_CARDS,
+  addQuestCards,
+  cardsFromUpdate,
+  normalizeQuestCards,
+  questCardsFor,
+  storedQuestCards,
+  type QuestCard,
   allowedChallenges,
   buildSeekPrompt,
   classifyQuest,
@@ -259,4 +266,138 @@ describe('progress unlocks and standing', () => {
     expect(line).toContain('Personal: Stranger (rank 1 of 5)');
     expect(line).not.toContain('Academics');
   });
+});
+
+describe('quest cards under the DM reply', () => {
+
+  const at = '2026-11-18T12:00:00.000Z';
+
+  const offer = { title: 'Find the Lost Journal', description: 'Somewhere in the Archives.', challenge_rating: 'moderate', stages: ['Ask the scribes'] };
+
+
+
+  it('makes an offer card for a new quest, and cards for a finished and a failed one, tied to the reply', () => {
+
+    const quests = [active({ key: 'study' }), active({ key: 'patrol' })];
+
+    const progress = [{ key: 'study', status: 'completed' }, { key: 'patrol', status: 'failed' }];
+
+    const plan = planQuestUpdates(quests, emptyHubState(), [offer], progress);
+
+    const cards = cardsFromUpdate(plan, quests, [offer], 'msg-1', at);
+
+    expect(cards.map(c => [c.kind, c.questKey, c.messageId])).toEqual([
+
+      ['offered', plan.offered[0].key, 'msg-1'],
+
+      ['completed', 'study', 'msg-1'],
+
+      ['failed', 'patrol', 'msg-1'],
+
+    ]);
+
+    const done = cards.find(c => c.kind === 'completed');
+
+    expect(done).toMatchObject({ title: 'study', xp: plan.payouts[0].xp, gold: plan.payouts[0].gold, points: plan.payouts[0].points });
+
+    expect(cardsFromUpdate(plan, quests, [offer], '', at)).toEqual([]);
+
+  });
+
+
+
+  it('moves a still-waiting offer to the new reply when the DM writes it again, and leaves an accepted quest alone', () => {
+
+    const first = planQuestUpdates([], emptyHubState(), [offer], []);
+
+    const key = first.offered[0].key;
+
+    const waiting = [{ ...first.offered[0] }];
+
+    const again = planQuestUpdates(waiting, emptyHubState(), [offer], []);
+
+    expect(again.offered).toEqual([]);
+
+    const moved = cardsFromUpdate(again, waiting, [offer], 'msg-2', at);
+
+    expect(moved.map(c => [c.kind, c.questKey, c.messageId])).toEqual([['offered', key, 'msg-2']]);
+
+    const merged = addQuestCards(cardsFromUpdate(first, [], [offer], 'msg-1', at), moved);
+
+    expect(merged.map(c => c.messageId)).toEqual(['msg-2']);
+
+
+
+    const accepted = [{ ...first.offered[0], status: 'active' as const }];
+
+    expect(cardsFromUpdate(planQuestUpdates(accepted, emptyHubState(), [offer], []), accepted, [offer], 'msg-3', at)).toEqual([]);
+
+  });
+
+
+
+  it('shows an offer until it is answered: accepted says so, declined disappears, results stay', () => {
+
+    const plan = planQuestUpdates([], emptyHubState(), [offer], []);
+
+    const q = plan.offered[0];
+
+    const cards: QuestCard[] = [
+
+      ...cardsFromUpdate(plan, [], [offer], 'msg-1', at),
+
+      { messageId: 'msg-1', questKey: 'old', kind: 'completed', title: 'Old', at, xp: 150, gold: 20, points: 2 },
+
+      { messageId: 'msg-9', questKey: 'other', kind: 'failed', title: 'Other', at },
+
+    ];
+
+    expect(questCardsFor(cards, [q], 'msg-1').map(v => v.state)).toEqual(['offer', 'completed']);
+
+    expect(questCardsFor(cards, [{ ...q, status: 'active' }], 'msg-1').map(v => v.state)).toEqual(['accepted', 'completed']);
+
+    expect(questCardsFor(cards, [], 'msg-1').map(v => v.state)).toEqual(['completed']);
+
+    expect(questCardsFor(cards, [{ ...q, status: 'completed' }], 'msg-1').map(v => v.state)).toEqual(['completed']);
+
+    expect(questCardsFor(cards, [q], 'msg-9').map(v => v.state)).toEqual(['failed']);
+
+    expect(questCardsFor(cards, [q], 'nope')).toEqual([]);
+
+  });
+
+
+
+  it('is stored under a reserved key no quest list reads, survives a round trip, drops bad rows and keeps the newest', () => {
+
+    const cards: QuestCard[] = [
+
+      { messageId: 'm1', questKey: 'a', kind: 'offered', title: 'A', at },
+
+      { messageId: 'm2', questKey: 'b', kind: 'completed', title: 'B', at, xp: 300, gold: 20, points: 2 },
+
+    ];
+
+    const stored = storedQuestCards(cards);
+
+    expect(normalizeQuestCards(stored)).toEqual(cards);
+
+    expect(normalizeQuestMap({ __empyrean_quest_cards__: stored })).toEqual([]);
+
+    expect(normalizeQuestCards({ cards: [{ messageId: '', questKey: 'a', kind: 'offered' }, { messageId: 'm', questKey: 'a', kind: 'nope' }, null] })).toEqual([]);
+
+    expect(normalizeQuestCards(undefined)).toEqual([]);
+
+    const many = Array.from({ length: MAX_QUEST_CARDS + 5 }, (_, i): QuestCard => ({ messageId: `m${i}`, questKey: `q${i}`, kind: 'offered', title: `Q${i}`, at }));
+
+    const kept = addQuestCards(many.slice(0, MAX_QUEST_CARDS), many.slice(MAX_QUEST_CARDS));
+
+    expect(kept.length).toBe(MAX_QUEST_CARDS);
+
+    expect(kept[kept.length - 1].questKey).toBe(`q${MAX_QUEST_CARDS + 4}`);
+
+    expect(kept[0].questKey).toBe('q5');
+
+  });
+
 });

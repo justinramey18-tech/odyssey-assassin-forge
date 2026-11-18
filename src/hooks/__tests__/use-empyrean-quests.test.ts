@@ -5,7 +5,7 @@ vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 vi.mock('@/lib/pendingDmItems', () => ({ addPendingDmItems: vi.fn() }));
 vi.mock('@/lib/empyrean-quest-seeker', () => ({ seekQuests: vi.fn() }));
 import { useEmpyreanQuests, type UseEmpyreanQuestsOptions } from '@/hooks/use-empyrean-quests';
-import { PAYOUTS_KEY, type QuestPayResult } from '@/lib/empyrean-quest-hub';
+import { CARDS_KEY, PAYOUTS_KEY, type QuestPayResult } from '@/lib/empyrean-quest-hub';
 
 // quest_flags held like useDMGameState holds them (upsertQuest merges into the key).
 function harness(payQuest?: UseEmpyreanQuestsOptions['payQuest']) {
@@ -78,4 +78,40 @@ describe('useEmpyreanQuests payouts', () => {
     expect(h.onAddXP).not.toHaveBeenCalled();
     expect(h.onGoldChange).not.toHaveBeenCalled();
   });
+});
+
+describe('useEmpyreanQuests story cards', () => {
+
+  afterEach(() => { cleanup(); });
+
+
+
+  it('records which DM reply offered and finished a quest, and nothing when no reply is named', async () => {
+
+    const h = harness();
+
+    const offer = { title: 'Find the Lost Journal', challenge_rating: 'easy', stages: ['Ask the scribes'] };
+
+    await act(async () => { h.hook.result.current.applyExtraction([offer], []); });
+
+    expect(h.flags()[CARDS_KEY]).toBeUndefined();
+
+
+
+    const other = { title: 'Carry the Message', challenge_rating: 'easy' };
+
+    await act(async () => { h.hook.result.current.applyExtraction([other], [{ key: 'study', status: 'completed' }], 'reply-7'); });
+
+    h.hook.rerender();
+
+    const cards = h.hook.result.current.cards;
+
+    expect(cards.map(c => [c.kind, c.messageId])).toEqual([['offered', 'reply-7'], ['completed', 'reply-7']]);
+
+    expect(cards[1]).toMatchObject({ questKey: 'study', xp: 300, gold: 20 });
+
+    expect(h.hook.result.current.quests.some(q => q.key === cards[0].questKey && q.status === 'offered')).toBe(true);
+
+  });
+
 });
