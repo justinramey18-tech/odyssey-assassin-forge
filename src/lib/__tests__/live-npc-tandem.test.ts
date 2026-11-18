@@ -71,6 +71,7 @@ describe('what the table tells the DM', () => {
     expect(note).toContain('- Xaden Riorson walked out.');
     expect(note).toContain('- Dain Aetos handed Kylar: a folded order.');
     expect(tableStateForDm({ riderName: 'Kylar', onStage: [], whispered: false, pairs: [], ignored: [], actions: ['Jack Barlowe squared up to Kylar.'] })).toContain('squared up');
+    expect(tableStateForDm({ riderName: 'Kylar', onStage: [], whispered: false, pairs: [], ignored: [], companions: ['Dain Aetos'] })).toContain('Dain Aetos set out with Kylar and is travelling with them');
   });
 
   it('a hand-off asks for a full scene and carries the note', () => {

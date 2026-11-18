@@ -84,6 +84,8 @@ export interface TableStateInput {
   onStage: Array<{ name: string; wants?: string | null; aim?: string | null; hiding?: string | null }>;
   /** Things NPCs did at the table that change the scene (walked out, squared up, handed something over). */
   actions?: string[];
+  /** NPCs who set out with the rider and are travelling with them. */
+  companions?: string[];
   /** A sealed line in this hand-off was a whisper. */
   whispered: boolean;
   /** Pairs on stage with unfinished business. */
@@ -111,6 +113,7 @@ export function tableStateForDm(input: TableStateInput): string {
     }).join('; ')}.`);
   }
   for (const act of (input.actions ?? []).slice(0, 4)) lines.push(clean(act, 160));
+  if (input.companions && input.companions.length) lines.push(`${listNames(input.companions)} set out with ${rider} and ${input.companions.length > 1 ? 'are' : 'is'} travelling with them: present wherever ${rider} is, until the story parts them.`);
   if (input.whispered) lines.push(`A line marked 🤫 was whispered to ${rider} alone. The others did not hear it.`);
   const h = input.lastHuddle;
   if (h && h.names.length >= 2) {
