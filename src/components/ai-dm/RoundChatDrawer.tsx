@@ -387,6 +387,8 @@ export interface RoundChatMessageListProps {
   npcs?: RoundChatDrawerProps['npcs'];
   /** History mode: same message presentation, no live workflow controls. */
   readOnly?: boolean;
+  /** Solo one-chat: no swipe-to-reply on a line, so a sideways drag over it pans the hall. */
+  noSwipe?: boolean;
   inCharacter?: boolean;
   onlineStatus?: Record<string, { isOnline: boolean }>;
   sharedReady?: boolean;
@@ -439,6 +441,7 @@ export function RoundChatMessageList({
   oocNames,
   npcs,
   readOnly = false,
+  noSwipe = false,
   inCharacter = true,
   onlineStatus = {},
   sharedReady = false,
@@ -570,17 +573,17 @@ export function RoundChatMessageList({
       <div
         key={m.id}
         ref={(el) => { if (messageRefs) messageRefs.current[m.id] = el; }}
-        onTouchStart={readOnly ? undefined : onRowTouchStart(m.id)}
-        onTouchMove={readOnly ? undefined : onRowTouchMove}
-        onTouchEnd={readOnly ? undefined : onRowTouchEnd(m)}
-        onTouchCancel={readOnly ? undefined : () => { swipeStart.current = null; setSwipeId(null); setSwipeX(0); }}
+        onTouchStart={readOnly || noSwipe ? undefined : onRowTouchStart(m.id)}
+        onTouchMove={readOnly || noSwipe ? undefined : onRowTouchMove}
+        onTouchEnd={readOnly || noSwipe ? undefined : onRowTouchEnd(m)}
+        onTouchCancel={readOnly || noSwipe ? undefined : () => { swipeStart.current = null; setSwipeId(null); setSwipeX(0); }}
         className={cn(
           "relative flex items-end gap-1.5",
           stacked ? "mt-[3px]" : "mt-2 first:mt-0",
           alignRight ? "flex-row-reverse" : "flex-row",
         )}
         style={{
-          touchAction: 'pan-y',
+          touchAction: noSwipe ? undefined : 'pan-y',
           transform: swipeId === m.id && swipeX > 0 ? `translateX(${swipeX}px)` : undefined,
           transition: swipeId === m.id ? 'none' : 'transform 160ms ease-out',
         }}
@@ -1716,6 +1719,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
     swipeStart, swipeId, setSwipeId, swipeX, setSwipeX, onUploadAvatar, onOpenPortraitMenu: onGeneratePortrait ? () => { setPortraitDraft(portraitPrompt || ''); setPortraitMenuOpen(true); } : undefined, setCropTarget, jumpToMessage, setViewingImage,
     onEditMessage, rolledNpcLineIds, rollingLineId, setRollingLineId, onNpcRoll, onNpcJoin, onToggleSelected, nudgeMessageId,
     pickerFor, setPickerFor, onRegenerateNpcLine, canManageNpcs, onDeleteMessage, onToggleReaction,
+    noSwipe: merged,
   };
 
   return (
