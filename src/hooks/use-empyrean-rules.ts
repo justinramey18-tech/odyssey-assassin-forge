@@ -200,7 +200,18 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
       const snap = await run('check', input, true);
       return snap?.ok && snap.check ? snap.check : null;
     },
-    signetUsed: (intensity: number) => { void run('signet_used', { intensity }, true); },
+    signetUsed: (intensity: number) => {
+      void run('signet_used', { intensity }, true).then(snap => {
+        if (snap?.ok && snap.freeChannel) toast.success('Deep Well: this channel cost no strain');
+      });
+    },
+    /** Spend XP on a progression web node. The server decides; true when it was bought. */
+    buyNode: async (nodeId: string): Promise<boolean> => {
+      const snap = await run('web_buy', { nodeId });
+      if (!snap?.ok || snap.bought?.id !== nodeId) return false;
+      toast.success(`${snap.bought.name} unlocked`, { description: snap.bought.effect });
+      return true;
+    },
     /** Move Signet Strain for one of the fixed reasons (the server sets the amount and keeps the number). */
     strain: (reason: StrainReason, extra: { messageId?: string; channeled?: boolean; amount?: number } = {}) => { void run('strain', { reason, ...extra }, true); },
     /** A Prodigy's Battle Brief: the binding line for the DM, or null (the server said why). */
@@ -242,7 +253,9 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
   const active = !!scope && !!snapshot;
   /** Signet Strain as the server keeps it; null while the engine is off or the server is older. */
   const serverStrain = active && typeof snapshot?.strain === 'number' ? snapshot.strain : null;
-  return { ...api, snapshot, busy, active, serverStrain };
+  /** The progression web; null while the engine is off or the server is older. */
+  const web = active && snapshot?.web ? snapshot.web : null;
+  return { ...api, snapshot, busy, active, serverStrain, web };
 }
 
 export type EmpyreanRulesApi = ReturnType<typeof useEmpyreanRules>;

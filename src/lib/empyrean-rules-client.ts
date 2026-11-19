@@ -6,7 +6,7 @@ import { prodigyStrainDiscount, type ProdigyTier } from '@/lib/empyreanClasses/p
 
 export type RulesAction =
   | 'state' | 'ack' | 'rest' | 'pass_time' | 'check' | 'signet_used' | 'quest_payout' | 'story_reward'
-  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain' | 'story_time';
+  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain' | 'story_time' | 'web_buy';
 /** Ways Signet Strain moves besides channels, checks, rests and fights (the server sets the amounts). */
 export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export type FightAction = 'fight_start' | 'fight_tick' | 'fight_act' | 'fight_clash' | 'fight_close';
@@ -28,6 +28,21 @@ export interface RulesCheck {
   outcome: 'critical_success' | 'success' | 'failure' | 'critical_failure';
   dc: number; total: number; line: string; hp: number; strain: number; condition: string | null; injury: string | null;
 }
+/** The progression web as the server keeps it: XP to spend, nodes owned, and what they add up to. */
+export interface RulesWebNode { id: string; tier: 'small' | 'big' | 'capstone'; name: string; effect: string; cost: number; owned: boolean; canBuy: boolean; why: string | null }
+export interface RulesWebSpoke { id: string; half: 'rider' | 'dragon'; name: string; stat: string; blurb: string; coming: boolean; owned: number; nodes: RulesWebNode[] }
+export interface RulesWeb {
+  xp: { earned: number; spent: number; balance: number };
+  owned: string[];
+  bonuses: { strainLimit: number; backlashOff: number; freeChannel: boolean };
+  spokes: RulesWebSpoke[];
+}
+/** The top the server allows for the Signet Strain limit, web bonus included. */
+export const WEB_STRAIN_TOP = 20;
+/** The strain limit to show: the phone's own limit plus the web's bonus (none while the rider has no signet). */
+export const webStrainLimit = (base: number, web: RulesWeb | null | undefined): number =>
+  base > 0 ? Math.min(WEB_STRAIN_TOP, base + Math.max(0, Math.trunc(Number(web?.bonuses?.strainLimit)) || 0)) : base;
+
 export interface RulesSnapshot {
   ok: boolean;
   error?: string;
@@ -66,6 +81,12 @@ export interface RulesSnapshot {
   strain?: number;
   /** What a signet channel cost (the answer to signet_used). */
   strainCost?: number;
+  /** That channel was the day's free one (the progression web's Deep Well). */
+  freeChannel?: boolean;
+  /** The progression web (absent from an older server). */
+  web?: RulesWeb;
+  /** The node just bought (the answer to web_buy). */
+  bought?: { id: string; name: string; effect: string };
   facts: string;
   inbox: RulesInboxEvent[];
 }
