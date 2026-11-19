@@ -144,6 +144,29 @@ describe('Live Table with NPCs', () => {
     expect(screen.getByText('Grukk is thinking…')).toBeInTheDocument();
   });
 
+  it('with goLive, a Go live button takes the place of the Talk to control and switches the setting', () => {
+    const onToggle = vi.fn();
+    const first = open({ currentUserId: HOST, canManageNpcs: true, onSpeakAsNpc: vi.fn(async () => true), goLive: { on: false, onToggle } });
+    const off = screen.getByRole('button', { name: 'Go live: let NPCs speak up on their own.' });
+    expect(off).toHaveAttribute('aria-pressed', 'false');
+    expect(off.textContent).toContain('Go live');
+    expect(screen.queryByRole('button', { name: /Talking to NPCs/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Talk to Grukk' })).toBeInTheDocument();
+    fireEvent.click(off);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    first.unmount();
+    open({ currentUserId: HOST, canManageNpcs: true, onSpeakAsNpc: vi.fn(async () => true), goLive: { on: true, onToggle } });
+    const on = screen.getByRole('button', { name: 'The table is live: NPCs speak up on their own. Tap to turn that off.' });
+    expect(on).toHaveAttribute('aria-pressed', 'true');
+    expect(on.textContent).toContain('Live');
+  });
+
+  it('without goLive the host keeps the Talk to / Speak as control', () => {
+    open({ currentUserId: HOST, canManageNpcs: true, onSpeakAsNpc: vi.fn(async () => true) });
+    expect(screen.getByRole('button', { name: /Talking to NPCs/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Go live/ })).toBeNull();
+  });
+
   it('players never see Speak as', () => {
     open();
     expect(screen.queryByRole('button', { name: /Talking to NPCs/ })).toBeNull();

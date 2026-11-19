@@ -3158,6 +3158,7 @@ ${oocLines}`;
           onStartScene={liveTable.onStartScene}
           sceneRunning={liveTable.sceneRunning}
           npcAnswerOrder="tapped"
+          goLive={{ on: liveTable.urge.enabled, onToggle: () => liveTable.urge.setEnabled(!liveTable.urge.enabled) }}
           npcTells={liveTable.tells}
           onInviteNpc={liveTable.inviteNpc}
           onHushNpc={liveTable.hushNpc}

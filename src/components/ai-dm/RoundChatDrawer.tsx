@@ -255,6 +255,8 @@ interface RoundChatDrawerProps {
   sceneRunning?: boolean;
   /** Solo Empyrean: picked NPCs answer in the order tapped (numbered on the chips). Party keeps stage order. */
   npcAnswerOrder?: 'stage' | 'tapped';
+  /** Solo Empyrean: a Go live button takes the place of the Talk to control at the start of the NPC row. It switches "NPCs speak up on their own". */
+  goLive?: { on: boolean; onToggle: () => void };
   /** Solo urge meter (D-40): NPCs itching to speak unprompted (id → why). A pill row shows above the chips: tap lets them speak, hold hushes them. */
   npcTells?: Record<string, string>;
   /** Tap a tell: that NPC speaks now. */
@@ -1159,6 +1161,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
   onStartScene,
   sceneRunning = false,
   npcAnswerOrder = 'stage',
+  goLive,
   npcTells,
   onInviteNpc,
   onHushNpc,
@@ -2233,7 +2236,21 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                       </div>
                     )}
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
-                      {stageNpcs.length > 0 && (canManageNpcs && onSpeakAsNpc ? (
+                      {stageNpcs.length > 0 && (goLive ? (
+                        <button
+                          onClick={goLive.onToggle}
+                          aria-pressed={goLive.on}
+                          aria-label={goLive.on ? 'The table is live: NPCs speak up on their own. Tap to turn that off.' : 'Go live: let NPCs speak up on their own.'}
+                          style={{ touchAction: 'manipulation' }}
+                          className={cn(
+                            "shrink-0 min-h-[44px] px-3 rounded-full border font-cinzel text-[12px] flex items-center gap-1.5 transition-colors",
+                            goLive.on ? "border-rose-400/70 bg-rose-500/20 text-rose-50" : "border-white/20 bg-black/50 text-white/80",
+                          )}
+                        >
+                          <span aria-hidden className={cn("w-2 h-2 rounded-full", goLive.on ? "bg-rose-400 motion-safe:animate-pulse" : "border border-white/50")} />
+                          {goLive.on ? 'Live' : 'Go live'}
+                        </button>
+                      ) : canManageNpcs && onSpeakAsNpc ? (
                         <button
                           onClick={() => setNpcMode(mode => (mode === 'talk' ? 'speak' : 'talk'))}
                           aria-label={npcMode === 'talk' ? 'Talking to NPCs. Tap to speak as an NPC instead.' : 'Speaking as an NPC. Tap to talk to NPCs instead.'}
@@ -2284,7 +2301,7 @@ export const RoundChatDrawer = forwardRef<RoundChatDrawerHandle, RoundChatDrawer
                                 <img
                                   src={n.portrait_url}
                                   alt=""
-                                  className="w-full h-full object-contain bg-black/30"
+                                  className="w-full h-full object-cover object-top"
                                   loading="lazy"
                                   draggable={false}
                                 />
