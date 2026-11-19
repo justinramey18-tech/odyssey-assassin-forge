@@ -45,7 +45,8 @@ export interface CampaignState {
   injuries: Injury[];
   needs: { huntMetDay: number; flyMetDay: number; chargedDay: number };
   events: { level: EventLevel; lastEventDay: number; pending: PendingEvent | null };
-  signet: { xpDay: number; xpToday: number };
+  /** freeDay: the in-game day the progression web's free channel was last used (0: never). */
+  signet: { xpDay: number; xpToday: number; freeDay: number };
   rewards: { day: number; xp: number; gold: number };
   lastCheck: { label: string; outcome: Outcome; minute: number } | null;
   travel: { dest: string | null; encounterDone: boolean };
@@ -71,7 +72,7 @@ export function freshState(): CampaignState {
     v: 1, seq: 0, restDay: 1, shortRests: 0, lastLongRestEnd: -100000, conditions: [], injuries: [],
     needs: { huntMetDay: 1, flyMetDay: 1, chargedDay: 0 },
     events: { level: 'normal', lastEventDay: 0, pending: null },
-    signet: { xpDay: 1, xpToday: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
+    signet: { xpDay: 1, xpToday: 0, freeDay: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
     fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
     strain: 0, strainCooled: null, liveAt: 0, timeTurns: [],
@@ -100,7 +101,7 @@ export function normalizeState(raw: unknown): CampaignState {
             ...(p.check && typeof p.check.label === 'string' ? { check: { label: p.check.label.slice(0, 60), dc: snapDc(p.check.dc) } } : {}) }
         : null,
     },
-    signet: { xpDay: Math.max(1, int(r.signet?.xpDay, 1)), xpToday: Math.max(0, int(r.signet?.xpToday)) },
+    signet: { xpDay: Math.max(1, int(r.signet?.xpDay, 1)), xpToday: Math.max(0, int(r.signet?.xpToday)), freeDay: Math.max(0, int(r.signet?.freeDay)) },
     rewards: { day: Math.max(1, int(r.rewards?.day, 1)), xp: Math.max(0, int(r.rewards?.xp)), gold: Math.max(0, int(r.rewards?.gold)) },
     lastCheck: r.lastCheck && typeof r.lastCheck.label === 'string' && OUTCOMES.includes(r.lastCheck.outcome)
       ? { label: r.lastCheck.label.slice(0, 80), outcome: r.lastCheck.outcome, minute: int(r.lastCheck.minute) } : null,
@@ -131,7 +132,7 @@ export function tick(state: CampaignState, minute: number): CampaignState {
   const day = dayOf(minute);
   const s: CampaignState = { ...state, conditions: state.conditions.filter(c => c.untilMinute > minute) };
   if (s.restDay !== day) { s.restDay = day; s.shortRests = 0; }
-  if (s.signet.xpDay !== day) s.signet = { xpDay: day, xpToday: 0 };
+  if (s.signet.xpDay !== day) s.signet = { xpDay: day, xpToday: 0, freeDay: s.signet.freeDay };
   if (s.rewards.day !== day) s.rewards = { day, xp: 0, gold: 0 };
   if (s.spars.day !== day) s.spars = { day, n: 0 };
   return s;
@@ -233,12 +234,16 @@ export function raiseStrain(state: CampaignState, amount: number, limit: number 
 export const lowerStrain = (state: CampaignState, amount: number): CampaignState =>
   ({ ...state, strain: Math.max(0, state.strain - Math.max(0, int(amount))) });
 /** A signet channel: mastery XP (signetUse) plus its strain cost, capped at the limit. */
-export function channelSignet(state: CampaignState, minute: number, intensity: number, rank: number, prodigy: number, limit: number | null):
-  { state: CampaignState; events: RuleEvent[]; xpDelta: number; cost: number } {
+/** freeFirst (the progression web's Deep Well): the first channel of each in-game day costs no strain. */
+export function channelSignet(state: CampaignState, minute: number, intensity: number, rank: number, prodigy: number, limit: number | null, freeFirst = false):
+  { state: CampaignState; events: RuleEvent[]; xpDelta: number; cost: number; free: boolean } {
   const u = signetUse(state, minute, intensity, prodigy);
-  const cost = signetStrainCost(intensity, rank, prodigy);
-  const r = raiseStrain(u.state, cost, limit, 'Channeled to the limit');
-  return { state: r.state, events: r.events, xpDelta: u.xpDelta, cost };
+  const day = dayOf(minute);
+  const free = freeFirst && u.state.signet.freeDay !== day;
+  const cost = free ? 0 : signetStrainCost(intensity, rank, prodigy);
+  const used: CampaignState = free ? { ...u.state, signet: { ...u.state.signet, freeDay: day } } : u.state;
+  const r = raiseStrain(used, cost, limit, 'Channeled to the limit');
+  return { state: r.state, events: r.events, xpDelta: u.xpDelta, cost, free };
 }
 export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export const STRAIN_REASONS: StrainReason[] = ['cool', 'ground', 'ground_roll', 'quest', 'raise', 'revive', 'fallen'];
@@ -283,7 +288,8 @@ export function checkPenalty(state: CampaignState): number {
   const cond = Math.min(3, state.conditions.reduce((sum, c) => sum + c.penalty, 0));
   return Math.min(4, injury + cond);
 }
-export interface CheckInput { d20: number; modifier: number; dc: unknown; risk: Risk; label: string; masteryXp: number; bond: number | null }
+/** strainOff (the progression web's Channel spoke): strain taken off a failed signet check. */
+export interface CheckInput { d20: number; modifier: number; dc: unknown; risk: Risk; label: string; masteryXp: number; bond: number | null; strainOff?: number }
 export interface CheckResult {
   dc: number; total: number; outcome: Outcome; parts: string[]; hp: number; strain: number;
   condition: Condition | null; injury: Injury | null; line: string; state: CampaignState; events: RuleEvent[];
@@ -329,15 +335,17 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
     if (input.risk === 'signet') strain = 1;
   }
   hp = Math.max(hp, -Math.max(1, Math.floor(sheet.maxHp / 2)));
+  const absorbed = Math.min(strain, clamp(int(input.strainOff), 0, 5));
+  strain -= absorbed;
   const label = String(input.label || 'Check').slice(0, 80);
   const seq = s.seq + 1;
   s = { ...s, seq, lastCheck: { label, outcome, minute } };
   const bits = [`d20 ${d20}`, `total ${total} vs DC ${dc}`, ...parts];
-  const cost = [hp ? `${-hp} damage` : '', strain ? `+${strain} Signet Strain` : '', condition ? `${(condition as Condition).name} (-${(condition as Condition).penalty} to checks for a while)` : '', injury ? `injury: ${(injury as Injury).name}` : ''].filter(Boolean);
+  const cost = [hp ? `${-hp} damage` : '', strain ? `+${strain} Signet Strain` : '', absorbed ? `Channel training absorbed ${absorbed} Signet Strain` : '', condition ? `${(condition as Condition).name} (-${(condition as Condition).penalty} to checks for a while)` : '', injury ? `injury: ${(injury as Injury).name}` : ''].filter(Boolean);
   const line = `[APP RULING, binding: ${label}: ${OUTCOME_LABEL[outcome]} (${bits.join(', ')}).${cost.length ? ` Consequence: ${cost.join('; ')}.` : ''}]`;
   const events: RuleEvent[] = [{
     kind: 'check', reason: `${label}: ${OUTCOME_LABEL[outcome]}`, hp, idem_key: `check:${seq}`,
-    payload: { outcome, dc, total, d20, strain, condition: condition ? (condition as Condition).name : null, injury: injury ? (injury as Injury).name : null },
+    payload: { outcome, dc, total, d20, strain, condition: condition ? (condition as Condition).name : null, injury: injury ? (injury as Injury).name : null, ...(absorbed ? { strainAbsorbed: absorbed } : {}) },
   }];
   return { dc, total, outcome, parts, hp, strain, condition, injury, line, state: s, events };
 }
