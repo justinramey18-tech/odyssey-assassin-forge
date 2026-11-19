@@ -19,15 +19,73 @@ export interface WebBonuses {
   backlashOff: number;
   /** The first story channel of each in-game day costs no strain. */
   freeChannel: boolean;
+  /** Added to the rider's max HP. The sheet adds it (Empyrean mode only) from the number sent here. */
+  maxHp: number;
 }
-export const NO_BONUSES: WebBonuses = { strainLimit: 0, backlashOff: 0, freeChannel: false };
+export const NO_BONUSES: WebBonuses = { strainLimit: 0, backlashOff: 0, freeChannel: false, maxHp: 0 };
 
-interface NodeDef { id: string; tier: NodeTier; name: string; effect: string; gives: Partial<WebBonuses> }
-interface SpokeDef { id: string; half: WebHalf; name: string; stat: string; blurb: string; nodes: NodeDef[] }
+/** parent: the node that must be owned first (omitted: the node before it in the list; null: none).
+ *  branch: the branch of the spoke it sits on (omitted: the spoke's trunk). soon: shown, not yet buyable. */
+interface NodeDef { id: string; tier: NodeTier; name: string; effect: string; gives: Partial<WebBonuses>; parent?: string | null; branch?: string; soon?: boolean }
+interface BranchDef { id: string; name: string; aspect: string }
+interface SpokeDef { id: string; half: WebHalf; name: string; stat: string; blurb: string; nodes: NodeDef[]; branches?: BranchDef[] }
+
+const TIERS: NodeTier[] = ['small', 'small', 'big', 'big', 'capstone'];
+/** A five-node branch (small, small, big, big, capstone) growing from `from`. */
+function branch(id: string, from: string, soon: boolean, defs: Array<[name: string, effect: string, gives: Partial<WebBonuses>]>): NodeDef[] {
+  return defs.map(([name, effect, gives], i) => ({
+    id: `${id}-${i + 1}`, tier: TIERS[i], name, effect, gives, branch: id, parent: i === 0 ? from : `${id}-${i}`, ...(soon ? { soon: true } : {}),
+  }));
+}
+const hp = (n: number): [string, Partial<WebBonuses>] => [`Max HP +${n}.`, { maxHp: n }];
 
 /** The whole web. A spoke with no nodes is shown as "coming": it cannot be bought yet. */
 export const WEB_SPOKES: SpokeDef[] = [
-  { id: 'vitality', half: 'rider', name: 'Vitality', stat: 'Max HP', blurb: 'A body that takes more punishment.', nodes: [] },
+  {
+    id: 'vitality', half: 'rider', name: 'Vitality', stat: 'Max HP', blurb: 'A body that takes more punishment.',
+    branches: [
+      { id: 'tough', name: 'Toughness', aspect: 'Max HP' },
+      { id: 'ward', name: 'Ward', aspect: 'A shield over your HP' },
+      { id: 'regen', name: 'Regeneration', aspect: 'HP that returns on its own' },
+      { id: 'adren', name: 'Adrenaline', aspect: 'Stronger when hurt' },
+      { id: 'blood', name: 'Lifeblood', aspect: 'HP as power' },
+    ],
+    nodes: [
+      // The trunk: every branch grows from its last node.
+      ...['Hale', 'Hardy', 'Robust', 'Stalwart', 'Ironblooded'].map((name, i): NodeDef => ({ id: `vitality-${i + 1}`, tier: 'small', name, effect: hp(3)[0], gives: hp(3)[1] })),
+      ...branch('tough', 'vitality-5', false, [
+        ['Thick Hide', ...hp(4)], ['Deep Lungs', ...hp(4)], ['Oaken Frame', ...hp(6)], ['Mountain Heart', ...hp(6)], ["Titan's Frame", ...hp(10)],
+      ]),
+      ...branch('ward', 'vitality-5', true, [
+        ['First Ward', 'A 4-point shield over your HP. It takes damage first and refills on a long rest.', {}],
+        ['Second Ward', 'Shield 8.', {}],
+        ['Third Ward', 'Shield 14.', {}],
+        ['Quick Ward', 'Half your shield refills on a short rest.', {}],
+        ['Bulwark', 'Shield 24. It refills at the start of every fight.', {}],
+      ]),
+      ...branch('regen', 'vitality-5', true, [
+        ['Slow Mend', 'Recover 1 HP every game hour.', {}],
+        ['Steady Mend', 'Recover 2 HP every game hour.', {}],
+        ['Battle Mend', 'Recover 1 HP on each of your turns in a fight.', {}],
+        ['Swift Mend', 'Recover 3 HP every game hour.', {}],
+        ['Wellspring', 'Recover 2 HP on each fight turn, and your regeneration refills your Ward too.', {}],
+      ]),
+      ...branch('adren', 'vitality-5', true, [
+        ['Quickened Pulse', 'Under half HP: +1 damage in a fight.', {}],
+        ['Racing Pulse', 'Under half HP: +2 damage in a fight.', {}],
+        ['Cornered', 'Under half HP: also +1 to hit.', {}],
+        ['Last Reserves', 'Under a quarter HP those bonuses double.', {}],
+        ['Blood Up', 'Under half HP you act 1 second sooner.', {}],
+      ]),
+      ...branch('blood', 'vitality-5', true, [
+        ['Open Vein', 'Channel past your Signet Strain limit: each point over costs 4 HP.', {}],
+        ['Willing Vein', 'Each point over costs 3 HP.', {}],
+        ['Practiced Vein', 'Each point over costs 2 HP.', {}],
+        ['Bloodletting', 'A channel paid in blood also eases Signet Strain by 1.', {}],
+        ['Heartfire', 'In a fight, a signet strike paid in blood rolls 2 extra dice.', {}],
+      ]),
+    ],
+  },
   {
     id: 'channel', half: 'rider', name: 'Channel', stat: 'Signet Strain limit', blurb: 'Hold more power before it burns you.',
     nodes: [
@@ -49,8 +107,11 @@ export const WEB_SPOKES: SpokeDef[] = [
   { id: 'loyalty', half: 'dragon', name: 'Loyalty', stat: 'Trust', blurb: 'Trust that changes what it will do for you.', nodes: [] },
 ];
 
-const NODES = new Map<string, { node: NodeDef; spoke: SpokeDef; index: number }>();
-for (const spoke of WEB_SPOKES) spoke.nodes.forEach((node, index) => NODES.set(node.id, { node, spoke, index }));
+/** Each node with the node that must be owned before it (null: none). */
+const NODES = new Map<string, { node: NodeDef; spoke: SpokeDef; parent: string | null }>();
+for (const spoke of WEB_SPOKES) {
+  spoke.nodes.forEach((node, index) => NODES.set(node.id, { node, spoke, parent: node.parent !== undefined ? node.parent : index > 0 ? spoke.nodes[index - 1].id : null }));
+}
 export const nodeCost = (id: string): number | null => { const n = NODES.get(id); return n ? NODE_COST[n.node.tier] : null; };
 
 // ── the ledger ──
@@ -110,7 +171,8 @@ function refusal(l: WebLedger, id: string): Refusal {
   const found = NODES.get(id);
   if (!found) return 'That upgrade is not available yet.';
   if (l.nodes.includes(id)) return 'You already have that upgrade.';
-  const before = found.index > 0 ? found.spoke.nodes[found.index - 1] : null;
+  if (found.node.soon) return 'Coming in the next update.';
+  const before = found.parent ? NODES.get(found.parent)?.node : null;
   if (before && !l.nodes.includes(before.id)) return `Unlock ${before.name} first.`;
   const cost = NODE_COST[found.node.tier];
   const short = cost - xpBalance(l);
@@ -133,6 +195,7 @@ export function webBonuses(l: WebLedger): WebBonuses {
     out.strainLimit += g.strainLimit ?? 0;
     out.backlashOff += g.backlashOff ?? 0;
     if (g.freeChannel) out.freeChannel = true;
+    out.maxHp += g.maxHp ?? 0;
   }
   return out;
 }
@@ -144,8 +207,15 @@ export function webStrainLimit(base: number | null, bonuses: WebBonuses): number
 }
 
 // ── what the phone shows ──
-export interface WebNodeView { id: string; tier: NodeTier; name: string; effect: string; cost: number; owned: boolean; canBuy: boolean; why: string | null }
-export interface WebSpokeView { id: string; half: WebHalf; name: string; stat: string; blurb: string; coming: boolean; owned: number; nodes: WebNodeView[] }
+export interface WebNodeView {
+  id: string; tier: NodeTier; name: string; effect: string; cost: number; owned: boolean; canBuy: boolean; why: string | null;
+  /** The node that must be owned first (null: the hub), the branch it sits on (null: the trunk), and whether it is not buyable yet. */
+  parent: string | null; branch: string | null; soon: boolean;
+}
+export interface WebSpokeView {
+  id: string; half: WebHalf; name: string; stat: string; blurb: string; coming: boolean; owned: number; nodes: WebNodeView[];
+  branches: Array<{ id: string; name: string; aspect: string }>;
+}
 export interface WebView {
   xp: { earned: number; spent: number; balance: number };
   owned: string[];
@@ -160,10 +230,14 @@ export function webView(l: WebLedger): WebView {
     spokes: WEB_SPOKES.map(s => ({
       id: s.id, half: s.half, name: s.name, stat: s.stat, blurb: s.blurb, coming: s.nodes.length === 0,
       owned: s.nodes.filter(n => l.nodes.includes(n.id)).length,
+      branches: (s.branches ?? []).map(b => ({ ...b })),
       nodes: s.nodes.map(n => {
         const owned = l.nodes.includes(n.id);
         const why = owned ? null : refusal(l, n.id);
-        return { id: n.id, tier: n.tier, name: n.name, effect: n.effect, cost: NODE_COST[n.tier], owned, canBuy: !owned && !why, why };
+        return {
+          id: n.id, tier: n.tier, name: n.name, effect: n.effect, cost: NODE_COST[n.tier], owned, canBuy: !owned && !why, why,
+          parent: NODES.get(n.id)?.parent ?? null, branch: n.branch ?? null, soon: !!n.soon,
+        };
       }),
     })),
   };

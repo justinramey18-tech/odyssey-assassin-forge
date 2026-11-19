@@ -67,7 +67,7 @@ describe('progression web: buying', () => {
   it('refuses a node out of order, a node already owned, and anything not in the web', () => {
     expect(W.buyNode(withXp(5000), 'channel-3')).toEqual({ ok: false, error: 'Unlock Second Reserve first.' });
     expect(W.buyNode(withXp(5000, ['channel-1']), 'channel-1')).toEqual({ ok: false, error: 'You already have that upgrade.' });
-    expect(W.buyNode(withXp(5000), 'vitality-1').ok).toBe(false);
+    expect(W.buyNode(withXp(5000), 'saddle-1').ok).toBe(false);
     expect(W.buyNode(withXp(5000), '').ok).toBe(false);
   });
 
@@ -80,7 +80,7 @@ describe('progression web: buying', () => {
     }
     expect(l.spent).toBe(2250);
     expect(W.xpBalance(l)).toBe(0);
-    expect(W.webBonuses(l)).toEqual({ strainLimit: 7, backlashOff: 2, freeChannel: true });
+    expect(W.webBonuses(l)).toEqual({ strainLimit: 7, backlashOff: 2, freeChannel: true, maxHp: 0 });
     // What is saved reads back the same.
     expect(W.normalizeLedger(W.withLedger({}, l))).toEqual(l);
   });
@@ -155,11 +155,11 @@ describe('progression web: what the nodes do', () => {
 });
 
 describe('progression web: what the phone is shown', () => {
-  it('lists ten spokes, five a half, with only Channel open', () => {
+  it('lists ten spokes, five a half, with Vitality and Channel open', () => {
     const v = W.webView(withXp(150));
     expect(v.spokes.length).toBe(10);
     expect(v.spokes.filter(s => s.half === 'rider').length).toBe(5);
-    expect(v.spokes.filter(s => !s.coming).map(s => s.id)).toEqual(['channel']);
+    expect(v.spokes.filter(s => !s.coming).map(s => s.id)).toEqual(['vitality', 'channel']);
     expect(v.xp).toEqual({ earned: 150, spent: 0, balance: 150 });
     const channel = v.spokes.find(s => s.id === 'channel');
     expect(channel?.nodes.map(n => n.canBuy)).toEqual([true, false, false, false, false, false]);
@@ -173,5 +173,70 @@ describe('progression web: what the phone is shown', () => {
     expect(channel?.nodes[0]).toMatchObject({ owned: true, canBuy: false, why: null });
     expect(channel?.nodes[1]).toMatchObject({ owned: false, canBuy: false, why: 'You need 100 more XP.' });
     expect(v.bonuses.strainLimit).toBe(1);
+  });
+});
+
+describe('progression web: Vitality, a trunk that splits into five branches', () => {
+  const vitality = (l: W.WebLedger) => { const s = W.webView(l).spokes.find(x => x.id === 'vitality'); if (!s) throw new Error('no vitality'); return s; };
+  const buyAll = (l: W.WebLedger, ids: string[]) => ids.reduce((acc, id) => { const r = W.buyNode(acc, id); if (!r.ok) throw new Error(`${id}: ${(r as { error: string }).error}`); return r.ledger; }, l);
+  const TRUNK = [1, 2, 3, 4, 5].map(i => `vitality-${i}`);
+  const TOUGH = [1, 2, 3, 4, 5].map(i => `tough-${i}`);
+
+  it('has 30 nodes: a trunk of 5 and five branches of 5', () => {
+    const v = vitality(withXp(0));
+    expect(v.nodes.length).toBe(30);
+    expect(v.branches.map(b => b.id)).toEqual(['tough', 'ward', 'regen', 'adren', 'blood']);
+    expect(v.nodes.filter(n => n.branch === null).map(n => n.id)).toEqual(TRUNK);
+    for (const b of v.branches) {
+      const nodes = v.nodes.filter(n => n.branch === b.id);
+      expect(nodes.map(n => n.tier)).toEqual(['small', 'small', 'big', 'big', 'capstone']);
+      // Every branch grows from the last trunk node, then runs in a line.
+      expect(nodes.map(n => n.parent)).toEqual(['vitality-5', ...nodes.slice(0, 4).map(n => n.id)]);
+    }
+    expect(v.nodes[0].parent).toBeNull();
+    expect(new Set(v.nodes.map(n => n.id)).size).toBe(30);
+  });
+
+  it('the trunk gives +3 max HP a node and is bought in order', () => {
+    expect(W.buyNode(withXp(9999), 'vitality-2')).toEqual({ ok: false, error: 'Unlock Hale first.' });
+    const l = buyAll(withXp(750), TRUNK);
+    expect(W.webBonuses(l).maxHp).toBe(15);
+    expect(l.spent).toBe(750);
+    expect(W.xpBalance(l)).toBe(0);
+  });
+
+  it('a branch cannot be started before the trunk is finished', () => {
+    const four = buyAll(withXp(9999), TRUNK.slice(0, 4));
+    expect(W.buyNode(four, 'tough-1')).toEqual({ ok: false, error: 'Unlock Ironblooded first.' });
+    const five = buyAll(four, ['vitality-5']);
+    expect(W.buyNode(five, 'tough-1').ok).toBe(true);
+    expect(W.buyNode(five, 'tough-2')).toEqual({ ok: false, error: 'Unlock Thick Hide first.' });
+  });
+
+  it('Toughness adds 30 more: +45 max HP with the trunk, for 2,850 XP', () => {
+    const l = buyAll(withXp(2850), [...TRUNK, ...TOUGH]);
+    expect(W.webBonuses(l)).toEqual({ strainLimit: 0, backlashOff: 0, freeChannel: false, maxHp: 45 });
+    expect(l.spent).toBe(2850);
+    expect(vitality(l).owned).toBe(10);
+    expect(W.normalizeLedger(W.withLedger({}, l))).toEqual(l);
+  });
+
+  it('the four branches still to come are shown but cannot be bought, even with the XP', () => {
+    const l = buyAll(withXp(99999), TRUNK);
+    const v = vitality(l);
+    for (const id of ['ward-1', 'regen-1', 'adren-1', 'blood-1']) {
+      expect(W.buyNode(l, id)).toEqual({ ok: false, error: 'Coming in the next update.' });
+      expect(v.nodes.find(n => n.id === id)).toMatchObject({ soon: true, canBuy: false, owned: false });
+    }
+    expect(v.nodes.filter(n => n.soon).length).toBe(20);
+    expect(v.nodes.find(n => n.id === 'tough-1')).toMatchObject({ soon: false, canBuy: true });
+  });
+
+  it('Channel still works the same beside it, and both add up', () => {
+    const l = buyAll(withXp(9999), ['channel-1', ...TRUNK]);
+    expect(W.webBonuses(l)).toEqual({ strainLimit: 1, backlashOff: 0, freeChannel: false, maxHp: 15 });
+    const channel = W.webView(l).spokes.find(s => s.id === 'channel');
+    expect(channel?.nodes.map(n => n.parent)).toEqual([null, 'channel-1', 'channel-2', 'channel-3', 'channel-4', 'channel-5']);
+    expect(channel?.branches).toEqual([]);
   });
 });
