@@ -37,6 +37,7 @@ import { CampaignSessionsManager } from '@/components/ai-dm/CampaignSessionsMana
 import { DMToolsDrawer } from '@/components/ai-dm/DMToolsDrawer';
 import { DMBottomNav, DMNavTab } from '@/components/ai-dm/DMBottomNav';
 import { CharacterSheet } from '@/components/empyrean/CharacterSheet';
+import { ProgressionWeb } from '@/components/empyrean/ProgressionWeb';
 import { useLinkedUniverse } from '@/hooks/use-linked-universe';
 
 import { EmpyreanDirectorScreen } from '@/components/empyrean/EmpyreanDirectorScreen';
@@ -130,7 +131,7 @@ import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { removeScopedItem } from '@/lib/scoped-storage';
 import { useEmpyreanRules, type EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
 import { useSoloCampaignMap } from '@/hooks/use-solo-campaign-map';
-import { buildGameFacts, checkRisk, parseFightOffer, signetStrainCost, type FightView, type StrainReason } from '@/lib/empyrean-rules-client';
+import { buildGameFacts, checkRisk, parseFightOffer, signetStrainCost, webStrainLimit, type FightView, type RulesWeb, type StrainReason } from '@/lib/empyrean-rules-client';
 import { clearLaunch, readLaunch } from '@/lib/empyrean-onboarding';
 import { useSoloFight, type FightStart } from '@/hooks/use-solo-fight';
 import { SoloBattleScreen, buildFightSheet } from '@/components/empyrean/SoloBattleScreen';
@@ -311,6 +312,7 @@ export function EmpyreanDMScreen({
   const [diceOddsMode, setDiceOddsMode] = useState<DiceOddsMode>(() => loadDiceOddsMode());
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
+  const [progressionOpen, setProgressionOpen] = useState(false);
   const [directorScreenOpen, setDirectorScreenOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
@@ -643,9 +645,13 @@ UNBONDED RIDER RULES:
   const [questStrainCeiling, setQuestStrainCeiling] = useState(8);
   // The Prodigy (D-37): its Ascension raises the strain limit, past the usual cap.
   const prodigy = prodigyTier(characterContext?.characterClass, characterContext?.level);
-  const maxBurnout = isUnbonded ? 0 : prodigy
+  // The progression web (kept on the rules server) adds to the limit. The phone sends its own
+  // limit (strainLimitBase) and the server adds the web's bonus itself; the meter shows both.
+  const [rulesWeb, setRulesWeb] = useState<RulesWeb | null>(null);
+  const strainLimitBase = isUnbonded ? 0 : prodigy
     ? Math.min(PRODIGY_STRAIN_CAP, strainCeiling(dragonBond.bondState.bond, questStrainCeiling) + prodigyStrainBonus(prodigy))
     : strainCeiling(dragonBond.bondState.bond, questStrainCeiling);
+  const maxBurnout = webStrainLimit(strainLimitBase, rulesWeb);
 
   // Pushing Signet Strain up to the limit costs bond (D-30). Only a rise counts: a lower
   // limit that clamps strain down is not the rider's doing.
@@ -1246,9 +1252,10 @@ ${oocLines}`;
     onMapChanged: () => { void soloMap.map.reload(); },
     onFightResult: (payload) => { fightResultRef.current = payload; },
     flying: soloMap.traveling,
-    getStrainLimit: () => maxBurnout,
+    getStrainLimit: () => strainLimitBase,
     onStrainLimit: () => dragonBond.processRecklessStrain(),
   });
+  useEffect(() => { setRulesWeb(rules.web); }, [rules.web]);
   useEffect(() => { rulesRef.current = rules; rulesTravelRef.current = rules.travel; });
   // Every answer from the rules server carries the strain it keeps: show that number.
   useEffect(() => {
@@ -3275,6 +3282,17 @@ ${oocLines}`;
         onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
         onOpenEmpyreanCooldowns={() => setEmpyreanCooldownsOpen(true)}
         onOpenSignetManagement={() => setSignetManagementOpen(true)}
+        onOpenProgression={engineOn ? () => setProgressionOpen(true) : undefined}
+        xpToSpend={rules.web ? rules.web.xp.balance : null}
+      />
+
+      {/* Progression web — full-screen overlay (solo Empyrean; the rules server owns it) */}
+      <ProgressionWeb
+        open={progressionOpen}
+        onClose={() => setProgressionOpen(false)}
+        web={rules.web}
+        busy={rules.busy}
+        onBuy={rules.buyNode}
       />
 
       {/* Talk to the DM — full-screen overlay (Empyrean Director) */}

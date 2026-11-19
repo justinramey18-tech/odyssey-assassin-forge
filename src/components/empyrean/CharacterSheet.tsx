@@ -44,6 +44,10 @@ interface CharacterSheetProps {
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
+  /** Open the progression web (solo Empyrean). The row is hidden when this is not given. */
+  onOpenProgression?: () => void;
+  /** XP the rider can spend on the web right now; null while the game server has not answered. */
+  xpToSpend?: number | null;
   activeCampaignId?: string | null;
   linkedUniverse?: import('@/hooks/use-linked-universe').LinkedUniverseController;
 }
@@ -84,6 +88,8 @@ export function CharacterSheet({
   onOpenAbilityTrees,
   onOpenEmpyreanCooldowns,
   onOpenSignetManagement,
+  onOpenProgression,
+  xpToSpend,
   activeCampaignId,
   linkedUniverse,
 }: CharacterSheetProps) {
@@ -155,7 +161,7 @@ export function CharacterSheet({
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} onOpenSignetManagement={onOpenSignetManagement} />}
+            {activeTab === 'character' && <CharacterTab onCloseSheet={onClose} onOpenInventory={onOpenInventory} onOpenAbilityPicker={onOpenAbilityPicker} onOpenLoadout={onOpenLoadout} onOpenAbilityTrees={onOpenAbilityTrees} onOpenEmpyreanCooldowns={onOpenEmpyreanCooldowns} onOpenSignetManagement={onOpenSignetManagement} onOpenProgression={onOpenProgression} xpToSpend={xpToSpend} />}
             {activeTab === 'settings' && (
               <SettingsTab
                 onCampaignSaves={onCampaignSaves}
@@ -203,9 +209,11 @@ interface CharacterTabProps {
   onOpenAbilityTrees?: () => void;
   onOpenEmpyreanCooldowns?: () => void;
   onOpenSignetManagement?: () => void;
+  onOpenProgression?: () => void;
+  xpToSpend?: number | null;
 }
 
-function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilityTrees, onOpenEmpyreanCooldowns, onOpenSignetManagement }: CharacterTabProps) {
+function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOpenLoadout, onOpenAbilityTrees, onOpenEmpyreanCooldowns, onOpenSignetManagement, onOpenProgression, xpToSpend }: CharacterTabProps) {
   const drawers = usePromptDrawers();
 
   const openDrawerThenClose = useCallback((openFn: () => void) => {
@@ -217,6 +225,17 @@ function CharacterTab({ onCloseSheet, onOpenInventory, onOpenAbilityPicker, onOp
     <div className="px-4 py-5 space-y-6 pb-10">
       {/* ─── Stats & Progression ─── */}
       <CharacterSection title="Stats & Progression">
+        {onOpenProgression && (
+          <CharacterRow
+            icon={<Sparkles className="w-4 h-4 text-amber-300" />}
+            label="Progression Web"
+            description={xpToSpend != null ? `${xpToSpend} XP to spend. Lasting upgrades for your rider and dragon.` : 'Spend XP on lasting upgrades for your rider and dragon.'}
+            onClick={() => {
+              onCloseSheet();
+              setTimeout(onOpenProgression, 0);
+            }}
+          />
+        )}
         <CharacterRow
           icon={<Heart className="w-4 h-4 text-rose-300" />}
           label="HP, Ability Scores & XP"
