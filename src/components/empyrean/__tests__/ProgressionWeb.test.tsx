@@ -136,13 +136,17 @@ describe('progression web screen', () => {
     expect(screen.getByText('Owned')).toBeTruthy();
   });
 
-  it('a branch still to come is shown with its effect but cannot be bought', () => {
-    render(<ProgressionWeb open onClose={vi.fn()} web={web(5000, TRUNK)} onBuy={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'First Ward, coming' })).toBeTruthy();
+  it('every branch opens once the trunk is done, and its first node can be bought', async () => {
+    const onBuy = vi.fn(async () => true);
+    render(<ProgressionWeb open onClose={vi.fn()} web={web(5000, TRUNK)} onBuy={onBuy} />);
+    for (const name of ['Thick Hide', 'First Ward', 'Slow Mend', 'Quickened Pulse', 'Open Vein']) expect(screen.getByRole('button', { name: `${name}, can unlock` })).toBeTruthy();
+    expect(screen.queryAllByRole('button', { name: /, coming$/ }).length).toBe(0);
     fireEvent.click(node('First Ward'));
-    expect(screen.getByText(/4-point shield/)).toBeTruthy();
-    expect(screen.getByText('Coming in the next update.')).toBeTruthy();
-    expect((screen.getByRole('button', { name: '150 XP' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Vitality · Ward')).toBeTruthy();
+    expect(screen.getByText(/4-point Ward/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '150 XP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
+    await waitFor(() => expect(onBuy).toHaveBeenCalledWith('ward-1'));
   });
 
   it('Channel is still there, and the dragon half shows five spokes to come', () => {

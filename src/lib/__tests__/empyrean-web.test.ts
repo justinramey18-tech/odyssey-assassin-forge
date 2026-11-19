@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import * as W from '../../../supabase/functions/empyrean-rules/web';
 import * as R from '../../../supabase/functions/empyrean-rules/rules';
 
@@ -80,7 +81,7 @@ describe('progression web: buying', () => {
     }
     expect(l.spent).toBe(2250);
     expect(W.xpBalance(l)).toBe(0);
-    expect(W.webBonuses(l)).toEqual({ strainLimit: 7, backlashOff: 2, freeChannel: true, maxHp: 0 });
+    expect(W.webBonuses(l)).toEqual({ ...W.NO_BONUSES, strainLimit: 7, backlashOff: 2, freeChannel: true });
     // What is saved reads back the same.
     expect(W.normalizeLedger(W.withLedger({}, l))).toEqual(l);
   });
@@ -215,26 +216,43 @@ describe('progression web: Vitality, a trunk that splits into five branches', ()
 
   it('Toughness adds 30 more: +45 max HP with the trunk, for 2,850 XP', () => {
     const l = buyAll(withXp(2850), [...TRUNK, ...TOUGH]);
-    expect(W.webBonuses(l)).toEqual({ strainLimit: 0, backlashOff: 0, freeChannel: false, maxHp: 45 });
+    expect(W.webBonuses(l)).toEqual({ ...W.NO_BONUSES, maxHp: 45 });
     expect(l.spent).toBe(2850);
     expect(vitality(l).owned).toBe(10);
     expect(W.normalizeLedger(W.withLedger({}, l))).toEqual(l);
   });
 
-  it('the four branches still to come are shown but cannot be bought, even with the XP', () => {
-    const l = buyAll(withXp(99999), TRUNK);
-    const v = vitality(l);
-    for (const id of ['ward-1', 'regen-1', 'adren-1', 'blood-1']) {
-      expect(W.buyNode(l, id)).toEqual({ ok: false, error: 'Coming in the next update.' });
-      expect(v.nodes.find(n => n.id === id)).toMatchObject({ soon: true, canBuy: false, owned: false });
-    }
-    expect(v.nodes.filter(n => n.soon).length).toBe(20);
-    expect(v.nodes.find(n => n.id === 'tough-1')).toMatchObject({ soon: false, canBuy: true });
+  it('every one of the 30 nodes can be bought, and nothing is marked as coming', () => {
+    const ids = [...TRUNK, ...['tough', 'ward', 'regen', 'adren', 'blood'].flatMap(b => [1, 2, 3, 4, 5].map(i => `${b}-${i}`))];
+    const l = buyAll(withXp(11250), ids);
+    expect(l.spent).toBe(11250);
+    expect(W.xpBalance(l)).toBe(0);
+    expect(vitality(l).owned).toBe(30);
+    expect(vitality(withXp(0)).nodes.some(n => n.soon)).toBe(false);
+    expect(W.webBonuses(l)).toEqual({
+      ...W.NO_BONUSES, maxHp: 45,
+      wardMax: 24, wardShortRest: true, wardFightRefill: true,
+      regenHour: 3, regenTurn: 2, regenWard: true,
+      adrDamage: 2, adrHit: 1, adrDouble: true, adrHasteMs: 1000,
+      bloodPrice: 2, bloodEase: true, heartfire: true,
+    });
+  });
+
+  it('each branch grows a step at a time', () => {
+    const base = buyAll(withXp(99999), TRUNK);
+    const after = (ids: string[]) => W.webBonuses(buyAll(base, ids));
+    expect([1, 2, 3, 4, 5].map(n => after([1, 2, 3, 4, 5].slice(0, n).map(i => `ward-${i}`)).wardMax)).toEqual([4, 8, 14, 14, 24]);
+    expect([1, 2, 3, 4, 5].map(n => after([1, 2, 3, 4, 5].slice(0, n).map(i => `regen-${i}`)).regenHour)).toEqual([1, 2, 2, 3, 3]);
+    expect([1, 2, 3, 4, 5].map(n => after([1, 2, 3, 4, 5].slice(0, n).map(i => `regen-${i}`)).regenTurn)).toEqual([0, 0, 1, 1, 2]);
+    expect([1, 2, 3, 4, 5].map(n => after([1, 2, 3, 4, 5].slice(0, n).map(i => `adren-${i}`)).adrDamage)).toEqual([1, 2, 2, 2, 2]);
+    expect([1, 2, 3, 4, 5].map(n => after([1, 2, 3, 4, 5].slice(0, n).map(i => `blood-${i}`)).bloodPrice)).toEqual([4, 3, 2, 2, 2]);
+    expect(after(['ward-1']).wardShortRest).toBe(false);
+    expect(after(['blood-1', 'blood-2', 'blood-3']).bloodEase).toBe(false);
   });
 
   it('Channel still works the same beside it, and both add up', () => {
     const l = buyAll(withXp(9999), ['channel-1', ...TRUNK]);
-    expect(W.webBonuses(l)).toEqual({ strainLimit: 1, backlashOff: 0, freeChannel: false, maxHp: 15 });
+    expect(W.webBonuses(l)).toEqual({ ...W.NO_BONUSES, strainLimit: 1, maxHp: 15 });
     const channel = W.webView(l).spokes.find(s => s.id === 'channel');
     expect(channel?.nodes.map(n => n.parent)).toEqual([null, 'channel-1', 'channel-2', 'channel-3', 'channel-4', 'channel-5']);
     expect(channel?.branches).toEqual([]);
