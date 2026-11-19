@@ -5,7 +5,7 @@
 //
 // POST { action, campaignId, riderKey?, dragonName?, bonded?, sheet?, place?, ... }
 //   state | ack | rest | pass_time | check | signet_used | quest_payout | story_reward | strain
-//   set_events | event_done | travel_launch | travel_sync | travel_cancel
+//   set_events | event_done | travel_launch | travel_sync | travel_cancel | web_buy
 //   fight_start | fight_tick | fight_act | fight_clash | fight_close   (real-time solo fights, combat.ts)
 // Every reply carries the fresh snapshot: clock, rule state, mastery, unlocks, the rule half of
 // the GAME FACTS block, and the inbox (results the phone has not applied yet).
@@ -17,6 +17,7 @@ import { askClaudeThenLovable } from '../_shared/claude.ts';
 import * as R from './rules.ts';
 import * as T from './travel.ts';
 import * as C from './combat.ts';
+import * as W from './web.ts';
 
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -28,7 +29,7 @@ const PLANNER_MODEL = 'qwen-3-6-plus';
 const Body = z.object({
   action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward', 'strain', 'story_time',
     'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel',
-    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief']),
+    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief', 'web_buy']),
   campaignId: uuid,
   riderKey: z.string().min(1).max(80).default('local'),
   dragonName: z.string().max(80).optional(),
@@ -77,6 +78,8 @@ const Body = z.object({
   reason: z.enum(['cool', 'ground', 'ground_roll', 'quest', 'raise', 'revive', 'fallen']).optional(),
   messageId: z.string().max(100).optional(),
   channeled: z.boolean().optional(),
+  // The progression web: the node to buy.
+  nodeId: z.string().max(40).optional(),
   // Live clock: the solo screen is showing and nothing else owns the clock. Story time: the minutes the DM's reply covered (messageId is the turn).
   live: z.boolean().optional(),
   minutes: z.number().optional(),
@@ -86,13 +89,15 @@ type Req = z.infer<typeof Body>;
 interface Loaded {
   state: R.CampaignState; version: number; envelope: Record<string, any> | null; mapUpdatedAt: string | null;
   node: T.ActiveNode | null; minute: number; traveling: boolean; masteryXp: number; bond: number | null; bonded: boolean;
+  /** The progression web's ledger, and the rider row it was read from (null: no row yet). */
+  web: W.WebLedger; rider: { id: string; updatedAt: string; data: unknown } | null; campaignRider: string | null;
 }
 
 async function load(db: any, userId: string, b: Req): Promise<Loaded> {
   const [cs, map, rider, dragon] = await Promise.all([
-    db.from('empyrean_campaign_state').select('state, version').eq('user_id', userId).eq('campaign_id', b.campaignId).maybeSingle(),
+    db.from('empyrean_campaign_state').select('state, version, rider_key').eq('user_id', userId).eq('campaign_id', b.campaignId).maybeSingle(),
     db.from('solo_campaign_maps').select('state_data, updated_at').eq('campaign_id', b.campaignId).eq('user_id', userId).maybeSingle(),
-    db.from('empyrean_riders').select('signet_xp').eq('user_id', userId).eq('rider_key', b.riderKey).maybeSingle(),
+    db.from('empyrean_riders').select('id, signet_xp, data, created_at, updated_at').eq('user_id', userId).eq('rider_key', b.riderKey).maybeSingle(),
     b.dragonName
       ? db.from('empyrean_dragons').select('bond').eq('user_id', userId).eq('rider_key', b.riderKey).eq('dragon_name', b.dragonName).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -106,9 +111,58 @@ async function load(db: any, userId: string, b: Req): Promise<Loaded> {
     state: R.normalizeState(cs.data?.state), version: cs.data?.version ?? 0, envelope, mapUpdatedAt: map.data?.updated_at ?? null,
     node, minute: T.currentMinute(envelope, Date.now()), traveling: T.isTraveling(node),
     masteryXp: rider.data?.signet_xp ?? 0, bond, bonded,
+    web: W.normalizeLedger(rider.data?.data, rider.data?.created_at),
+    rider: rider.data?.id ? { id: rider.data.id, updatedAt: rider.data.updated_at, data: rider.data.data } : null,
+    campaignRider: typeof cs.data?.rider_key === 'string' ? cs.data.rider_key : null,
   };
 }
 
+// ── the progression web (the ledger lives in the rider's row; see web.ts) ──
+/** Save the ledger only if the rider row has not changed since it was read, so two saves can never overwrite each other. */
+async function saveLedger(db: any, userId: string, b: Req, l: Loaded, ledger: W.WebLedger): Promise<boolean> {
+  const data = W.withLedger(l.rider?.data, ledger);
+  if (l.rider) {
+    const { data: rows, error } = await db.from('empyrean_riders').update({ data }).eq('id', l.rider.id).eq('updated_at', l.rider.updatedAt).select('id');
+    return !error && Array.isArray(rows) && rows.length === 1;
+  }
+  const { error } = await db.from('empyrean_riders').insert({ user_id: userId, rider_key: b.riderKey, signet_xp: 0, data });
+  return !error;
+}
+/** The ledger with this campaign's XP so far counted in. XP is counted from the server's own reward records, never from the phone. */
+async function creditedLedger(db: any, userId: string, b: Req, l: Loaded): Promise<W.WebLedger> {
+  if (l.campaignRider !== b.riderKey) return l.web;
+  let total = 0;
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await db.from('empyrean_rule_events').select('xp')
+      .eq('user_id', userId).eq('campaign_id', b.campaignId).gt('xp', 0).order('created_at').order('id').range(from, from + 999);
+    if (error) return l.web;
+    for (const row of data || []) total += Math.max(0, Math.trunc(Number(row.xp)) || 0);
+    if (!data || data.length < 1000) break;
+  }
+  return W.creditCampaign(l.web, b.campaignId, total);
+}
+/** For the snapshot: count new XP in and keep it (best effort; a missed save is simply counted again next time). Never throws. */
+async function webNow(db: any, userId: string, b: Req, l: Loaded): Promise<W.WebLedger> {
+  try {
+    const ledger = await creditedLedger(db, userId, b, l);
+    if (ledger !== l.web) await saveLedger(db, userId, b, l, ledger);
+    return ledger;
+  } catch (e) {
+    console.error('[empyrean-rules] web', e instanceof Error ? e.message : e);
+    return l.web;
+  }
+}
+/** The strain limit the phone sent, with the web's bonus on top. */
+const strainLimitFor = (b: Req, web: W.WebLedger) => W.webStrainLimit(R.strainLimitOf(b.strainLimit), W.webBonuses(web));
+async function buyNode(db: any, userId: string, b: Req): Promise<{ ok: true; extra: Record<string, unknown> } | { ok: false; error: string }> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const l = await load(db, userId, b);
+    const r = W.buyNode(await creditedLedger(db, userId, b, l), b.nodeId || '');
+    if (!r.ok) return { ok: false, error: (r as { error: string }).error };
+    if (await saveLedger(db, userId, b, l, r.ledger)) return { ok: true, extra: { bought: { id: b.nodeId, name: r.name, effect: r.effect } } };
+  }
+  return { ok: false, error: 'The game was busy. Try again.' };
+}
 async function snapshot(db: any, userId: string, b: Req, extra: Record<string, unknown> = {}) {
   const l = await load(db, userId, b);
   const s = R.tick(l.state, l.minute);
@@ -134,6 +188,7 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
     dragonBody: l.bonded && s.dragon && s.dragon.name === (b.dragonName || '') ? { hp: s.dragon.hp, maxHp: s.dragon.maxHp } : null,
     fightOpen: !!C.cleanFight(s.fight),
     strain: s.strain,
+    web: W.webView(await webNow(db, userId, b, l)),
     unlocks: R.unlockList(l.masteryXp, l.bond),
     facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling, sheet: R.normalizeSheet(b.sheet) }),
     prodigy: { tier: R.sheetProdigyTier(R.normalizeSheet(b.sheet)), briefsLeft: R.briefsLeft(s, l.minute, R.normalizeSheet(b.sheet)) },
@@ -283,11 +338,14 @@ async function fightTick(db: any, userId: string, b: Req): Promise<Record<string
 async function fightAct(db: any, userId: string, b: Req): Promise<Record<string, unknown>> {
   const m = b.move;
   if (!m) return { ok: false, error: 'Invalid request.' };
+  // The progression web raises the strain limit; a rider row that cannot be read simply gives no bonus.
+  const { data: riderRow } = await db.from('empyrean_riders').select('data, created_at').eq('user_id', userId).eq('rider_key', b.riderKey).maybeSingle();
+  const web = W.normalizeLedger(riderRow?.data, riderRow?.created_at);
   return fightMutate(db, userId, b, (state, fight, now) => {
     if (!fight) return null;
     C.advance(fight, now, rand);
     // The room under the strain limit comes from the strain kept here; a phone that sends no limit uses its own room.
-    const limit = R.strainLimitOf(b.strainLimit);
+    const limit = strainLimitFor(b, web);
     const room = R.strainRoom(state, limit) ?? m.strainRoom ?? 0;
     const input: C.ActInput = m.type === 'attack' ? { type: 'attack', targetId: m.targetId || '', weapon: m.weapon }
       : m.type === 'signet' ? { type: 'signet', targetId: m.targetId || '', intensity: m.intensity ?? 1, strainRoom: room }
@@ -608,21 +666,22 @@ Deno.serve(async (req) => {
         result = await mutate(db, userId, b, l => {
           const r = R.resolveCheck(l.state, l.minute, sheet, {
             d20: b.d20 ?? 1, modifier: b.modifier ?? 0, dc: b.dc ?? 15, risk: b.risk ?? 'mental', label: b.label ?? 'Check', masteryXp: l.masteryXp, bond: l.bond,
+            strainOff: W.webBonuses(l.web).backlashOff,
           }, rand);
-          const strained = R.raiseStrain(r.state, r.strain, R.strainLimitOf(b.strainLimit), 'A signet backlash pushed strain to the limit');
+          const strained = R.raiseStrain(r.state, r.strain, strainLimitFor(b, l.web), 'A signet backlash pushed strain to the limit');
           return { state: strained.state, events: [...r.events, ...strained.events], extra: { check: { outcome: r.outcome, dc: r.dc, total: r.total, line: r.line, hp: r.hp, strain: r.strain, condition: r.condition?.name ?? null, injury: r.injury?.name ?? null } } };
         });
         break;
       case 'signet_used':
         result = await mutate(db, userId, b, l => {
-          const limit = R.strainLimitOf(b.strainLimit);
+          const limit = strainLimitFor(b, l.web);
           // A phone that sends no limit keeps its own strain: only mastery is recorded, as before.
           if (limit == null) {
             const r = R.signetUse(l.state, l.minute, b.intensity ?? 1, R.sheetProdigyTier(sheet));
             return { state: r.state, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta } };
           }
-          const r = R.channelSignet(l.state, l.minute, b.intensity ?? 1, R.masteryRank(l.masteryXp), R.sheetProdigyTier(sheet), limit);
-          return { state: r.state, events: r.events, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta, strainCost: r.cost } };
+          const r = R.channelSignet(l.state, l.minute, b.intensity ?? 1, R.masteryRank(l.masteryXp), R.sheetProdigyTier(sheet), limit, W.webBonuses(l.web).freeChannel);
+          return { state: r.state, events: r.events, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta, strainCost: r.cost, ...(r.free ? { freeChannel: true } : {}) } };
         });
         break;
       case 'quest_payout':
@@ -640,7 +699,7 @@ Deno.serve(async (req) => {
         if (!b.reason) return json(400, { ok: false, error: 'Invalid request.' });
         const strainReason = b.reason;
         result = await mutate(db, userId, b, l => {
-          const r = R.changeStrain(l.state, strainReason, R.strainLimitOf(b.strainLimit), { messageId: b.messageId, channeled: b.channeled, amount: b.amount });
+          const r = R.changeStrain(l.state, strainReason, strainLimitFor(b, l.web), { messageId: b.messageId, channeled: b.channeled, amount: b.amount });
           return r.state === l.state ? null : { state: r.state, events: r.events };
         });
         break;
@@ -650,6 +709,10 @@ Deno.serve(async (req) => {
           if (!r.ok) return { error: (r as { error: string }).error };
           return { state: r.state, extra: { brief: { line: r.line, left: r.left } } };
         });
+        break;
+      case 'web_buy':
+        if (!b.nodeId) return json(400, { ok: false, error: 'Invalid request.' });
+        result = await buyNode(db, userId, b);
         break;
       case 'set_events':
         result = await mutate(db, userId, b, l => ({ state: { ...l.state, events: { ...l.state.events, level: b.level ?? 'normal' } } }));
