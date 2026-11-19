@@ -105,6 +105,7 @@ import { shouldLandInPartyTable } from '@/lib/party-landing';
 import { readPendingAiCharacter, clearPendingAiCharacter, setWizardOpen } from '@/lib/creation-guard';
 import { adoptStrandedEmpyreanSetup, applyPendingLaunch, readLaunch, waitForSaveId } from '@/lib/empyrean-onboarding';
 import { calculateMaxHP, calculateMulticlassMaxHP } from '@/lib/hpCalculation';
+import { WEB_BONUS_EVENT, readWebMaxHp, webMaxHpFor } from '@/lib/empyrean-web-bonus';
 import { scoreToModifier } from '@/lib/abilityScores/types';
 import { getConcentrationCheckDC } from '@/lib/magic/calculations';
 import { 
@@ -621,15 +622,32 @@ const Index = () => {
     [aggregatedStats.totalLoad, abilityScores.finalScores.strength],
   );
 
+  // The solo Empyrean progression web's max HP bonus for this character. The rules server owns the
+  // number; the Empyrean screen saves it per character (empyrean-web-bonus.ts). It counts in
+  // Empyrean mode only, so every other mode keeps exactly the max HP it had before.
+  const [webMaxHp, setWebMaxHp] = useState<number>(() => readWebMaxHp());
+  useEffect(() => {
+    const reload = () => setWebMaxHp(readWebMaxHp());
+    window.addEventListener(WEB_BONUS_EVENT, reload);
+    window.addEventListener('odyssey-character-loaded', reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener(WEB_BONUS_EVENT, reload);
+      window.removeEventListener('odyssey-character-loaded', reload);
+      window.removeEventListener('storage', reload);
+    };
+  }, []);
+  const webMaxHpBonus = webMaxHpFor(appMode.effectiveMode, webMaxHp);
+
   // Calculate max HP dynamically based on level, constitution, and prestige
   const calculatedMaxHP = useMemo(() => {
     const conMod = scoreToModifier(abilityScores.finalScores.constitution);
     // The Prodigy (solo Empyrean's own class, D-37) uses its d10 hit die; every other class keeps the d8 formula.
     if (character.primaryClass === 'prodigy') {
-      return calculateMulticlassMaxHP('prodigy', character.level, {}, conMod, prestigeData.prestigeLevel);
+      return calculateMulticlassMaxHP('prodigy', character.level, {}, conMod, prestigeData.prestigeLevel) + webMaxHpBonus;
     }
-    return calculateMaxHP(character.level, conMod, prestigeData.prestigeLevel);
-  }, [character.level, character.primaryClass, abilityScores.finalScores.constitution, prestigeData.prestigeLevel]);
+    return calculateMaxHP(character.level, conMod, prestigeData.prestigeLevel) + webMaxHpBonus;
+  }, [character.level, character.primaryClass, abilityScores.finalScores.constitution, prestigeData.prestigeLevel, webMaxHpBonus]);
   
   // Determine if character is using Rogue class (legacy Magic Path system)
   const isRogueClass = (character.primaryClass ?? 'rogue') === 'rogue';
@@ -1186,7 +1204,8 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
     if (!hpSyncReady.current) return;
     // Ignore an implausible max — a value under 10 for a character above level 1
     // is the pre-load default, not a real change.
-    if (calculatedMaxHP < 10 && character.level > 1) return;
+    // (The progression web's bonus is left out of this test so it still catches that default.)
+    if (calculatedMaxHP - webMaxHpBonus < 10 && character.level > 1) return;
     if (calculatedMaxHP !== hpState.max) {
       const hpDiff = calculatedMaxHP - hpState.max;
       // Never raise current HP on a max increase — a level-up should not heal.
@@ -1212,7 +1231,7 @@ ${dc > 15 ? '\n⚠️ High DC! This will be a tough save.' : ''}`;
         });
       }
     }
-  }, [calculatedMaxHP, hpState.max, hpState.current, hpState.temp, character.level, toast]);
+  }, [calculatedMaxHP, webMaxHpBonus, hpState.max, hpState.current, hpState.temp, character.level, toast]);
 
   // Mark HP sync ready once the initial load (cloud save or local restore) has
   // had time to apply ability scores, level and prestige. loadFromCloudSave

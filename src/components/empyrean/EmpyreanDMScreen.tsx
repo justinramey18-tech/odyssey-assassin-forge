@@ -131,6 +131,7 @@ import { DiceRollOverlay } from '@/components/ai-dm/DiceRollOverlay';
 import { removeScopedItem } from '@/lib/scoped-storage';
 import { useEmpyreanRules, type EmpyreanRulesApi } from '@/hooks/use-empyrean-rules';
 import { useSoloCampaignMap } from '@/hooks/use-solo-campaign-map';
+import { writeWebMaxHp } from '@/lib/empyrean-web-bonus';
 import { buildGameFacts, checkRisk, parseFightOffer, signetStrainCost, webStrainLimit, type FightView, type RulesWeb, type StrainReason } from '@/lib/empyrean-rules-client';
 import { clearLaunch, readLaunch } from '@/lib/empyrean-onboarding';
 import { useSoloFight, type FightStart } from '@/hooks/use-solo-fight';
@@ -1256,6 +1257,9 @@ ${oocLines}`;
     onStrainLimit: () => dragonBond.processRecklessStrain(),
   });
   useEffect(() => { setRulesWeb(rules.web); }, [rules.web]);
+  // The web's max HP bonus goes to the character sheet, which adds it in Empyrean mode. Only a real
+  // answer from the server is saved: while the server is off, the last saved number stays.
+  useEffect(() => { if (rules.web) writeWebMaxHp(rules.web.bonuses.maxHp ?? 0); }, [rules.web]);
   useEffect(() => { rulesRef.current = rules; rulesTravelRef.current = rules.travel; });
   // Every answer from the rules server carries the strain it keeps: show that number.
   useEffect(() => {

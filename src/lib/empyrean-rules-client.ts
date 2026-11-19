@@ -29,12 +29,20 @@ export interface RulesCheck {
   dc: number; total: number; line: string; hp: number; strain: number; condition: string | null; injury: string | null;
 }
 /** The progression web as the server keeps it: XP to spend, nodes owned, and what they add up to. */
-export interface RulesWebNode { id: string; tier: 'small' | 'big' | 'capstone'; name: string; effect: string; cost: number; owned: boolean; canBuy: boolean; why: string | null }
-export interface RulesWebSpoke { id: string; half: 'rider' | 'dragon'; name: string; stat: string; blurb: string; coming: boolean; owned: number; nodes: RulesWebNode[] }
+export interface RulesWebNode {
+  id: string; tier: 'small' | 'big' | 'capstone'; name: string; effect: string; cost: number; owned: boolean; canBuy: boolean; why: string | null;
+  /** The node that must be owned first (null: the hub), the branch it sits on (null: the trunk), shown but not buyable yet. Absent from an older server. */
+  parent?: string | null; branch?: string | null; soon?: boolean;
+}
+export interface RulesWebSpoke {
+  id: string; half: 'rider' | 'dragon'; name: string; stat: string; blurb: string; coming: boolean; owned: number; nodes: RulesWebNode[];
+  /** The branches a spoke's trunk splits into (absent or empty: a single line). */
+  branches?: Array<{ id: string; name: string; aspect: string }>;
+}
 export interface RulesWeb {
   xp: { earned: number; spent: number; balance: number };
   owned: string[];
-  bonuses: { strainLimit: number; backlashOff: number; freeChannel: boolean };
+  bonuses: { strainLimit: number; backlashOff: number; freeChannel: boolean; maxHp?: number };
   spokes: RulesWebSpoke[];
 }
 /** The top the server allows for the Signet Strain limit, web bonus included. */
