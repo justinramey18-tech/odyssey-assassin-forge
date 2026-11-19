@@ -24,6 +24,8 @@ import {
 import { computeTrustDelta, parseAITrustTag, reconcileAITrust } from '@/lib/bondTrust';
 import { commitDragonChange, loadSoloDragonState, onDragonStateChange, updateDragonState } from '@/lib/dragon-record';
 import type { CharacterContext } from '@/components/oracle/types';
+import type { BondLine } from '@/lib/dragon-voice';
+import dragonSky from '@/assets/empyrean-dragon-sky.jpg';
 
 interface DragonBondChatProps {
   open: boolean;
@@ -35,8 +37,16 @@ interface DragonBondChatProps {
   characterContext: CharacterContext;
   recentNarrative?: string[];
   burnoutLevel?: number;
+  /** No longer used: he speaks when he has something to say (dragon-voice.ts), not on every open. */
   onRequestOpinion?: () => Promise<string | null>;
+  /** No longer used: unread lines arrive through incoming. */
   unreadDragonMessages?: string[];
+  /** Lines the dragon sends first (pushed thoughts, whispers from the story). Each becomes one of his bubbles, once, and part of what he remembers saying. */
+  incoming?: Array<{ id: string; text: string }>;
+  /** Told which incoming lines are now in the chat, so the caller can drop them. */
+  onIncomingShown?: (ids: string[]) => void;
+  /** Every line said in this chat, as it is said: the caller passes them on to the DM. */
+  onBondLine?: (line: BondLine) => void;
   currentSituation?: string;
   onDragonNotesChange?: (notes: string) => void;
   /** Wall mode (the solo hall's seam panel): given an element, or null while it mounts, the chat is drawn inside it and fills it, in place of covering the screen. Leave out for the full-screen chat. */
@@ -77,8 +87,9 @@ export default function DragonBondChat({
   characterContext,
   recentNarrative,
   burnoutLevel,
-  onRequestOpinion,
-  unreadDragonMessages,
+  incoming,
+  onIncomingShown,
+  onBondLine,
   currentSituation,
   onDragonNotesChange,
   inlineHost,
@@ -90,7 +101,6 @@ export default function DragonBondChat({
   const [inputValue, setInputValue] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [dragonOpening, setDragonOpening] = useState<string | null>(null);
   const [showPersonality, setShowPersonality] = useState(false);
   const [showMemoryPanel, setShowMemoryPanel] = useState(false);
   const [newMemoryText, setNewMemoryText] = useState('');
@@ -107,19 +117,12 @@ export default function DragonBondChat({
   const moodDurationRef = useRef<number>(0);
   const validTransitionsRef = useRef<DragonMood[]>([bondState.mood]);
   const recommendedMoodRef = useRef<DragonMood>(bondState.mood);
-  // Snapshot of unread dragon messages captured at the moment the chat opens.
-  // The parent's markChatOpened() clears the live array immediately on open,
-  // so we hold onto this snapshot for display.
-  const [unreadSnapshot, setUnreadSnapshot] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (open) {
-      setUnreadSnapshot(unreadDragonMessages ?? []);
-    } else {
-      setUnreadSnapshot([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // The caller's callbacks, always the latest, and which incoming lines are already in the chat.
+  const bondLineRef = useRef(onBondLine);
+  bondLineRef.current = onBondLine;
+  const incomingShownRef = useRef(onIncomingShown);
+  incomingShownRef.current = onIncomingShown;
+  const shownIncomingRef = useRef<Set<string>>(new Set());
 
   // Recompute system prompt with mood pressure engine
   const dragonSystemPrompt = useMemo(() => {
@@ -249,6 +252,7 @@ export default function DragonBondChat({
       if (result.woundOpened) {
         toast(`A wound in the bond: ${reason}`, { icon: '🩸', description: `${dragonName} won't trust as easily until you make amends.` });
       }
+      bondLineRef.current?.({ who: 'dragon', text: stripDragonTags(content) });
     },
     [dragonName],
   );
@@ -278,6 +282,7 @@ export default function DragonBondChat({
     isLoading,
     sendMessage,
     clearMessages,
+    addAssistantMessage,
   } = useAIDM({
     characterContext,
     customGuidesContent: '',
@@ -290,27 +295,24 @@ export default function DragonBondChat({
   });
 
   // Reload bond state when opened
-  const opinionFiredRef = useRef(false);
   useEffect(() => {
     if (open) {
       setBondState(loadSoloDragonState());
-      opinionFiredRef.current = false;
-      setDragonOpening(null);
     }
   }, [open]);
 
-  // Request dragon opinion on open when narrative exists
+  // Lines he sends first: each becomes one of his bubbles, once, and is handed on for the DM.
+  // They are not exchanges: trust only moves when the rider answers (handleMessageComplete).
   useEffect(() => {
-    if (!open || opinionFiredRef.current || !onRequestOpinion) return;
-    if (!recentNarrative || recentNarrative.length === 0) return;
-    
-    opinionFiredRef.current = true;
-    onRequestOpinion().then(opinion => {
-      if (opinion) {
-        setDragonOpening(opinion);
-      }
-    }).catch(() => {});
-  }, [open, onRequestOpinion, recentNarrative]);
+    if (!incoming || incoming.length === 0) return;
+    for (const line of incoming) {
+      if (shownIncomingRef.current.has(line.id)) continue;
+      shownIncomingRef.current.add(line.id);
+      addAssistantMessage(line.text, line.id);
+      bondLineRef.current?.({ who: 'dragon', text: stripDragonTags(line.text) });
+    }
+    incomingShownRef.current?.(incoming.map(l => l.id));
+  }, [incoming, addAssistantMessage]);
 
   // Sync personality editor state
   useEffect(() => {
@@ -356,6 +358,7 @@ export default function DragonBondChat({
     // against the exact message the dragon is replying to.
     lastPlayerMessageRef.current = text;
     sendMessage(text);
+    bondLineRef.current?.({ who: 'rider', text });
     setInputValue('');
   }, [inputValue, isLoading, sendMessage]);
 
@@ -408,15 +411,24 @@ export default function DragonBondChat({
   // Wall mode: wait for the wall to exist.
   const onWall = inlineHost !== undefined;
   if (onWall && !inlineHost) return null;
+  const glow = dragonColor || '#22d3ee';
 
   const moodInfo = getMoodDescriptor(bondState.mood);
   const bondDesc = getBondDescriptor(bondState.bond);
   const trustDesc = getTrustDescriptor(bondState.trust);
 
   const view = (
-    <div className={cn(onWall ? 'relative flex-1 min-h-0 w-full' : 'fixed inset-0 z-[60]', 'flex flex-col bg-gradient-to-b from-[#0a0a1a] via-[#0d0815] to-[#0a0612]')}>
+    <div className={cn(onWall ? 'relative isolate flex-1 min-h-0 w-full overflow-hidden' : 'fixed inset-0 z-[60]', 'flex flex-col bg-gradient-to-b from-[#0a0a1a] via-[#0d0815] to-[#0a0612]')}>
+      {/* Wall mode: the open sky over the flight field, the dragon beside you. One painting serves every dragon; the glow is this dragon's colour and breathes while he thinks. */}
+      {onWall && (
+        <div aria-hidden="true" className="absolute inset-0 -z-10 pointer-events-none select-none">
+          <img src={dragonSky} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover object-top" />
+          <div className={cn('absolute inset-0', isLoading && 'animate-pulse')} style={{ background: `radial-gradient(120% 55% at 50% 0%, ${glow}40, transparent 70%)` }} />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/45 to-black/85" />
+        </div>
+      )}
       {/* ── HEADER ── */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cyan-500/10">
+      <div className={cn('shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cyan-500/10', onWall && 'bg-black/55')}>
         <button onClick={onClose} className="p-1.5 -ml-1 rounded-lg hover:bg-white/5 transition-colors">
           <ArrowLeft className="w-5 h-5 text-cyan-300/60" />
         </button>
@@ -497,7 +509,7 @@ export default function DragonBondChat({
       {/* ── BOND / TRUST INDICATOR ── */}
       <button
         onClick={() => setStatsExpanded(prev => !prev)}
-        className="shrink-0 px-4 py-2 border-b border-cyan-500/5 text-left hover:bg-white/[0.02] transition-colors"
+        className={cn('shrink-0 px-4 py-2 border-b border-cyan-500/5 text-left hover:bg-white/[0.02] transition-colors', onWall && 'bg-black/55')}
       >
         {statsExpanded ? (
           <div className="space-y-2">
@@ -724,49 +736,23 @@ export default function DragonBondChat({
 
       {/* ── MESSAGES AREA ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6" style={{ overflowAnchor: 'none' }}>
-        {messages.length === 0 && !dragonOpening && !isLoading ? (
+        {messages.length === 0 && !isLoading ? (
           /* ── EMPTY STATE ── */
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            <p className="text-sm italic text-cyan-200/40 leading-relaxed">
+            <p className={cn('text-sm italic leading-relaxed', onWall ? 'text-cyan-100/80 rounded-xl bg-black/55 px-3 py-2' : 'text-cyan-200/40')}>
               The bond hums quietly. {dragonName || 'Your dragon'} is aware of you.
             </p>
             <button
               onClick={() => inputRef.current?.focus()}
-              className="mt-4 text-xs text-cyan-400/50 border border-cyan-500/20 rounded-lg px-4 py-2 hover:bg-cyan-500/5 transition-colors"
+              className={cn('mt-4 text-xs border border-cyan-500/20 rounded-lg px-4 py-2 hover:bg-cyan-500/5 transition-colors', onWall ? 'text-cyan-200/90 bg-black/55 min-h-[44px]' : 'text-cyan-400/50')}
+              style={{ touchAction: 'manipulation' }}
             >
               Reach out
             </button>
           </div>
         ) : (
-          <div className="space-y-0">
-            {/* Dragon opening opinion */}
-            {dragonOpening && (
-              <div className="mb-6 pr-12">
-                <div className="border-l-2 border-cyan-500/30 pl-3">
-                  <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
-                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                      {renderVisionBlocks(stripDragonTags(dragonOpening))}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              </div>
-            )}
-            {unreadSnapshot.length > 0 && (
-              <>
-                {unreadSnapshot.map((msg, i) => (
-                  <div key={`unread-${i}`} className="mb-6 pr-12">
-                    <div className="border-l-2 border-cyan-500/30 pl-3">
-                      <span className="text-[9px] font-mono text-cyan-400/40 block mb-0.5">from the narrative</span>
-                      <div className="text-cyan-200/80 italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-strong:text-cyan-100/90">
-                        <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                          {renderVisionBlocks(stripDragonTags(msg))}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
+          /* Wall mode: bubbles, gathered at the bottom so the dragon stays in view above them. */
+          <div className={cn('space-y-0', onWall && 'min-h-full flex flex-col justify-end')}>
             {messages.map(msg => {
               const isDragon = msg.role === 'assistant';
               const bondSense = isDragon ? extractBondSense(msg.content) : null;
@@ -777,18 +763,22 @@ export default function DragonBondChat({
                 <div key={msg.id}>
                   <div
                     className={cn(
-                      isDragon ? 'mb-6' : 'mb-5',
+                      onWall ? 'mb-3' : isDragon ? 'mb-6' : 'mb-5',
                       isDragon ? 'pr-12' : 'pl-12',
                     )}
                   >
                     <div
                       className={cn(
-                        isDragon
-                          ? 'pl-3'
-                          : 'border-r-2 border-white/[0.12] pr-3 text-right',
+                        onWall
+                          ? (isDragon
+                            ? 'w-fit max-w-full rounded-2xl rounded-tl-sm bg-black/65 px-3.5 py-2.5'
+                            : 'ml-auto w-fit max-w-full rounded-2xl rounded-tr-sm border border-white/15 bg-white/10 px-3.5 py-2.5')
+                          : (isDragon
+                            ? 'pl-3'
+                            : 'border-r-2 border-white/[0.12] pr-3 text-right'),
                         'relative select-none',
                       )}
-                      style={isDragon ? { borderLeft: `2px solid ${dragonColor || '#22d3ee'}80` } : undefined}
+                      style={isDragon ? (onWall ? { border: `1px solid ${glow}66` } : { borderLeft: `2px solid ${glow}80` }) : undefined}
                       onPointerDown={() => handlePointerDown(msg.content, msg.id)}
                       onPointerUp={handlePointerUp}
                       onPointerLeave={handlePointerUp}
@@ -802,14 +792,14 @@ export default function DragonBondChat({
                       {isDragon ? (
                         <div
                           className="italic text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1"
-                          style={{ color: `${dragonColor || '#22d3ee'}cc` }}
+                          style={{ color: onWall ? `${glow}f2` : `${glow}cc` }}
                         >
                           <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                             {renderVisionBlocks(cleaned)}
                           </ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="text-white/70 font-medium text-sm leading-relaxed whitespace-pre-wrap">
+                        <p className={cn('font-medium text-sm leading-relaxed whitespace-pre-wrap', onWall ? 'text-white/90' : 'text-white/70')}>
                           {cleaned}
                         </p>
                       )}
@@ -818,7 +808,7 @@ export default function DragonBondChat({
                   {bondSense && (
                     <div
                       className="text-center text-[11px] italic py-2 px-4 mb-4"
-                      style={{ color: `${dragonColor || '#22d3ee'}66` }}
+                      style={{ color: onWall ? `${glow}cc` : `${glow}66` }}
                     >
                       {bondSense}
                     </div>
@@ -828,9 +818,12 @@ export default function DragonBondChat({
             })}
 
             {isLoading && (
-              <div className="mb-6 pr-12">
-                <div className="pl-3" style={{ borderLeft: `2px solid ${dragonColor || '#22d3ee'}33` }}>
-                  <p className="italic text-xs animate-pulse" style={{ color: `${dragonColor || '#22d3ee'}4d` }}>
+              <div className={cn(onWall ? 'mb-3' : 'mb-6', 'pr-12')}>
+                <div
+                  className={onWall ? 'w-fit rounded-2xl rounded-tl-sm bg-black/65 px-3.5 py-2.5' : 'pl-3'}
+                  style={onWall ? { border: `1px solid ${glow}40` } : { borderLeft: `2px solid ${glow}33` }}
+                >
+                  <p className="italic text-xs animate-pulse" style={{ color: onWall ? `${glow}b3` : `${glow}4d` }}>
                     ...a thought stirs through the bond...
                   </p>
                 </div>
@@ -841,7 +834,7 @@ export default function DragonBondChat({
       </div>
 
       {/* ── INPUT AREA ── */}
-      <div className="shrink-0 px-3 pb-3 pt-2 border-t border-cyan-500/10">
+      <div className={cn('shrink-0 px-3 pb-3 pt-2 border-t border-cyan-500/10', onWall && 'bg-black/60')}>
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
