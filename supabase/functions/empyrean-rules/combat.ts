@@ -186,6 +186,10 @@ export interface RiderFighter {
 
   clash: { id: string; r: Array<M.ClashQ | null> } | null; streak: number;
 
+  /** The progression web's Ward in this fight: what is left of it, and its size (absent: no Ward). */
+
+  shield?: number; shieldMax?: number;
+
 }
 
 export interface DragonFighter { name: string; hp: number; maxHp: number; startHp: number; ac: number; atk: number; bond: number; nextAt: number; turns: number; status: 'up' | 'down' }
@@ -206,9 +210,67 @@ export interface Fight {
 
   prodigy?: P.ProdigyTier;
 
+  /** What the rider's progression web adds in this fight (absent: nothing, and in fights saved before it existed). */
+
+  web?: FightPerks;
+
 }
 
 
+
+/** The progression web's fight perks (see web.ts). Every number is 0 and every flag false for a rider who owns none. */
+
+export interface FightPerks {
+
+  wardMax: number; wardFightRefill: boolean; regenTurn: number; regenWard: boolean;
+
+  adrDamage: number; adrHit: number; adrDouble: boolean; adrHasteMs: number;
+
+  bloodPrice: number; heartfire: boolean;
+
+}
+
+/** Perks come from the server's own ledger, but a stored fight is still untrusted JSON: clamp everything. */
+
+export function cleanPerks(raw: unknown): FightPerks | null {
+
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
+
+  if (!r) return null;
+
+  const p: FightPerks = {
+
+    wardMax: clamp(int(r.wardMax), 0, 100), wardFightRefill: r.wardFightRefill === true,
+
+    regenTurn: clamp(int(r.regenTurn), 0, 10), regenWard: r.regenWard === true,
+
+    adrDamage: clamp(int(r.adrDamage), 0, 10), adrHit: clamp(int(r.adrHit), 0, 5), adrDouble: r.adrDouble === true, adrHasteMs: clamp(int(r.adrHasteMs), 0, 4000),
+
+    bloodPrice: clamp(int(r.bloodPrice), 0, 20), heartfire: r.heartfire === true,
+
+  };
+
+  return p.wardMax || p.regenTurn || p.adrDamage || p.adrHit || p.adrHasteMs || p.bloodPrice ? p : null;
+
+}
+
+/** Adrenaline right now: 0 above half HP, 1 at half or less, 2 at a quarter or less (when the rider owns the doubling). */
+
+export function adrenaline(f: Fight): { level: 0 | 1 | 2; damage: number; hit: number; hasteMs: number } {
+
+  const w = f.web;
+
+  if (!w || !(w.adrDamage || w.adrHit || w.adrHasteMs) || f.rider.hp <= 0 || f.rider.hp * 2 > f.rider.maxHp) return { level: 0, damage: 0, hit: 0, hasteMs: 0 };
+
+  const deep = w.adrDouble && f.rider.hp * 4 <= f.rider.maxHp;
+
+  return { level: deep ? 2 : 1, damage: w.adrDamage * (deep ? 2 : 1), hit: w.adrHit * (deep ? 2 : 1), hasteMs: w.adrHasteMs };
+
+}
+
+/** Adrenaline never shortens the wait between the rider's moves below this. */
+
+export const RIDER_COOLDOWN_FLOOR_MS = 3000;
 
 function say(f: Fight, at: number, text: string, tone: Tone = 'info', flash?: { targetId: string; amount: number; kind: 'hit' | 'heal' }) {
 
@@ -253,6 +315,10 @@ export interface StartInput {
   /** The rider's Prodigy Ascension tier (0 = not a Prodigy). */
 
   prodigy?: number;
+
+  /** The progression web's fight perks, and the Ward the rider walks in with. */
+
+  web?: unknown; shield?: number | null;
 
 }
 
@@ -335,6 +401,22 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
     dragon, enemies, log: [], strainSpent: 0, signetUses: 0, dragonDied: false, riderDown: false, prodigy: pt,
 
   };
+
+  const perks = cleanPerks(input.web);
+
+  if (perks) {
+
+    f.web = perks;
+
+    if (perks.wardMax > 0) {
+
+      f.rider.shieldMax = perks.wardMax;
+
+      f.rider.shield = perks.wardFightRefill ? perks.wardMax : clamp(int(input.shield, 0), 0, perks.wardMax);
+
+    }
+
+  }
 
   say(f, now, `${count > 1 ? `${count} ${baseName}s` : baseName} ${count > 1 ? 'want' : 'wants'} to fight!`, 'warn');
 
@@ -424,7 +506,27 @@ function hurtEnemy(f: Fight, at: number, e: Enemy, amount: number) {
 
 }
 
-function hurtRider(f: Fight, amount: number) { const lost = Math.min(f.rider.hp, Math.max(0, amount)); f.rider.hp -= lost; return lost; }
+/** Damage to the rider goes through the Ward first. Returns the HP lost. */
+
+function hurtRider(f: Fight, amount: number, at?: number) {
+
+  let left = Math.max(0, amount);
+
+  const soaked = Math.min(f.rider.shield ?? 0, left);
+
+  if (soaked > 0) {
+
+    f.rider.shield = (f.rider.shield ?? 0) - soaked;
+
+    left -= soaked;
+
+    if (at != null) say(f, at, `Your Ward absorbs ${soaked}.`, 'info');
+
+  }
+
+  const lost = Math.min(f.rider.hp, left); f.rider.hp -= lost; return lost;
+
+}
 
 function hurtDragon(f: Fight, amount: number) { if (!f.dragon) return 0; const lost = Math.min(f.dragon.hp, Math.max(0, amount)); f.dragon.hp -= lost; return lost; }
 
@@ -482,7 +584,7 @@ function enemyTurn(f: Fight, e: Enemy, at: number, rand: Rand) {
 
   if (!a.hit) { say(f, at, `${e.name} attacks and misses.`, 'muted'); return; }
 
-  const lost = hurtRider(f, rollDice(e.dice, rand, a.crit));
+  const lost = hurtRider(f, rollDice(e.dice, rand, a.crit), at);
 
   say(f, at, `${e.name} hits you for ${lost}${a.crit ? ' (critical)' : ''}.`, 'warn', { targetId: RIDER_ID, amount: lost, kind: 'hit' });
 
@@ -536,7 +638,7 @@ function landStrike(f: Fight, e: Enemy, at: number, rand: Rand) {
 
   else {
 
-    const lost = hurtRider(f, amount);
+    const lost = hurtRider(f, amount, at);
 
     say(f, at, `${p.label} hits you for ${lost}${scale < 1 ? ' (partly blocked)' : ''}${p.warded ? ' (your dragon took the rest)' : ''}.`, 'warn', { targetId: RIDER_ID, amount: lost, kind: 'hit' });
 
@@ -708,7 +810,9 @@ export type ActInput =
 
   | { type: 'flee' } | { type: 'yield' };
 
-export type ActResult = { ok: true; strain: number; usedPotion: boolean } | { ok: false; error: string };
+/** strain: what is charged to Signet Strain. blood: points over the limit that were paid in HP instead (Lifeblood). */
+
+export type ActResult = { ok: true; strain: number; usedPotion: boolean; blood?: number } | { ok: false; error: string };
 
 /** One move by the rider. Call advance() first so the fight is current. */
 
@@ -730,7 +834,11 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
   const target = 'targetId' in a ? f.enemies.find(e => e.id === a.targetId && up(e)) : undefined;
 
-  let strain = 0, usedPotion = false;
+  let strain = 0, usedPotion = false, blood = 0;
+
+  const adr = adrenaline(f);
+
+  const rush = adr.damage ? ` (adrenaline +${adr.damage})` : '';
 
   if (a.type === 'attack') {
 
@@ -740,15 +848,15 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const w = f.rider.weapons.find(x => x.name.toLowerCase() === wanted) ?? f.rider.weapons[0] ?? { name: 'Unarmed strike', dice: { count: 1, sides: 4, bonus: 1 } };
 
-    const r = attackRoll(rand, f.rider.atk, target.ac);
+    const r = attackRoll(rand, f.rider.atk + adr.hit, target.ac);
 
     if (!r.hit) say(f, now, `You swing ${w.name} at ${target.name} and miss (${r.total} vs AC ${target.ac}).`, 'muted');
 
     else {
 
-      const lost = hurtEnemy(f, now, target, rollDice(w.dice, rand, r.crit));
+      const lost = hurtEnemy(f, now, target, rollDice(w.dice, rand, r.crit) + adr.damage);
 
-      if (up(target)) say(f, now, `${w.name} hits ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
+      if (up(target)) say(f, now, `${w.name} hits ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}${rush}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
 
     }
 
@@ -760,21 +868,45 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     strain = signetStrainCost(intensity, f.rider.masteryRank, f.prodigy ?? 0);
 
-    if (strain > Math.max(0, int(a.strainRoom))) return { ok: false, error: 'That much power would burn you out. Channel less.' };
+    const room = Math.max(0, int(a.strainRoom));
 
-    const bonus = proficiency(f.rider.level) + 3 + Math.min(f.rider.masteryRank, 3);
+    if (strain > room) {
+
+      // Lifeblood: what does not fit under the limit is paid in HP, never down to 0.
+
+      const price = f.web?.bloodPrice ?? 0;
+
+      if (price <= 0) return { ok: false, error: 'That much power would burn you out. Channel less.' };
+
+      const cost = (strain - room) * price;
+
+      if (cost >= f.rider.hp) return { ok: false, error: 'You do not have the blood to pay for that. Channel less.' };
+
+      blood = strain - room;
+
+      f.rider.hp -= cost;
+
+      say(f, now, `You push past your limit and pay ${cost} HP in blood.`, 'warn', { targetId: RIDER_ID, amount: cost, kind: 'hit' });
+
+    }
+
+    const bonus = proficiency(f.rider.level) + 3 + Math.min(f.rider.masteryRank, 3) + adr.hit;
 
     const r = attackRoll(rand, bonus, target.ac);
 
-    const full = rollDice({ count: intensity + P.prodigySignetDice(f.prodigy ?? 0), sides: 6, bonus: f.rider.masteryRank }, rand, r.crit);
+    const heart = blood > 0 && f.web?.heartfire ? 2 : 0;
+
+    const full = rollDice({ count: intensity + P.prodigySignetDice(f.prodigy ?? 0) + heart, sides: 6, bonus: f.rider.masteryRank }, rand, r.crit) + adr.damage;
 
     f.strainSpent += strain; f.signetUses += 1;
+
+    strain -= blood;
 
     if (r.hit) {
 
       const lost = hurtEnemy(f, now, target, full);
 
-      if (up(target)) say(f, now, `Your signet strikes ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
+      if (up(target)) say(f, now, `Your signet strikes ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}${heart ? ' (heartfire)' : ''}${rush}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
 
     } else if (intensity >= 5) {
 
@@ -808,15 +940,39 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
   }
 
-  f.rider.readyAt = now + P.prodigyRiderCooldownMs(f.prodigy ?? 0, RIDER_COOLDOWN_MS);
+  // Regeneration: a little HP on each of the rider's turns; with Wellspring, what HP cannot hold refills the Ward.
+
+  const w = f.web;
+
+  if (w && w.regenTurn > 0 && f.rider.hp > 0 && f.status === 'active') {
+
+    const gained = Math.min(f.rider.maxHp - f.rider.hp, w.regenTurn);
+
+    const refill = w.regenWard ? Math.min((f.rider.shieldMax ?? 0) - (f.rider.shield ?? 0), w.regenTurn - gained) : 0;
+
+    f.rider.hp += gained;
+
+    if (refill > 0) f.rider.shield = (f.rider.shield ?? 0) + refill;
+
+    if (gained > 0) say(f, now, `Regeneration: +${gained} HP${refill > 0 ? `, +${refill} Ward` : ''}.`, 'good', { targetId: RIDER_ID, amount: gained, kind: 'heal' });
+
+    else if (refill > 0) say(f, now, `Regeneration: +${refill} Ward.`, 'good');
+
+  }
+
+  // Adrenaline is judged on the HP the rider has after the move (blood paid counts).
+
+  const cooldown = P.prodigyRiderCooldownMs(f.prodigy ?? 0, RIDER_COOLDOWN_MS);
+
+  const haste = adrenaline(f).hasteMs;
+
+  f.rider.readyAt = now + (haste > 0 ? Math.max(Math.min(cooldown, RIDER_COOLDOWN_FLOOR_MS), cooldown - haste) : cooldown);
 
   checkEnd(f, now);
 
-  return { ok: true, strain, usedPotion };
+  return { ok: true, strain, usedPotion, ...(blood > 0 ? { blood } : {}) };
 
 }
-
-
 
 /** One tap on the Counter Clash ring, judged on the server's clock. Free: it never uses the cooldown. */
 
@@ -854,7 +1010,11 @@ export function clashTap(f: Fight, now: number, enemyId: string, side: unknown, 
 
 
 
+/** shield: what is left of the rider's Ward when the fight ends (null: the rider has none). */
+
 export interface Settlement {
+
+  shield: number | null;
 
   events: RuleEvent[]; dragonHp: number | null; condition: { name: string; penalty: number; minutes: number } | null;
 
@@ -932,7 +1092,9 @@ export function settle(f: Fight, rand: Rand): Settlement {
 
   }];
 
-  return { events, dragonHp: g ? Math.max(0, g.hp) : null, condition, injury, line, xp, masteryXp: Math.min(3, f.signetUses) };
+  const shield = (f.rider.shieldMax ?? 0) > 0 ? clamp(int(f.rider.shield, 0), 0, f.rider.shieldMax ?? 0) : null;
+
+  return { shield, events, dragonHp: g ? Math.max(0, g.hp) : null, condition, injury, line, xp, masteryXp: Math.min(3, f.signetUses) };
 
 }
 
@@ -948,7 +1110,15 @@ export function viewOf(f: Fight, now: number) {
 
     serverNow: now, nextDueAt: Number.isFinite(nextDueAt(f)) ? nextDueAt(f) : null,
 
-    rider: { id: RIDER_ID, name: f.rider.name, hp: f.rider.hp, maxHp: f.rider.maxHp, level: f.rider.level, readyAt: f.rider.readyAt, weapons: f.rider.weapons.map(w => w.name), clash: f.rider.clash },
+    rider: {
+
+      id: RIDER_ID, name: f.rider.name, hp: f.rider.hp, maxHp: f.rider.maxHp, level: f.rider.level, readyAt: f.rider.readyAt, weapons: f.rider.weapons.map(w => w.name), clash: f.rider.clash,
+
+      // The progression web: the Ward (0 and 0 when the rider has none), adrenaline (0 to 2) and the price of blood (0: none).
+
+      shield: f.rider.shield ?? 0, shieldMax: f.rider.shieldMax ?? 0, adrenaline: adrenaline(f).level, bloodPrice: f.web?.bloodPrice ?? 0,
+
+    },
 
     dragon: f.dragon ? { id: DRAGON_ID, name: f.dragon.name, hp: f.dragon.hp, maxHp: f.dragon.maxHp, status: f.dragon.status, nextAt: f.dragon.nextAt } : null,
 
