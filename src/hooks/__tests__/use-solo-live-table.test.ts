@@ -834,6 +834,33 @@ describe('DM tandem: the DM directs the table, and the table reports back', () =
     expect(onStage(setupDm({ story: `${named}\n<!--LIVE:STAGE none-->` }))).toEqual([]);
   });
 
+  it('a post still being written does not change who is on stage; the finished post does', () => {
+    const first = `${dainE.name} blocks the door.\n<!--LIVE:STAGE ${dainE.name}-->`;
+    const h = setupDm({ story: first });
+    expect(onStage(h)).toEqual(['dain-aetos']);
+    // The next post arrives word by word; its STAGE direction comes last.
+    const half = `${trinaE.name} waits by the gate. ${xadenE.name} is still away at Samara.`;
+    h.rerender({ story: half, busy: true });
+    expect(onStage(h)).toEqual(['dain-aetos']);
+    const whole = `${half}\n<!--LIVE:STAGE ${trinaE.name}-->`;
+    h.rerender({ story: whole, busy: true });
+    expect(onStage(h)).toEqual(['dain-aetos']);
+    h.rerender({ story: whole, busy: false });
+    expect(onStage(h)).toEqual(['trina']);
+  });
+
+  it('someone called over stays while the DM writes and is reset by the finished post', () => {
+    const first = `${dainE.name} blocks the door.\n<!--LIVE:STAGE ${dainE.name}-->`;
+    const h = setupDm({ story: first });
+    act(() => h.result.current.callOver('xaden-riorson'));
+    expect(onStage(h)).toEqual(['dain-aetos', 'xaden-riorson']);
+    h.rerender({ story: `${trinaE.name} waits`, busy: true });
+    expect(onStage(h)).toEqual(['dain-aetos', 'xaden-riorson']);
+    const whole = `${trinaE.name} waits by the gate.\n<!--LIVE:STAGE ${trinaE.name}-->`;
+    h.rerender({ story: whole, busy: false });
+    expect(onStage(h)).toEqual(['trina']);
+  });
+
   it('the ROOM direction sets the mood whatever the words say', async () => {
     const h = setupDm({ story: `${trinaE.name} waits by the gate.\n<!--LIVE:STAGE ${trinaE.name}-->\n<!--LIVE:ROOM tense-->` });
     act(() => h.result.current.setTableOpen(true));

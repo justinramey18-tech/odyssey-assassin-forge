@@ -304,14 +304,18 @@ export function useSoloLiveTable({ userId, riderName, npcs, latestDmText, voiceN
   sceneRunningRef.current = sceneRunning;
   const dmSendingRef = useRef(false);
 
+  // The stage follows finished DM posts only. A post still being written has no STAGE direction yet (it comes
+  // last), so reading it would put every NPC it names on stage until the direction arrives.
+  const [settledDmText, setSettledDmText] = useState(latestDmText);
+  if (!busy && settledDmText !== latestDmText) setSettledDmText(latestDmText);
   // The DM's hidden directions. Its STAGE list decides who is here; without one, the names in the post do.
-  const directions = useMemo(() => parseDirections(latestDmText), [latestDmText]);
+  const directions = useMemo(() => parseDirections(settledDmText), [settledDmText]);
   const storyStage = useMemo(
-    () => stageFromStory(directions.stage ? directions.stage.join('; ') : stripLiveTags(latestDmText), npcs.roster),
-    [directions, latestDmText, npcs.roster],
+    () => stageFromStory(directions.stage ? directions.stage.join('; ') : stripLiveTags(settledDmText), npcs.roster),
+    [directions, settledDmText, npcs.roster],
   );
   // A new DM post resets who the rider called over; the post decides who is still here.
-  useEffect(() => { setCalled([]); setLeft([]); setChallenge(null); setTravelOffer(null); }, [latestDmText]);
+  useEffect(() => { setCalled([]); setLeft([]); setChallenge(null); setTravelOffer(null); }, [settledDmText]);
   const stage = useMemo(() => Array.from(new Set([...storyStage, ...called, ...companions])).filter(k => !left.includes(k)).slice(0, MAX_STAGE), [storyStage, called, left, companions]);
 
   const tableNpcs = useMemo(() => tableNpcsFor(npcs.roster, stage), [npcs.roster, stage]);
