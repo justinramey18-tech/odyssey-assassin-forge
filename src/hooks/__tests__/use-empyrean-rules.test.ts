@@ -151,6 +151,52 @@ describe('useEmpyreanRules', () => {
     expect(c.onMapChanged).toHaveBeenCalledTimes(1);
   });
 
+  it('live clock: a live screen says so on each check-in and reloads the map when the server moved the clock', async () => {
+    let minute = 600;
+    answer(() => snap([], { minute }));
+    const c = calls();
+    const { result } = renderHook(() => useEmpyreanRules(options(c, { live: true })));
+    await waitFor(() => expect(result.current.active).toBe(true));
+    expect(mock.invoke.mock.calls[0][1].body).toMatchObject({ action: 'state', live: true });
+    expect(c.onMapChanged).not.toHaveBeenCalled();
+    await act(async () => { await result.current.refresh(); });
+    expect(c.onMapChanged).not.toHaveBeenCalled();
+    minute = 601;
+    await act(async () => { await result.current.refresh(); });
+    expect(c.onMapChanged).toHaveBeenCalledTimes(1);
+    answer(() => snap([], { minute: 640, traveling: true }));
+    await act(async () => { await result.current.refresh(); });
+    expect(c.onMapChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('live clock: a screen that is not live sends no live flag and never reloads the map on a check-in', async () => {
+    let minute = 600;
+    answer(() => snap([], { minute }));
+    const c = calls();
+    const { result } = renderHook(() => useEmpyreanRules(options(c, { live: false })));
+    await waitFor(() => expect(result.current.active).toBe(true));
+    minute = 700;
+    await act(async () => { await result.current.refresh(); });
+    expect(mock.invoke.mock.calls.every(call => !('live' in call[1].body))).toBe(true);
+    expect(c.onMapChanged).not.toHaveBeenCalled();
+  });
+
+  it('story time: sends the minutes and the turn, and reloads the map only when the server moved the clock', async () => {
+    answer(action => snap([], action === 'story_time' ? { minute: 645, summary: '45 minutes pass. It is now Day 1, 10:45.' } : {}));
+    const c = calls();
+    const { result } = renderHook(() => useEmpyreanRules(options(c)));
+    await waitFor(() => expect(result.current.active).toBe(true));
+    let moved = false;
+    await act(async () => { moved = await result.current.storyTime(45, 'turn-1'); });
+    expect(moved).toBe(true);
+    expect(mock.invoke.mock.calls[mock.invoke.mock.calls.length - 1][1].body).toMatchObject({ action: 'story_time', minutes: 45, messageId: 'turn-1' });
+    expect(c.onMapChanged).toHaveBeenCalledTimes(1);
+    answer(() => snap([]));
+    await act(async () => { moved = await result.current.storyTime(45, 'turn-1'); });
+    expect(moved).toBe(false);
+    expect(c.onMapChanged).toHaveBeenCalledTimes(1);
+  });
+
   it('sends the sheet, place and dragon with every call', async () => {
     answer(() => snap([]));
     const c = calls();

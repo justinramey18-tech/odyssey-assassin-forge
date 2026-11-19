@@ -44,6 +44,8 @@ export interface EmpyreanRulesOptions {
   onFightResult?: (payload: Record<string, any>) => void;
   /** Poll faster while a journey is under way. */
   flying: boolean;
+  /** Live clock: the solo screen is showing and nothing else owns the clock (the Map is closed). While true, each check-in lets real time pass in the game. */
+  live?: boolean;
   /** The rider's Signet Strain limit right now (sent with every call; the server keeps strain under it). */
   getStrainLimit?: () => number;
   /** The server pushed strain up to the limit (a reckless rise): costs bond once (D-30). */
@@ -155,7 +157,18 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     }
   }, [context, applyInbox]);
 
-  const refresh = useCallback(() => run('state', {}, true), [run]);
+  // Live clock: tell the server the solo screen is live; when the server moved the clock, reload the map's copy of it.
+  const lastMinuteRef = useRef<number | null>(null);
+  const refresh = useCallback(async () => {
+    const live = optsRef.current.live === true;
+    const snap = await run('state', live ? { live: true } : {}, true);
+    if (snap) {
+      const before = lastMinuteRef.current;
+      lastMinuteRef.current = snap.minute;
+      if (live && before !== null && !snap.traveling && snap.minute - before >= 1) optsRef.current.onMapChanged();
+    }
+    return snap;
+  }, [run]);
 
   // Load on open and on campaign change.
   useEffect(() => {
@@ -204,6 +217,15 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     storyReward: (kind: 'xp' | 'gold', amount: number, source: string) => { void run('story_reward', { kind, amount, source }, true); },
     setEvents: (level: EventLevel) => run('set_events', { level }),
     eventDone: () => { void run('event_done', {}, true); },
+    /** The DM's reply covered more than the moment: the server moves the clock (4 hours at most, once per turn). True when time moved. */
+    storyTime: async (minutes: number, turnId: string): Promise<boolean> => {
+      const snap = await run('story_time', { minutes, messageId: turnId }, true);
+      if (!snap?.ok || !snap.summary) return false;
+      toast(snap.summary, { icon: '🕰️' });
+      lastMinuteRef.current = snap.minute;
+      optsRef.current.onMapChanged();
+      return true;
+    },
     travel: async (action: 'launch' | 'sync' | 'cancel', extra: Record<string, unknown> = {}): Promise<boolean> =>
       !!(await run(`travel_${action}` as RulesAction, extra, true))?.ok,
     refresh,

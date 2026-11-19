@@ -6,7 +6,7 @@ import { prodigyStrainDiscount, type ProdigyTier } from '@/lib/empyreanClasses/p
 
 export type RulesAction =
   | 'state' | 'ack' | 'rest' | 'pass_time' | 'check' | 'signet_used' | 'quest_payout' | 'story_reward'
-  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain';
+  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain' | 'story_time';
 /** Ways Signet Strain moves besides channels, checks, rests and fights (the server sets the amounts). */
 export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export type FightAction = 'fight_start' | 'fight_tick' | 'fight_act' | 'fight_clash' | 'fight_close';
