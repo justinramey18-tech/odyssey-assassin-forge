@@ -61,6 +61,10 @@ export interface CampaignState {
   strain: number;
   /** The last DM reply the after-reply cool-down counted, so a reply is never counted twice. */
   strainCooled: string | null;
+  /** Live clock: the server time (ms) of the last live check-in; 0 while the clock is not live. */
+  liveAt: number;
+  /** Turns whose story-time push was already applied (newest last), so a turn never adds time twice. */
+  timeTurns: string[];
 }
 export function freshState(): CampaignState {
   return {
@@ -70,7 +74,7 @@ export function freshState(): CampaignState {
     signet: { xpDay: 1, xpToday: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
     fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
-    strain: 0, strainCooled: null,
+    strain: 0, strainCooled: null, liveAt: 0, timeTurns: [],
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -108,6 +112,8 @@ export function normalizeState(raw: unknown): CampaignState {
     briefs: { day: Math.max(1, int(r.briefs?.day, 1)), n: Math.max(0, int(r.briefs?.n)) },
     strain: clamp(int(r.strain), 0, STRAIN_HARD_CAP),
     strainCooled: typeof r.strainCooled === 'string' ? r.strainCooled.slice(0, 100) : null,
+    liveAt: Math.max(0, int(r.liveAt)),
+    timeTurns: (Array.isArray(r.timeTurns) ? r.timeTurns : []).filter((x: unknown) => typeof x === 'string' && x).map((x: string) => x.slice(0, 100)).slice(-8),
   };
 }
 
@@ -129,6 +135,44 @@ export function tick(state: CampaignState, minute: number): CampaignState {
   if (s.rewards.day !== day) s.rewards = { day, xp: 0, gold: 0 };
   if (s.spars.day !== day) s.spars = { day, n: 0 };
   return s;
+}
+
+// ── live clock and story time ──
+/** A gap between live check-ins longer than this counts as this much: the screen was closed or the phone slept. */
+export const LIVE_GAP_CAP_MS = 3 * 60_000;
+/** The most the DM can move the clock in one reply. Longer waits are the rider's choice (rests, Pass Time). */
+export const STORY_TIME_MAX = 4 * 60;
+/**
+ * Live clock: the real time since the last live check-in passes in the game, minute for minute.
+ * Whole minutes only; the rest carries to the next check-in. Returns the same state when nothing changes.
+ */
+export function liveTick(state: CampaignState, nowMs: number): { state: CampaignState; advance: number } {
+  const last = state.liveAt;
+  if (!(last > 0) || nowMs < last) return { state: { ...state, liveAt: nowMs }, advance: 0 };
+  const gap = nowMs - last;
+  if (gap > LIVE_GAP_CAP_MS) return { state: { ...state, liveAt: nowMs }, advance: Math.floor(LIVE_GAP_CAP_MS / 60_000) };
+  const minutes = Math.floor(gap / 60_000);
+  if (minutes < 1) return { state, advance: 0 };
+  return { state: { ...state, liveAt: last + minutes * 60_000 }, advance: minutes };
+}
+/** The clock is not live right now (the Map is open, a journey is flying, a fight is on): the next live check-in starts fresh. */
+export function livePause(state: CampaignState): { state: CampaignState; advance: number } {
+  return state.liveAt > 0 ? { state: { ...state, liveAt: 0 }, advance: 0 } : { state, advance: 0 };
+}
+/** The DM's reply covered more than the moment: at most STORY_TIME_MAX minutes, and once per turn. */
+export function storyTime(state: CampaignState, minutes: unknown, turnId: unknown): { state: CampaignState; advance: number } {
+  const id = typeof turnId === 'string' ? turnId.slice(0, 100) : '';
+  const m = clamp(int(minutes), 0, STORY_TIME_MAX);
+  if (!id || m < 1 || state.timeTurns.includes(id)) return { state, advance: 0 };
+  return { state: { ...state, timeTurns: [...state.timeTurns, id].slice(-8) }, advance: m };
+}
+/** "45 minutes", "2 hours", "1 hour 30 minutes". */
+export function spanText(minutes: number): string {
+  const total = Math.max(0, Math.round(minutes));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  const parts = [h ? `${h} hour${h === 1 ? '' : 's'}` : '', m || !h ? `${m} minute${m === 1 ? '' : 's'}` : ''].filter(Boolean);
+  return parts.join(' ');
 }
 
 // ── Signet Mastery ──
@@ -525,7 +569,9 @@ export interface FactsInput { minute: number; masteryXp: number; bond: number | 
 export function buildRuleFacts(state: CampaignState, f: FactsInput): string {
   const s = tick(state, f.minute);
   const lines: string[] = [];
-  lines.push(`Time: ${formatTime(f.minute)} (${timeOfDay(f.minute)}). Only the app moves time: travel, rests and passing time. Never skip days or announce a new day yourself.`);
+  lines.push(f.traveling
+    ? `Time: ${formatTime(f.minute)} (${timeOfDay(f.minute)}). The journey moves the clock. Never skip days or announce a new day yourself, and write no TIME tag during a journey.`
+    : `Time: ${formatTime(f.minute)} (${timeOfDay(f.minute)}). The clock runs on its own while the rider plays, one minute for each real minute. When your reply covers more than the moment (crossing the college, a class, a long wait, an afternoon of drills), end the reply with a hidden tag on its own line that gives the time the reply covered: <!--TIME:+20m-->, <!--TIME:+2h--> or <!--TIME:+1h30m--> (4 hours at most in one reply). Give no tag to a single moment or a short exchange. Never mention the tag. Never skip to another day or have the rider sleep through the night yourself: rests and longer waits are the rider's choice in Camp, and a reply in which the rider beds down gets no tag.`);
   const canLong = f.minute - s.lastLongRestEnd >= LONG_REST_GAP;
   lines.push(`Rest: ${SHORT_RESTS_PER_DAY - s.shortRests} short rest${SHORT_RESTS_PER_DAY - s.shortRests === 1 ? '' : 's'} left today; a long rest is ${canLong ? 'available' : 'not available yet'}. A rest only counts when the player uses the Rest button; if the story calls for one, suggest it.`);
   if (s.injuries.length) lines.push(`Injuries (real, not healed by narration): ${s.injuries.map(i => `${i.name} (${['', 'light', 'serious', 'severe'][i.severity]})`).join('; ')}. Each long rest eases them one step.`);

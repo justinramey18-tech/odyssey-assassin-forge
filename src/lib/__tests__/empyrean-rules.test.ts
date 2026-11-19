@@ -5,6 +5,7 @@ import {
   signetUse, snapDc, storyReward, tick, timeOfDay, unlockList, unmetNeeds, type CampaignState, type Rand,
 } from '../../../supabase/functions/empyrean-rules/rules';
 import { REWARD_RANGES } from '@/lib/empyrean-quest-hub';
+import { LIVE_GAP_CAP_MS, STORY_TIME_MAX, livePause, liveTick, spanText, storyTime } from '../../../supabase/functions/empyrean-rules/rules';
 import { campaignDay, formatCampaignTime } from '@/lib/campaign-map';
 
 const seq = (...values: number[]): Rand => { let i = 0; return () => values[Math.min(i++, values.length - 1)]; };
@@ -250,5 +251,70 @@ describe('progression: quest rewards and Prodigy training', () => {
     const train = passTime(freshState(), 0, 2, 'train', true, 1);
     expect(train.ok && train.xpDelta).toBe(signetUse(freshState(), 0, 3, 1).xpDelta);
     expect(train.ok && train.xpDelta).toBe(2);
+  });
+});
+
+describe('live clock and story time', () => {
+  const T0 = 1_800_000_000_000;
+  it('the first live check-in only starts the clock', () => {
+    const r = liveTick(freshState(), T0);
+    expect(r.advance).toBe(0);
+    expect(r.state.liveAt).toBe(T0);
+  });
+  it('real minutes pass one for one, and the leftover seconds carry', () => {
+    const s = { ...freshState(), liveAt: T0 };
+    expect(liveTick(s, T0 + 59_000)).toEqual({ state: s, advance: 0 });
+    const one = liveTick(s, T0 + 90_000);
+    expect(one.advance).toBe(1);
+    expect(one.state.liveAt).toBe(T0 + 60_000);
+    const two = liveTick(one.state, T0 + 150_000);
+    expect(two.advance).toBe(1);
+    expect(two.state.liveAt).toBe(T0 + 120_000);
+  });
+  it('a long gap (screen closed) counts as three minutes, and a clock that ran backward starts over', () => {
+    const s = { ...freshState(), liveAt: T0 };
+    expect(LIVE_GAP_CAP_MS).toBe(180_000);
+    expect(liveTick(s, T0 + 180_000).advance).toBe(3);
+    const away = liveTick(s, T0 + 5 * 3_600_000);
+    expect(away.advance).toBe(3);
+    expect(away.state.liveAt).toBe(T0 + 5 * 3_600_000);
+    expect(liveTick(s, T0 - 5_000)).toEqual({ state: { ...s, liveAt: T0 - 5_000 }, advance: 0 });
+  });
+  it('pausing forgets the last check-in once, so the next live check-in starts fresh', () => {
+    const s = { ...freshState(), liveAt: T0 };
+    const paused = livePause(s);
+    expect(paused.state.liveAt).toBe(0);
+    expect(livePause(paused.state).state).toBe(paused.state);
+    expect(liveTick(paused.state, T0 + 3_600_000).advance).toBe(0);
+  });
+  it('a story push is capped at four hours and counted once per turn', () => {
+    expect(STORY_TIME_MAX).toBe(240);
+    const a = storyTime(freshState(), 45, 'turn-1');
+    expect(a.advance).toBe(45);
+    expect(a.state.timeTurns).toEqual(['turn-1']);
+    expect(storyTime(a.state, 45, 'turn-1')).toEqual({ state: a.state, advance: 0 });
+    expect(storyTime(a.state, 9999, 'turn-2').advance).toBe(240);
+    expect(storyTime(a.state, 0, 'turn-3').advance).toBe(0);
+    expect(storyTime(a.state, -30, 'turn-3').advance).toBe(0);
+    expect(storyTime(a.state, 30, '').advance).toBe(0);
+    expect(storyTime(a.state, 30, undefined).advance).toBe(0);
+    let s = freshState();
+    for (let i = 0; i < 12; i++) s = storyTime(s, 5, `t${i}`).state;
+    expect(s.timeTurns).toHaveLength(8);
+    expect(normalizeState(JSON.parse(JSON.stringify({ ...s, liveAt: T0 })))).toMatchObject({ liveAt: T0, timeTurns: s.timeTurns });
+    expect(normalizeState({})).toMatchObject({ liveAt: 0, timeTurns: [] });
+  });
+  it('tells the DM how to move time, and not to on a journey', () => {
+    expect(spanText(45)).toBe('45 minutes');
+    expect(spanText(60)).toBe('1 hour');
+    expect(spanText(90)).toBe('1 hour 30 minutes');
+    expect(spanText(240)).toBe('4 hours');
+    const still = buildRuleFacts(freshState(), { minute: at(2, 10), masteryXp: 0, bond: null, bonded: false, traveling: false });
+    expect(still).toContain('Day 2, 10:00');
+    expect(still).toContain('<!--TIME:+2h-->');
+    expect(still).toContain('4 hours at most');
+    const flying = buildRuleFacts(freshState(), { minute: at(2, 10), masteryXp: 0, bond: null, bonded: false, traveling: true });
+    expect(flying).toContain('The journey moves the clock');
+    expect(flying).not.toContain('<!--TIME:+2h-->');
   });
 });

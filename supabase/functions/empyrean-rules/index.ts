@@ -26,7 +26,7 @@ const JOURNEYS_PER_DAY = 10;
 const PLANNER_MODEL = 'qwen-3-6-plus';
 
 const Body = z.object({
-  action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward', 'strain',
+  action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward', 'strain', 'story_time',
     'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel',
     'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief']),
   campaignId: uuid,
@@ -77,6 +77,9 @@ const Body = z.object({
   reason: z.enum(['cool', 'ground', 'ground_roll', 'quest', 'raise', 'revive', 'fallen']).optional(),
   messageId: z.string().max(100).optional(),
   channeled: z.boolean().optional(),
+  // Live clock: the solo screen is showing and nothing else owns the clock. Story time: the minutes the DM's reply covered (messageId is the turn).
+  live: z.boolean().optional(),
+  minutes: z.number().optional(),
 });
 type Req = z.infer<typeof Body>;
 
@@ -556,8 +559,24 @@ Deno.serve(async (req) => {
       case 'state':
         await catchUp(db, userId, b.campaignId);
         result = await mutate(db, userId, b, l => {
-          const need = R.chargeNeeds(R.tick(l.state, l.minute), l.minute, l.bonded);
-          return need.events.length ? { state: need.state, events: need.events } : null;
+          // Live clock: while the phone says the solo screen is live, real time since the last check-in passes in the game.
+          // Never during a flight (the leg moves the clock), a fight, or without a map; then the live clock is paused.
+          const ticked = R.tick(l.state, l.minute);
+          const canRun = b.live === true && !!l.envelope && !l.traveling && !C.cleanFight(l.state.fight);
+          const live = canRun ? R.liveTick(ticked, Date.now()) : R.livePause(ticked);
+          const after = l.minute + live.advance;
+          const need = R.chargeNeeds(live.advance ? R.tick(live.state, after) : live.state, after, l.bonded);
+          return live.state !== ticked || need.events.length ? { state: need.state, events: need.events, advance: live.advance } : null;
+        });
+        break;
+      case 'story_time':
+        result = await mutate(db, userId, b, l => {
+          // The DM's reply covered more than the moment. Ignored during a flight or a fight, without a map, and for a turn already counted.
+          if (!l.envelope || l.traveling || C.cleanFight(l.state.fight)) return null;
+          const r = R.storyTime(R.tick(l.state, l.minute), b.minutes, b.messageId);
+          if (!r.advance) return null;
+          const after = l.minute + r.advance;
+          return withUpkeep(l, { state: R.tick(r.state, after), advance: r.advance, extra: { summary: `${R.spanText(r.advance)} pass. It is now ${R.formatTime(after)}.` } }, after);
         });
         break;
       case 'ack':
