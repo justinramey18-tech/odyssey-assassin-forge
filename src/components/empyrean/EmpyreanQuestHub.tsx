@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, X, Loader2, ChevronDown, Sparkles, Coins, ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
   CR_POINTS,
   DRAGON_REWARDS,
@@ -38,6 +39,10 @@ function QuestCard({
   const cr = q.challengeRating ?? 'moderate';
   const pct = questPercent(q);
   const next = nextObjective(q);
+
+  const preparing = api.preparing.includes(q.key);
+
+  const guided = api.guidedKeys.includes(q.key);
   return (
     <div className={cn(
       'rounded-xl border px-3 py-2.5',
@@ -57,6 +62,8 @@ function QuestCard({
               </span>
             )}
             {mode === 'active' && (q.stages?.length ?? 0) > 0 && <span className="text-[11px] text-white/50">{pct}%</span>}
+
+            {mode === 'active' && guided && <span className="px-1.5 py-0.5 rounded border border-primary/40 text-primary text-[10px] uppercase tracking-wider">GM guide</span>}
           </div>
         </div>
         <ChevronDown className={cn('w-4 h-4 mt-1 text-white/40 transition-transform shrink-0', open && 'rotate-180')} />
@@ -86,10 +93,12 @@ function QuestCard({
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => api.accept(q.key)}
+
+                disabled={preparing}
                 style={tap}
-                className="flex-1 min-h-[44px] rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-200 text-sm font-semibold flex items-center justify-center gap-1.5"
+                className="flex-1 min-h-[44px] rounded-lg bg-primary/20 border border-primary/40 text-primary text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-70"
               >
-                <Check className="w-4 h-4" /> Accept
+                {preparing ? <><Loader2 className="w-4 h-4 animate-spin" /> Preparing your quest…</> : <><Check className="w-4 h-4" /> Accept</>}
               </button>
               <button
                 onClick={() => api.decline(q.key)}
@@ -100,6 +109,26 @@ function QuestCard({
               </button>
             </div>
           )}
+          {mode === 'active' && !guided && (
+
+            <Button
+
+              onClick={() => api.prepareGuide(q.key)}
+
+              disabled={preparing}
+
+              style={tap}
+
+              className="w-full min-h-[48px] h-auto rounded-lg bg-primary/15 border border-primary/40 text-primary text-sm flex items-center justify-center gap-1.5 disabled:opacity-70"
+
+            >
+
+              {preparing ? <><Loader2 className="w-4 h-4 animate-spin" /> Writing the GM guide…</> : <><ScrollText className="w-4 h-4" /> Write a GM guide for the DM</>}
+
+            </Button>
+
+          )}
+
           {mode !== 'done' && (
             <label className="flex items-center gap-2 text-[11px] text-white/45 pt-1">
               Category

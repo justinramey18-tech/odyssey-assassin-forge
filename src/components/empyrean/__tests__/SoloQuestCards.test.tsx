@@ -34,6 +34,34 @@ describe('SoloQuestCards', () => {
     expect(onDecline).toHaveBeenCalledWith('lost-journal');
   });
 
+  it('Accept shows that the quest is being prepared while its GM guide is written; Decline still works', () => {
+
+    const onAccept = vi.fn();
+
+    const onDecline = vi.fn();
+
+    const views: QuestCardView[] = [{ card: card({}), state: 'offer', quest }];
+
+    render(<SoloQuestCards views={views} preparing={['lost-journal']} onAccept={onAccept} onDecline={onDecline} onOpenHub={vi.fn()} />);
+
+    const accept = screen.getByLabelText('Accept the quest Find the Lost Journal') as HTMLButtonElement;
+
+    expect(accept.disabled).toBe(true);
+
+    expect(accept.textContent).toContain('Preparing your quest');
+
+    fireEvent.click(accept);
+
+    expect(onAccept).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText('Decline the quest Find the Lost Journal'));
+
+    expect(onDecline).toHaveBeenCalledWith('lost-journal');
+
+  });
+
+
+
   it('Accept waits while the DM is writing; Decline does not', () => {
     const views: QuestCardView[] = [{ card: card({}), state: 'offer', quest }];
     render(<SoloQuestCards views={views} busy onAccept={vi.fn()} onDecline={vi.fn()} onOpenHub={vi.fn()} />);

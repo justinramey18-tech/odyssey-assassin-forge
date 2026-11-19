@@ -1,6 +1,6 @@
 // Solo Empyrean story feed: quest cards under the DM reply that offered, finished or failed a quest.
 // The same quests live in the Quest Hub; Accept and Decline here do exactly what the hub's buttons do.
-import { Check, Coins, ScrollText, Sparkles, X } from 'lucide-react';
+import { Check, Coins, Loader2, ScrollText, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CR_POINTS, hubCategory, questCategory, type QuestCardView } from '@/lib/empyrean-quest-hub';
 import { CR_META, nextObjective, questTitle } from '@/lib/quests';
@@ -10,6 +10,10 @@ interface SoloQuestCardsProps {
   views: QuestCardView[];
   /** The DM is writing: Accept waits (accepting sends the DM a message). */
   busy?: boolean;
+
+  /** Keys of quests whose GM guide is being written: Accept shows that it is working. */
+
+  preparing?: string[];
   onAccept: (questKey: string) => void;
   onDecline: (questKey: string) => void;
   onOpenHub: () => void;
@@ -17,7 +21,7 @@ interface SoloQuestCardsProps {
 
 const tap = { touchAction: 'manipulation' } as const;
 
-export function SoloQuestCards({ views, busy = false, onAccept, onDecline, onOpenHub }: SoloQuestCardsProps) {
+export function SoloQuestCards({ views, busy = false, preparing = [], onAccept, onDecline, onOpenHub }: SoloQuestCardsProps) {
   if (views.length === 0) return null;
   return (
     <div className="mt-2 space-y-2">
@@ -61,6 +65,8 @@ export function SoloQuestCards({ views, busy = false, onAccept, onDecline, onOpe
           );
         }
         const cr = quest.challengeRating ?? 'moderate';
+
+        const working = preparing.includes(quest.key);
         return (
           <div key={id} className="rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -79,9 +85,9 @@ export function SoloQuestCards({ views, busy = false, onAccept, onDecline, onOpe
               <span>+{CR_POINTS[cr]} standing</span>
             </div>
             <div className="mt-2 flex gap-2">
-              <Button onClick={() => onAccept(quest.key)} disabled={busy} style={tap}
+              <Button onClick={() => onAccept(quest.key)} disabled={busy || working} style={tap}
                 className="flex-1 min-h-[52px] h-auto py-2 gap-2 text-base" aria-label={`Accept the quest ${questTitle(quest)}`}>
-                <Check className="w-5 h-5 shrink-0" /> Accept
+                {working ? <><Loader2 className="w-5 h-5 shrink-0 animate-spin" /> Preparing your quest…</> : <><Check className="w-5 h-5 shrink-0" /> Accept</>}
               </Button>
               <Button variant="outline" onClick={() => onDecline(quest.key)} style={tap}
                 className="min-h-[52px] h-auto py-2 px-4 gap-2 text-base" aria-label={`Decline the quest ${questTitle(quest)}`}>
