@@ -6,7 +6,7 @@ import { prodigyStrainDiscount, type ProdigyTier } from '@/lib/empyreanClasses/p
 
 export type RulesAction =
   | 'state' | 'ack' | 'rest' | 'pass_time' | 'check' | 'signet_used' | 'quest_payout' | 'story_reward'
-  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain' | 'story_time' | 'web_buy';
+  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain' | 'story_time' | 'web_buy' | 'ward_soak';
 /** Ways Signet Strain moves besides channels, checks, rests and fights (the server sets the amounts). */
 export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export type FightAction = 'fight_start' | 'fight_tick' | 'fight_act' | 'fight_clash' | 'fight_close';
@@ -42,9 +42,19 @@ export interface RulesWebSpoke {
 export interface RulesWeb {
   xp: { earned: number; spent: number; balance: number };
   owned: string[];
-  bonuses: { strainLimit: number; backlashOff: number; freeChannel: boolean; maxHp?: number };
+  bonuses: { strainLimit: number; backlashOff: number; freeChannel: boolean; maxHp?: number; wardMax?: number; bloodPrice?: number };
   spokes: RulesWebSpoke[];
 }
+/** Lifeblood, as the server charges it: what a channel of `cost` strain costs in HP when only `room` is left under
+ *  the limit. null: it cannot be paid (no Lifeblood, or it would take the rider's last HP). 0: it fits, no blood. */
+export function bloodCost(cost: number, room: number, price: number | null | undefined, hp: number): number | null {
+  const over = Math.max(0, Math.trunc(cost) - Math.max(0, Math.trunc(room)));
+  if (over === 0) return 0;
+  const p = Math.trunc(Number(price)) || 0;
+  if (p <= 0) return null;
+  return over * p < Math.trunc(hp) ? over * p : null;
+}
+
 /** The top the server allows for the Signet Strain limit, web bonus included. */
 export const WEB_STRAIN_TOP = 20;
 /** The strain limit to show: the phone's own limit plus the web's bonus (none while the rider has no signet). */
@@ -95,6 +105,14 @@ export interface RulesSnapshot {
   web?: RulesWeb;
   /** The node just bought (the answer to web_buy). */
   bought?: { id: string; name: string; effect: string };
+  /** The progression web's Ward: what is left of it and its size (max 0, or absent from an older server: no Ward). */
+  ward?: { now: number; max: number };
+  /** Lifeblood: HP per point of strain over the limit (0 or absent: a channel cannot pass the limit). */
+  bloodPrice?: number;
+  /** How much damage the Ward took (the answer to ward_soak). */
+  wardSoaked?: number;
+  /** What a channel cost in blood (the answer to signet_used). */
+  blood?: { points: number; hp: number };
   facts: string;
   inbox: RulesInboxEvent[];
 }
@@ -141,7 +159,11 @@ export interface FightEnemyView {
 export interface FightView {
   id: string; status: 'active' | 'ended'; outcome: 'victory' | 'defeat' | 'fled' | 'yield' | null; lethal: boolean; arena: FightArena; challenge: FightChallenge;
   serverNow: number; nextDueAt: number | null;
-  rider: { id: string; name: string; hp: number; maxHp: number; level: number; readyAt: number; weapons: string[]; clash: { id: string; r: Array<ClashQuality | null> } | null };
+  rider: {
+    id: string; name: string; hp: number; maxHp: number; level: number; readyAt: number; weapons: string[]; clash: { id: string; r: Array<ClashQuality | null> } | null;
+    /** The progression web in a fight (absent from an older server): the Ward, adrenaline (0 to 2) and the price of blood. */
+    shield?: number; shieldMax?: number; adrenaline?: number; bloodPrice?: number;
+  };
   dragon: { id: string; name: string; hp: number; maxHp: number; status: 'up' | 'down'; nextAt: number } | null;
   enemies: FightEnemyView[];
   log: FightLogLine[];

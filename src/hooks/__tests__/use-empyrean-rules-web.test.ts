@@ -1,12 +1,12 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mock = vi.hoisted(() => ({ invoke: vi.fn(), success: vi.fn(), error: vi.fn() }));
+const mock = vi.hoisted(() => ({ invoke: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn(), plain: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { functions: { invoke: mock.invoke } } }));
 vi.mock('@/lib/dragon-record', () => ({ currentRiderKey: () => 'local' }));
-vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: mock.success, error: mock.error }) }));
+vi.mock('sonner', () => ({ toast: Object.assign(mock.plain, { success: mock.success, error: mock.error, warning: mock.warning }) }));
 import { useEmpyreanRules, type EmpyreanRulesOptions } from '@/hooks/use-empyrean-rules';
-import { webStrainLimit, type RulesWeb } from '@/lib/empyrean-rules-client';
+import { bloodCost, webStrainLimit, type RulesWeb } from '@/lib/empyrean-rules-client';
 
 const web = (balance: number, owned: string[] = [], strainLimit = 0): RulesWeb => ({
   xp: { earned: balance + owned.length * 150, spent: owned.length * 150, balance }, owned,
@@ -27,7 +27,7 @@ const answer = (fn: (action: string, body: any) => any) =>
   mock.invoke.mockImplementation(async (_name: string, { body }: any) => ({ data: fn(body.action, body), error: null }));
 
 describe('useEmpyreanRules: the progression web', () => {
-  beforeEach(() => { localStorage.clear(); mock.invoke.mockReset(); mock.success.mockReset(); mock.error.mockReset(); });
+  beforeEach(() => { localStorage.clear(); mock.invoke.mockReset(); mock.success.mockReset(); mock.error.mockReset(); mock.warning.mockReset(); mock.plain.mockReset(); });
   afterEach(() => cleanup());
 
   it('shows the web the server sent, and none from an older server', async () => {
@@ -82,5 +82,58 @@ describe('useEmpyreanRules: the progression web', () => {
     expect(webStrainLimit(19, web(0, [], 7))).toBe(20);
     expect(webStrainLimit(0, web(0, [], 7))).toBe(0);
     expect(webStrainLimit(9, null)).toBe(9);
+  });
+  it('shows the Ward and the price of blood the server keeps, and none from an older server', async () => {
+    answer(() => snap({ ward: { now: 5, max: 8 }, bloodPrice: 3 }));
+    const { result } = renderHook(() => useEmpyreanRules(options()));
+    await waitFor(() => expect(result.current.ward).toEqual({ now: 5, max: 8 }));
+    expect(result.current.bloodPrice).toBe(3);
+    cleanup();
+    answer(() => snap({ ward: { now: 0, max: 0 } }));
+    const none = renderHook(() => useEmpyreanRules(options()));
+    await waitFor(() => expect(none.result.current.active).toBe(true));
+    expect(none.result.current.ward).toBeNull();
+    expect(none.result.current.bloodPrice).toBe(0);
+  });
+
+  it('sends the rider\'s HP with every call, and tells the server what the Ward soaked', async () => {
+    answer(action => (action === 'ward_soak' ? snap({ ward: { now: 2, max: 8 }, wardSoaked: 3 }) : snap({ ward: { now: 5, max: 8 } })));
+    const { result } = renderHook(() => useEmpyreanRules(options({ getSheet: () => ({ level: 3, maxHp: 24, hp: 17 }) })));
+    await waitFor(() => expect(result.current.ward?.now).toBe(5));
+    await act(async () => { result.current.wardSoak(3); });
+    await waitFor(() => expect(result.current.ward?.now).toBe(2));
+    const sent = mock.invoke.mock.calls.find(([, { body }]: any) => body.action === 'ward_soak');
+    expect(sent?.[1].body.amount).toBe(3);
+    expect(sent?.[1].body.sheet.hp).toBe(17);
+  });
+
+  it('says what a channel cost in blood', async () => {
+    answer(action => (action === 'signet_used' ? snap({ strain: 8, strainCost: 2, blood: { points: 2, hp: 8 } }) : snap({ strain: 6 })));
+    const { result } = renderHook(() => useEmpyreanRules(options()));
+    await waitFor(() => expect(result.current.active).toBe(true));
+    await act(async () => { result.current.signetUsed(4); });
+    await waitFor(() => expect(mock.warning).toHaveBeenCalledWith('Lifeblood: 8 HP paid to push 2 past your limit'));
+  });
+
+  it('applies regeneration and names it; says when the Ward took damage', async () => {
+    const onHPChange = vi.fn();
+    answer(action => (action === 'ack' ? snap() : snap({ inbox: [
+      { id: 'e1', kind: 'regen', reason: 'Regeneration: 4 HP over 2 hours', xp: 0, gold: 0, hp: 4, payload: { hours: 2, heal: 4, ward: 0 }, created_at: 'x' },
+      { id: 'e2', kind: 'check', reason: 'Climb: Critical failure', xp: 0, gold: 0, hp: -2, payload: { wardSoaked: 3 }, created_at: 'x' },
+    ] })));
+    renderHook(() => useEmpyreanRules(options({ onHPChange })));
+    await waitFor(() => expect(onHPChange).toHaveBeenCalledWith(4, 'healing'));
+    expect(onHPChange).toHaveBeenCalledWith(-2, 'damage');
+    expect(mock.success).toHaveBeenCalledWith('Regeneration: 4 HP over 2 hours');
+    expect(mock.plain).toHaveBeenCalledWith('Your Ward absorbed 3 damage');
+  });
+
+  it('the fight screen\'s blood price matches the server\'s rule', () => {
+    expect(bloodCost(4, 4, 2, 30)).toBe(0);
+    expect(bloodCost(4, 1, 2, 30)).toBe(6);
+    expect(bloodCost(4, 1, 0, 30)).toBeNull();
+    expect(bloodCost(4, 1, undefined, 30)).toBeNull();
+    expect(bloodCost(4, 0, 4, 16)).toBeNull();
+    expect(bloodCost(4, 0, 4, 17)).toBe(16);
   });
 });

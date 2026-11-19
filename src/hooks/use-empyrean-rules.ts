@@ -26,7 +26,7 @@ export interface EmpyreanRulesOptions {
   campaignId: string | null;
   dragonName?: string;
   bonded: boolean;
-  getSheet: () => { level?: number; maxHp?: number; riderClass?: string | null };
+  getSheet: () => { level?: number; maxHp?: number; hp?: number; riderClass?: string | null };
   getPlace: () => { name?: string; kind?: string } | undefined;
   getCurrentHP: () => number;
   onHPChange: (change: number, type: 'damage' | 'healing') => void;
@@ -98,6 +98,9 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
       if (bits.length) toast.success(bits.join(', '), { description: e.reason || undefined });
     }
     if (e.kind === 'dragon_need') toast(e.reason || 'Your dragon is unhappy', { icon: '🐉' });
+    // The progression web names itself when it does something.
+    if (e.kind === 'regen') toast.success(e.reason || 'Regeneration');
+    if (typeof p.wardSoaked === 'number' && p.wardSoaked > 0) toast(`Your Ward absorbed ${p.wardSoaked} damage`);
     if (e.kind === 'fight') {
       if (e.xp > 0) toast.success(`${e.xp} XP`, { description: e.reason || undefined });
       o.onFightResult?.(p);
@@ -203,8 +206,11 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     signetUsed: (intensity: number) => {
       void run('signet_used', { intensity }, true).then(snap => {
         if (snap?.ok && snap.freeChannel) toast.success('Deep Well: this channel cost no strain');
+        if (snap?.ok && snap.blood && snap.blood.hp > 0) toast.warning(`Lifeblood: ${snap.blood.hp} HP paid to push ${snap.blood.points} past your limit`);
       });
     },
+    /** Damage the DM narrated asks the Ward first; the server takes it off the Ward it keeps. */
+    wardSoak: (amount: number) => { void run('ward_soak', { amount }, true); },
     /** Spend XP on a progression web node. The server decides; true when it was bought. */
     buyNode: async (nodeId: string): Promise<boolean> => {
       const snap = await run('web_buy', { nodeId });
@@ -255,7 +261,10 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
   const serverStrain = active && typeof snapshot?.strain === 'number' ? snapshot.strain : null;
   /** The progression web; null while the engine is off or the server is older. */
   const web = active && snapshot?.web ? snapshot.web : null;
-  return { ...api, snapshot, busy, active, serverStrain, web };
+  /** The progression web's Ward (null: none) and the price of blood (0: no Lifeblood). */
+  const ward = active && snapshot?.ward && snapshot.ward.max > 0 ? snapshot.ward : null;
+  const bloodPrice = active ? Math.max(0, Math.trunc(Number(snapshot?.bloodPrice)) || 0) : 0;
+  return { ...api, snapshot, busy, active, serverStrain, web, ward, bloodPrice };
 }
 
 export type EmpyreanRulesApi = ReturnType<typeof useEmpyreanRules>;
