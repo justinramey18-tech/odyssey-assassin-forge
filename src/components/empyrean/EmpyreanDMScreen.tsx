@@ -289,6 +289,10 @@ function stripAllMetaTags(raw: string): string {
 // The hall scene: the story over one wide painted hall whose objects are the buttons.
 // false brings back the round room with its two walls of big buttons (the fastest rollback).
 const SCENE_ROOM = true;
+// The hall is a ring: the dragon's chat is a panel that joins the far right of the hall to the far
+// left, and the view goes round without an end. false: the hall has two ends and the dragon chat
+// covers the screen, as before.
+const HALL_RING = true;
 
 export function EmpyreanDMScreen({
   open,
@@ -331,6 +335,10 @@ export function EmpyreanDMScreen({
   const [armedSignetIntensity, setArmedSignetIntensity] = useState<number | null>(null);
   const [signetPickerOpen, setSignetPickerOpen] = useState(false);
   const [dragonMenuOpen, setDragonMenuOpen] = useState(false);
+  // The ring hall: the wall panel the dragon chat is drawn in, and where the hall was last asked to turn.
+  const hallRing = SCENE_ROOM && HALL_RING;
+  const [dragonWall, setDragonWall] = useState<HTMLDivElement | null>(null);
+  const [hallLook, setHallLook] = useState<{ where: 'story' | 'seam'; tick: number }>({ where: 'story', tick: 0 });
   // One chat: the Live Table draws its lines here, inside the story's own list.
   const [tableFeedHost, setTableFeedHost] = useState<HTMLDivElement | null>(null);
   const signetUsedThisRoundRef = useRef(false);
@@ -1962,6 +1970,11 @@ ${oocLines}`;
         setShowUnbondedDragonSheet(true);
         return;
       }
+      // Ring hall: the dragon chat is a wall panel. Turn to it; it opens once the view stops there.
+      if (hallRing) {
+        setHallLook(prev => ({ where: 'seam', tick: prev.tick + 1 }));
+        return;
+      }
       dragonBond.markChatOpened();
       setShowDragonChat(true);
       return;
@@ -1997,7 +2010,7 @@ ${oocLines}`;
     }
     // Dice and other tabs toggle the full-screen content panel
     setActiveNavTab(prev => prev === tab ? null : tab);
-  }, [dragonBond]);
+  }, [dragonBond, hallRing]);
 
   const handleDragonNotesChange = useCallback((notes: string) => {
     setDragonNotes(notes);
@@ -2532,6 +2545,20 @@ ${oocLines}`;
         leftLabel="The College"
         rightLabel="Rider and Dragon"
         homeKey={messages.length}
+        seam={hallRing ? (
+          <>
+            <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center px-6 text-center font-cinzel text-sm text-primary/50">
+              {isUnbonded ? 'No dragon has chosen you yet.' : (config?.dragonName || 'Your dragon')}
+            </div>
+            {!isUnbonded && <div ref={setDragonWall} className="relative flex-1 min-h-0 flex flex-col" />}
+          </>
+        ) : undefined}
+        onSeamFacing={(facing) => {
+          if (isUnbonded) return;
+          if (facing) { dragonBond.markChatOpened(); setShowDragonChat(true); }
+          else { setShowDragonChat(false); dragonBond.reload(); }
+        }}
+        lookAt={hallLook}
         wallpaper={empyreanRoomWallpaper}
         left={(
           <SoloWorldWall
@@ -2970,6 +2997,122 @@ ${oocLines}`;
       </div>
       </div>
 
+      {/* One chat: the Send to DM bar, then the Live Table's composer. Its lines are drawn in the
+          story above (storyFeedHost). The bottom navigation and the pills are gone: their jobs are
+          big buttons on the round room's walls. */}
+      <div className={cn(
+        "shrink-0",
+        tableLocked && "pointer-events-none opacity-40 select-none"
+      )}>
+        {isLoading && liveTable.thinking.length === 0 && (
+          <div className="flex justify-center px-3 pb-1.5">
+            <button
+              type="button"
+              onClick={cancelRequest}
+              className="min-h-[40px] px-4 rounded-full border border-red-500/40 bg-red-900/20 text-red-200 text-[13px]"
+              style={{ touchAction: 'manipulation' }}
+            >
+              Stop the DM
+            </button>
+          </div>
+        )}
+        <DMHandoffBar
+          isHost
+          isGenerating={liveTable.dmSending}
+          tickedCount={liveTable.chat.progress.current}
+          orderedSelected={liveTable.chat.orderedSelected}
+          onReorderSelected={liveTable.chat.setSelectedOrder}
+          onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
+        />
+        <RoundChatDrawer
+          ref={liveTableRef}
+          storyFeedHost={tableFeedHost}
+          messages={liveTable.chat.messages}
+          reactions={liveTable.chat.reactions}
+          currentUserId={liveUserId || 'arena-player'}
+          characterName={characterName || 'Rider'}
+          style={liveTable.chat.style}
+          progress={liveTable.chat.progress}
+          sending={liveTable.chat.sending}
+          isGenerating={liveTable.dmSending}
+          isHost
+          presenceIds={new Set(liveUserId ? [liveUserId] : [])}
+          presenceReady
+          readReceiptsLoaded
+          readReceipts={liveTable.chat.readReceipts}
+          onMarkRead={(iso) => { void liveTable.chat.markRead(iso); }}
+          onSend={async (content, ic) => (await liveTable.postRiderLine(content, ic)) !== null}
+          onToggleReaction={(id, emoji) => { void liveTable.chat.toggleReaction(id, emoji, characterName || 'Rider'); }}
+          onDeleteMessage={(id) => { void liveTable.chat.deleteMessage(id); }}
+          onEditMessage={liveTable.chat.editMessage}
+          onClearAll={liveTable.chat.clearAllMessages}
+          onToggleSelected={(id) => { void liveTable.chat.toggleSelected(id); }}
+          onSelectAll={() => { void liveTable.chat.selectAllPending(); }}
+          onClearSelection={() => { void liveTable.chat.clearSelection(); }}
+          onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
+          orderedSelected={liveTable.chat.orderedSelected}
+          onReorderSelected={liveTable.chat.setSelectedOrder}
+          npcs={liveTable.tableNpcs}
+          npcThinking={liveTable.thinking}
+          onSendToNpcs={liveTable.onSendToNpcs}
+          avatars={chatAvatars.avatars}
+          oocNames={chatAvatars.oocNames}
+          onSetOocName={chatAvatars.setOocName}
+          onUploadAvatar={liveUserId ? async (kind, file) => {
+            try { await chatAvatars.uploadAvatar(kind, file); toast.success('Picture updated'); }
+            catch (err) { toast.error(err instanceof Error ? err.message : 'Picture upload failed'); }
+          } : undefined}
+          portraitPrompt={soloPortraitPrompt(characterContext)}
+          onGeneratePortrait={liveUserId ? async (prompt) => {
+            try {
+              const { data, error } = await supabase.functions.invoke('venice-image-generate', { body: { mode: 'solo-portrait', prompt } });
+              if (error || typeof data?.imageUrl !== 'string') throw new Error('Portrait generation failed');
+              await chatAvatars.setAvatarUrl('ic', data.imageUrl);
+              return true;
+            } catch (err) { toast.error(err instanceof Error ? err.message : 'Portrait generation failed'); return false; }
+          } : undefined}
+          onSpeakAsNpc={liveTable.onSpeakAsNpc}
+          onRegenerateNpcLine={liveTable.onRegenerateNpcLine}
+          onNpcRoll={liveTable.onNpcRoll}
+          onNpcJoin={liveTable.onNpcJoin}
+          characterContext={characterContext}
+          onNpcSocialCheck={liveTable.onNpcSocialCheck}
+          canManageNpcs
+          onOpenNpcRoster={() => setRosterOpen(true)}
+          onStartScene={liveTable.onStartScene}
+          sceneRunning={liveTable.sceneRunning}
+          npcAnswerOrder="tapped"
+          goLive={{ on: liveTable.urge.enabled, onToggle: () => liveTable.urge.setEnabled(!liveTable.urge.enabled) }}
+          npcTells={liveTable.tells}
+          onInviteNpc={liveTable.inviteNpc}
+          onHushNpc={liveTable.hushNpc}
+          onOpenStateChange={liveTable.setTableOpen}
+          huddle={liveTable.huddle}
+          onHuddleEnough={liveTable.huddleEnough}
+          onHuddleSeal={liveTable.huddleSeal}
+          onTypingChange={liveTable.setTyping}
+          challenge={liveTable.challenge}
+          onDismissChallenge={liveTable.clearChallenge}
+          travelOffer={liveTable.travelOffer}
+          onDismissTravel={liveTable.clearTravelOffer}
+          onAcceptTravel={() => {
+            const offer = liveTable.travelOffer;
+            const target = offer && travelAtlas ? resolveTravelTarget(travelAtlas, offer.place) : null;
+            if (!offer || !target) { liveTable.clearTravelOffer(); toast("That trip isn't possible right now", { description: 'Open the Map to see what can be reached.' }); return; }
+            liveTableRef.current?.close();
+            setTravelRequest({ target, label: `Go to ${target.name}`, companion: { key: offer.key, name: offer.name } });
+          }}
+          onAcceptChallenge={() => {
+            const foe = soloNpcs.roster.find(e => e.key === liveTable.challenge?.key);
+            liveTable.clearChallenge();
+            if (!foe?.fight) return;
+            liveTableRef.current?.close();
+            setNpcFight({ key: foe.key, foeKind: foe.fight.kind, foeName: foe.name, challenge: foe.fight.challenge });
+            setFightSetup('spar');
+          }}
+        />
+      </div>
+
       </SoloHallScene>
 
       {/* The dragon (tapped in the hall scene): speak with it, or open the Bond screen. In the flow, so it shows wherever the hall is turned. */}
@@ -3091,121 +3234,6 @@ ${oocLines}`;
           </div>
         )}
 
-      {/* One chat: the Send to DM bar, then the Live Table's composer. Its lines are drawn in the
-          story above (storyFeedHost). The bottom navigation and the pills are gone: their jobs are
-          big buttons on the round room's walls. */}
-      <div className={cn(
-        "shrink-0",
-        tableLocked && "pointer-events-none opacity-40 select-none"
-      )}>
-        {isLoading && liveTable.thinking.length === 0 && (
-          <div className="flex justify-center px-3 pb-1.5">
-            <button
-              type="button"
-              onClick={cancelRequest}
-              className="min-h-[40px] px-4 rounded-full border border-red-500/40 bg-red-900/20 text-red-200 text-[13px]"
-              style={{ touchAction: 'manipulation' }}
-            >
-              Stop the DM
-            </button>
-          </div>
-        )}
-        <DMHandoffBar
-          isHost
-          isGenerating={liveTable.dmSending}
-          tickedCount={liveTable.chat.progress.current}
-          orderedSelected={liveTable.chat.orderedSelected}
-          onReorderSelected={liveTable.chat.setSelectedOrder}
-          onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
-        />
-        <RoundChatDrawer
-          ref={liveTableRef}
-          storyFeedHost={tableFeedHost}
-          messages={liveTable.chat.messages}
-          reactions={liveTable.chat.reactions}
-          currentUserId={liveUserId || 'arena-player'}
-          characterName={characterName || 'Rider'}
-          style={liveTable.chat.style}
-          progress={liveTable.chat.progress}
-          sending={liveTable.chat.sending}
-          isGenerating={liveTable.dmSending}
-          isHost
-          presenceIds={new Set(liveUserId ? [liveUserId] : [])}
-          presenceReady
-          readReceiptsLoaded
-          readReceipts={liveTable.chat.readReceipts}
-          onMarkRead={(iso) => { void liveTable.chat.markRead(iso); }}
-          onSend={async (content, ic) => (await liveTable.postRiderLine(content, ic)) !== null}
-          onToggleReaction={(id, emoji) => { void liveTable.chat.toggleReaction(id, emoji, characterName || 'Rider'); }}
-          onDeleteMessage={(id) => { void liveTable.chat.deleteMessage(id); }}
-          onEditMessage={liveTable.chat.editMessage}
-          onClearAll={liveTable.chat.clearAllMessages}
-          onToggleSelected={(id) => { void liveTable.chat.toggleSelected(id); }}
-          onSelectAll={() => { void liveTable.chat.selectAllPending(); }}
-          onClearSelection={() => { void liveTable.chat.clearSelection(); }}
-          onSendToDMNow={() => { void liveTable.onSendToDMNow(); }}
-          orderedSelected={liveTable.chat.orderedSelected}
-          onReorderSelected={liveTable.chat.setSelectedOrder}
-          npcs={liveTable.tableNpcs}
-          npcThinking={liveTable.thinking}
-          onSendToNpcs={liveTable.onSendToNpcs}
-          avatars={chatAvatars.avatars}
-          oocNames={chatAvatars.oocNames}
-          onSetOocName={chatAvatars.setOocName}
-          onUploadAvatar={liveUserId ? async (kind, file) => {
-            try { await chatAvatars.uploadAvatar(kind, file); toast.success('Picture updated'); }
-            catch (err) { toast.error(err instanceof Error ? err.message : 'Picture upload failed'); }
-          } : undefined}
-          portraitPrompt={soloPortraitPrompt(characterContext)}
-          onGeneratePortrait={liveUserId ? async (prompt) => {
-            try {
-              const { data, error } = await supabase.functions.invoke('venice-image-generate', { body: { mode: 'solo-portrait', prompt } });
-              if (error || typeof data?.imageUrl !== 'string') throw new Error('Portrait generation failed');
-              await chatAvatars.setAvatarUrl('ic', data.imageUrl);
-              return true;
-            } catch (err) { toast.error(err instanceof Error ? err.message : 'Portrait generation failed'); return false; }
-          } : undefined}
-          onSpeakAsNpc={liveTable.onSpeakAsNpc}
-          onRegenerateNpcLine={liveTable.onRegenerateNpcLine}
-          onNpcRoll={liveTable.onNpcRoll}
-          onNpcJoin={liveTable.onNpcJoin}
-          characterContext={characterContext}
-          onNpcSocialCheck={liveTable.onNpcSocialCheck}
-          canManageNpcs
-          onOpenNpcRoster={() => setRosterOpen(true)}
-          onStartScene={liveTable.onStartScene}
-          sceneRunning={liveTable.sceneRunning}
-          npcAnswerOrder="tapped"
-          goLive={{ on: liveTable.urge.enabled, onToggle: () => liveTable.urge.setEnabled(!liveTable.urge.enabled) }}
-          npcTells={liveTable.tells}
-          onInviteNpc={liveTable.inviteNpc}
-          onHushNpc={liveTable.hushNpc}
-          onOpenStateChange={liveTable.setTableOpen}
-          huddle={liveTable.huddle}
-          onHuddleEnough={liveTable.huddleEnough}
-          onHuddleSeal={liveTable.huddleSeal}
-          onTypingChange={liveTable.setTyping}
-          challenge={liveTable.challenge}
-          onDismissChallenge={liveTable.clearChallenge}
-          travelOffer={liveTable.travelOffer}
-          onDismissTravel={liveTable.clearTravelOffer}
-          onAcceptTravel={() => {
-            const offer = liveTable.travelOffer;
-            const target = offer && travelAtlas ? resolveTravelTarget(travelAtlas, offer.place) : null;
-            if (!offer || !target) { liveTable.clearTravelOffer(); toast("That trip isn't possible right now", { description: 'Open the Map to see what can be reached.' }); return; }
-            liveTableRef.current?.close();
-            setTravelRequest({ target, label: `Go to ${target.name}`, companion: { key: offer.key, name: offer.name } });
-          }}
-          onAcceptChallenge={() => {
-            const foe = soloNpcs.roster.find(e => e.key === liveTable.challenge?.key);
-            liveTable.clearChallenge();
-            if (!foe?.fight) return;
-            liveTableRef.current?.close();
-            setNpcFight({ key: foe.key, foeKind: foe.fight.kind, foeName: foe.name, challenge: foe.fight.challenge });
-            setFightSetup('spar');
-          }}
-        />
-      </div>
 
       {/* Character Sheet — full-screen overlay (Empyrean solo) */}
       <CharacterSheet
@@ -3632,7 +3660,12 @@ ${oocLines}`;
 
       <DragonBondChat
         open={showDragonChat}
-        onClose={() => { setShowDragonChat(false); dragonBond.reload(); }}
+        inlineHost={hallRing ? dragonWall : undefined}
+        onClose={() => {
+          setShowDragonChat(false);
+          dragonBond.reload();
+          if (hallRing) setHallLook(prev => ({ where: 'story', tick: prev.tick + 1 }));
+        }}
         characterName={characterName}
         dragonName={config?.dragonName || 'Dragon'}
         dragonColor={getDragonColorHex(config?.dragonColor)}
