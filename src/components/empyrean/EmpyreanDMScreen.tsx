@@ -159,6 +159,7 @@ import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
 import { hubUnlocks, questCardsFor, standingFactsLine } from '@/lib/empyrean-quest-hub';
 
 import { buildQuestGuidesBlock, stripQuestTags } from '@/lib/empyrean-quest-guide';
+import { readTimeTag, stripTimeTags } from '@/lib/empyrean-story-time';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
 import { SoloHallScene } from '@/components/empyrean/SoloHallScene';
@@ -266,7 +267,7 @@ function stripAllMetaTags(raw: string): string {
 
   // Quest GM guides: the DM's hidden quest tags never show (a half-typed one at the end of a streaming reply too).
 
-  const content = stripQuestTags(raw);
+  const content = stripTimeTags(stripQuestTags(raw));
   return content
     .replace(/<!--BURNOUT:\d+-->/g, '')
     .replace(/<!--BURNOUT_TICK:.+?-->/g, '')
@@ -593,8 +594,13 @@ UNBONDED RIDER RULES:
   const questSourceRef = useRef<string | undefined>(undefined);
   // Solo Live NPCs (D-38); read by onMessageComplete, which is set up before the hook below.
   const soloNpcsRef = useRef<SoloNpcs | null>(null);
+  // Live clock: set when the story reader takes the newest DM reply for a rest, so that reply's TIME tag is not applied.
+  const restSeenRef = useRef(false);
   const syncRestOccurred = useCallback((type: 'short' | 'long') => {
-    if (rulesRef.current?.active) toast(`The story mentions a ${type} rest`, { description: 'Open Camp (the tent) to take it, so the clock and your wounds keep up.', icon: '⛺' });
+    if (rulesRef.current?.active) {
+      restSeenRef.current = true;
+      toast(`The story mentions a ${type} rest`, { description: 'Open Camp (the tent) to take it, so the clock and your wounds keep up.', icon: '⛺' });
+    }
     else autoSyncCallbacks?.onRestOccurred?.(type);
   }, [autoSyncCallbacks]);
 
@@ -824,12 +830,23 @@ ${oocLines}`;
         const lastPlayer = [...storyMessagesRef.current].reverse().find(m => m.role === 'user');
         soloNpcsRef.current?.onStory(content, String(lastPlayer?.content ?? '').slice(0, 1500));
       }
+      // Live clock: the DM's hidden TIME tag moves the clock (the server caps it at 4 hours and counts each turn once).
+      // With auto-sync on it waits for the story reader: a reply taken for a rest gets no push (the rider rests in Camp).
+      const storyMinutes = readTimeTag(content);
+      const storyTurn = [...storyMessagesRef.current].reverse().find(m => m.role === 'user')?.id
+        ?? [...storyMessagesRef.current].reverse().find(m => m.role === 'assistant')?.id;
+      restSeenRef.current = false;
+      const pushStoryTime = () => {
+        if (storyMinutes && storyTurn && !restSeenRef.current) void rulesRef.current?.storyTime(storyMinutes, storyTurn);
+      };
+      if (!autoSync.autoSyncEnabled) pushStoryTime();
       if (autoSync.autoSyncEnabled) {
         // Items the DM awards wait in the loot review instead of being dropped.
         const lastSent = [...storyMessagesRef.current].reverse().find(m => m.role === 'user');
         const fightAlreadyApplied = String(lastSent?.content ?? '').includes('[FIGHT RESULT');
         questSourceRef.current = [...storyMessagesRef.current].reverse().find(m => m.role === 'assistant')?.id;
         autoSync.extractAndApply(content, empyreanCharacterContext, { fightAlreadyApplied }).then(result => {
+          pushStoryTime();
           if (result?.items_acquired?.length) {
             addPendingDmItems(result.items_acquired);
             toast('Loot to review', { description: 'Tap the bag at the top to accept or discard it.', icon: '🎒' });
@@ -1208,6 +1225,7 @@ ${oocLines}`;
     bonded: !isUnbonded && !!config?.dragonName,
     getSheet: () => ({ level: characterContext?.level, maxHp: characterContext?.maxHP, riderClass: prodigy ? 'prodigy' : null }),
     getPlace: soloMap.place,
+    live: !mapOpen,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
     onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
     onAddXP: autoSyncCallbacks?.onAddXP ?? NOOP_TWO_ARG,
