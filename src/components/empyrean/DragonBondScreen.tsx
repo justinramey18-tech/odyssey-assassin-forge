@@ -25,6 +25,7 @@ import {
 } from '@/lib/dragon-meters';
 import { dragonPortrait } from '@/lib/empyreanArt';
 import { connectedDragon, loadDragonHistory, type DragonEvent, type SoloDragonState } from '@/lib/dragon-record';
+import { readVoiceMode, saveVoiceMode, type DragonVoiceMode } from '@/lib/dragon-voice';
 
 const tap = { touchAction: 'manipulation' as const };
 
@@ -80,6 +81,8 @@ export function DragonBondScreen({ open, onClose, dragonName, dragonColor, bondS
   const [history, setHistory] = useState<DragonEvent[] | null>(null);
   const [historyError, setHistoryError] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Mind-speech: whether the dragon may push a thought into the rider's mind unasked (kept on this phone).
+  const [voice, setVoice] = useState<DragonVoiceMode>(() => readVoiceMode());
 
   useEffect(() => {
     if (!open || isUnbonded) return;
@@ -133,6 +136,34 @@ export function DragonBondScreen({ open, onClose, dragonName, dragonColor, bondS
           <>
             <Meter label="Bond" value={meters.bond} tier={bTier} tiers={BOND_TIERS} descriptor={getBondDescriptor(meters.bond)} barClass="bg-primary" />
             <Meter label="Trust" value={meters.trust} tier={tTier} tiers={TRUST_TIERS} descriptor={getTrustDescriptor(meters.trust)} barClass="bg-accent" />
+
+            <div className="rounded-lg border border-border/10 bg-foreground/[0.03] px-3 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-cinzel text-foreground/90">Mind-speech</p>
+                  <p className="mt-1 text-xs text-foreground/65 leading-relaxed">
+                    {voice === 'rare'
+                      ? `${dragonName || 'Your dragon'} may push a thought past your shields at big moments, or when it strongly disagrees.`
+                      : `${dragonName || 'Your dragon'} speaks only when you reach out.`}
+                  </p>
+                </div>
+                <div className="flex shrink-0 overflow-hidden rounded-lg border border-border/20" role="group" aria-label="Mind-speech">
+                  {(['rare', 'off'] as const).map(mode => (
+                    <Button
+                      key={mode}
+                      variant="ghost"
+                      type="button"
+                      style={tap}
+                      aria-pressed={voice === mode}
+                      onClick={() => { setVoice(mode); saveVoiceMode(mode); }}
+                      className={cn('min-h-[48px] min-w-[48px] rounded-none px-3.5 text-sm', voice === mode ? 'bg-primary text-primary-foreground font-semibold' : 'text-foreground/70')}
+                    >
+                      {mode === 'rare' ? 'Rare' : 'Off'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             <div className="rounded-lg border border-destructive/20 bg-destructive/[0.04] px-3 py-3">
               <div className="flex items-center justify-between gap-2">
