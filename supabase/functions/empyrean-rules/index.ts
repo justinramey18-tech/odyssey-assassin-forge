@@ -5,7 +5,7 @@
 //
 // POST { action, campaignId, riderKey?, dragonName?, bonded?, sheet?, place?, ... }
 //   state | ack | rest | pass_time | check | signet_used | quest_payout | story_reward | strain
-//   set_events | event_done | travel_launch | travel_sync | travel_cancel | web_buy
+//   set_events | event_done | travel_launch | travel_sync | travel_cancel | web_buy | ward_soak
 //   fight_start | fight_tick | fight_act | fight_clash | fight_close   (real-time solo fights, combat.ts)
 // Every reply carries the fresh snapshot: clock, rule state, mastery, unlocks, the rule half of
 // the GAME FACTS block, and the inbox (results the phone has not applied yet).
@@ -29,7 +29,7 @@ const PLANNER_MODEL = 'qwen-3-6-plus';
 const Body = z.object({
   action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward', 'strain', 'story_time',
     'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel',
-    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief', 'web_buy']),
+    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief', 'web_buy', 'ward_soak']),
   campaignId: uuid,
   riderKey: z.string().min(1).max(80).default('local'),
   dragonName: z.string().max(80).optional(),
@@ -165,7 +165,8 @@ async function buyNode(db: any, userId: string, b: Req): Promise<{ ok: true; ext
 }
 async function snapshot(db: any, userId: string, b: Req, extra: Record<string, unknown> = {}) {
   const l = await load(db, userId, b);
-  const s = R.tick(l.state, l.minute);
+  const perks = W.webBonuses(l.web);
+  const s = R.syncWard(R.tick(l.state, l.minute), perks.wardMax);
   const { data: inbox } = await db.from('empyrean_rule_events')
     .select('id, kind, reason, xp, gold, hp, payload, created_at')
     .eq('user_id', userId).eq('campaign_id', b.campaignId).is('applied_at', null).order('created_at').limit(50);
@@ -188,6 +189,9 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
     dragonBody: l.bonded && s.dragon && s.dragon.name === (b.dragonName || '') ? { hp: s.dragon.hp, maxHp: s.dragon.maxHp } : null,
     fightOpen: !!C.cleanFight(s.fight),
     strain: s.strain,
+    // The progression web's Ward (0 and 0 without one) and what Lifeblood charges per point over the limit (0: none).
+    ward: { now: s.ward, max: s.wardCap },
+    bloodPrice: perks.bloodPrice,
     web: W.webView(await webNow(db, userId, b, l)),
     unlocks: R.unlockList(l.masteryXp, l.bond),
     facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling, sheet: R.normalizeSheet(b.sheet) }),
@@ -206,9 +210,14 @@ type Step = (l: Loaded) => Change | { error: string } | null;
 async function mutate(db: any, userId: string, b: Req, step: Step): Promise<{ ok: true; extra: Record<string, unknown> } | { ok: false; error: string }> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const l = await load(db, userId, b);
-    const out = step(l);
-    if (!out) return { ok: true, extra: {} };
-    if ('error' in out) return { ok: false, error: out.error };
+    // The progression web rides along with every change: the Ward is sized to what the rider owns before the
+    // rule runs, then damage on its way to the sheet goes through the Ward and Regeneration is paid.
+    const perks = W.webBonuses(l.web);
+    l.state = R.syncWard(l.state, perks.wardMax);
+    const made = step(l);
+    if (!made) return { ok: true, extra: {} };
+    if ('error' in made) return { ok: false, error: made.error };
+    const out = withWeb(l, b, perks, made);
     const events = (out.events || []).map(e => ({ ...e, idem_key: `${b.campaignId}:${e.idem_key}` }));
     const { data, error } = await db.rpc('empyrean_commit', {
       _user_id: userId, _campaign_id: b.campaignId, _rider_key: b.riderKey, _expected_version: l.version,
@@ -222,6 +231,19 @@ async function mutate(db: any, userId: string, b: Req, step: Step): Promise<{ ok
     if (data?.reason !== 'version') return { ok: false, error: 'Could not save. Try again.' };
   }
   return { ok: false, error: 'The game was busy. Try again.' };
+}
+
+/** How much HP the rider is missing, from what the phone sent (null: it did not say). */
+function hpRoom(b: Req): number | null {
+  const hp = b.sheet?.hp, max = b.sheet?.maxHp;
+  return typeof hp === 'number' && typeof max === 'number' && Number.isFinite(hp) && Number.isFinite(max) ? Math.max(0, Math.trunc(max) - Math.trunc(hp)) : null;
+}
+/** The progression web's part of a change: the Ward soaks damage, then Regeneration is paid up to the new time. */
+function withWeb(l: Loaded, b: Req, perks: W.WebBonuses, c: Change): Change {
+  const soaked = R.soakEvents(R.syncWard(c.state, perks.wardMax), c.events || []);
+  const minuteAfter = Math.max(l.minute + Math.max(0, c.advance ?? 0), c.setMinute ?? 0);
+  const healed = R.regen(soaked.state, minuteAfter, perks.regenHour, hpRoom(b), perks.regenWard);
+  return { ...c, state: healed.state, events: [...soaked.events, ...healed.events] };
 }
 
 /** Rules that ride along with any change: the dragon's needs. */
@@ -271,6 +293,8 @@ async function settleFight(db: any, userId: string, b: Req): Promise<void> {
     const out = C.settle(f, rand);
     let s: R.CampaignState = { ...s0, seq: s0.seq + 1, fight: { ...f, settled: true } };
     if (f.dragon) s = { ...s, dragon: { name: f.dragon.name, hp: out.dragonHp ?? f.dragon.hp, maxHp: f.dragon.maxHp } };
+    // What is left of the Ward after the fight is what the rider keeps.
+    if (out.shield != null) s = { ...s, ward: Math.min(out.shield, s.wardCap) };
     const condition = out.condition;
     if (condition) s = { ...s, conditions: [...s.conditions.filter(c => c.name !== condition.name), { id: `fight-${s.seq}`, name: condition.name, penalty: condition.penalty, untilMinute: l.minute + condition.minutes }].slice(-8) };
     if (out.injury && s.injuries.length < 6) s = { ...s, injuries: [...s.injuries, { id: `fight-${s.seq}`, name: out.injury, severity: 1 }] };
@@ -310,8 +334,10 @@ async function fightStart(db: any, userId: string, b: Req): Promise<Record<strin
   const arena = b.arena ?? 'ground';
   const body = l.state.dragon && l.state.dragon.name === (b.dragonName || '') ? l.state.dragon : null;
   if (l.bonded && arena !== 'mat' && body && body.hp <= 0) return { ok: false, error: 'Your dragon cannot fight.' };
+  const perks = W.webBonuses(l.web);
   return fightMutate(db, userId, b, (state, _fight, now) => {
     const fight = C.startFight({
+      web: perks, shield: R.syncWard(state, perks.wardMax).ward,
       id: crypto.randomUUID(), riderName: (b.label || 'The rider').slice(0, 60),
       level: sheet.level ?? 1, maxHp: sheet.maxHp ?? 10, hp: sheet.hp ?? sheet.maxHp ?? 10, ac: sheet.ac ?? 12,
       attackBonus: sheet.attackBonus ?? null, weapons: sheet.weapons,
@@ -352,10 +378,15 @@ async function fightAct(db: any, userId: string, b: Req): Promise<Record<string,
       : m.type === 'potion' ? { type: 'potion', dice: m.dice, name: m.name }
       : { type: m.type };
     const r = C.act(fight, now, input, rand);
-    const charged = r.ok && r.strain > 0 ? R.raiseStrain(state, r.strain, limit, 'Channeled to the limit in a fight') : { state, events: [] as R.RuleEvent[] };
-    const next = { ...charged.state, fight };
+    const paidBlood = r.ok ? r.blood ?? 0 : 0;
+    // A channel paid in blood always counts as reaching the limit (it costs bond), even when no strain was left to charge.
+    const raised = r.ok && r.strain > 0 ? R.raiseStrain(state, r.strain, limit, 'Channeled to the limit in a fight') : { state, events: [] as R.RuleEvent[] };
+    const charged = paidBlood > 0 ? R.pushedPast(raised.state, limit, raised.events, 'Pushed past the limit in blood, in a fight') : raised;
+    // Bloodletting: a blood-paid channel also eases strain by 1.
+    const eased = paidBlood > 0 && W.webBonuses(web).bloodEase ? { ...charged.state, strain: Math.max(0, charged.state.strain - 1) } : charged.state;
+    const next = { ...eased, fight };
     const reply: Record<string, unknown> = r.ok
-      ? { ok: true, fight: C.viewOf(fight, now), strain: r.strain, strainNow: next.strain, usedPotion: r.usedPotion }
+      ? { ok: true, fight: C.viewOf(fight, now), strain: r.strain, strainNow: next.strain, usedPotion: r.usedPotion, ...(paidBlood ? { blood: paidBlood } : {}) }
       : { ok: false, error: (r as { error: string }).error, fight: C.viewOf(fight, now), strainNow: next.strain };
     return { state: next, reply, events: charged.events };
   });
@@ -646,7 +677,7 @@ Deno.serve(async (req) => {
         break;
       case 'rest':
         result = await mutate(db, userId, b, l => {
-          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short');
+          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short', W.webBonuses(l.web).wardShortRest);
           if (!r.ok) return { error: (r as { error: string }).error };
           const after = r.setMinute ?? l.minute + r.advance;
           const state = R.rollEvent(r.state, after, b.place?.kind, false, rand);
@@ -680,8 +711,11 @@ Deno.serve(async (req) => {
             const r = R.signetUse(l.state, l.minute, b.intensity ?? 1, R.sheetProdigyTier(sheet));
             return { state: r.state, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta } };
           }
-          const r = R.channelSignet(l.state, l.minute, b.intensity ?? 1, R.masteryRank(l.masteryXp), R.sheetProdigyTier(sheet), limit, W.webBonuses(l.web).freeChannel);
-          return { state: r.state, events: r.events, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta, strainCost: r.cost, ...(r.free ? { freeChannel: true } : {}) } };
+          const perks = W.webBonuses(l.web);
+          const hpNow = typeof b.sheet?.hp === 'number' && Number.isFinite(b.sheet.hp) ? Math.trunc(b.sheet.hp) : null;
+          const r = R.channelSignet(l.state, l.minute, b.intensity ?? 1, R.masteryRank(l.masteryXp), R.sheetProdigyTier(sheet), limit, perks.freeChannel,
+            perks.bloodPrice > 0 ? { price: perks.bloodPrice, hp: hpNow, ease: perks.bloodEase } : null);
+          return { state: r.state, events: r.events, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta, strainCost: r.cost - r.bloodPoints, ...(r.free ? { freeChannel: true } : {}), ...(r.bloodPoints ? { blood: { points: r.bloodPoints, hp: r.bloodHp } } : {}) } };
         });
         break;
       case 'quest_payout':
@@ -708,6 +742,13 @@ Deno.serve(async (req) => {
           const r = R.battleBrief(l.state, l.minute, sheet);
           if (!r.ok) return { error: (r as { error: string }).error };
           return { state: r.state, extra: { brief: { line: r.line, left: r.left } } };
+        });
+        break;
+      case 'ward_soak':
+        // Damage the DM narrated is applied on the phone; it asks the Ward first. The reply says how much the Ward took.
+        result = await mutate(db, userId, b, l => {
+          const r = R.soakDamage(l.state, b.amount);
+          return r.soaked > 0 ? { state: r.state, extra: { wardSoaked: r.soaked } } : null;
         });
         break;
       case 'web_buy':
