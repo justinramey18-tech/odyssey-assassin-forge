@@ -165,6 +165,7 @@ import { readTimeTag, stripTimeTags } from '@/lib/empyrean-story-time';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
 import { SoloHallScene } from '@/components/empyrean/SoloHallScene';
+import { useDragonVoice } from '@/hooks/use-dragon-voice';
 import { SignetIntensitySelector } from '@/components/empyrean/SignetIntensitySelector';
 import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
@@ -601,6 +602,8 @@ UNBONDED RIDER RULES:
   // A fight's damage is applied by the app when the fight ends. The DM reply that narrates that
   // result (the reply to a message carrying the FIGHT RESULT line) must not apply it a second time.
   const storyMessagesRef = useRef<Array<{ id?: string; role: string; content?: string | null }>>([]);
+  // The dragon's voice: told about every finished DM post (the hook is set up further down).
+  const dragonVoicePostRef = useRef<(content: string) => void>(() => {});
   // The DM reply the story extractor is reading: quest cards are drawn under it.
   const questSourceRef = useRef<string | undefined>(undefined);
   // Solo Live NPCs (D-38); read by onMessageComplete, which is set up before the hook below.
@@ -836,6 +839,8 @@ ${oocLines}`;
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
     activeCampaignIdKey: 'empyrean-active-campaign-id',
     onMessageComplete: (content: string) => {
+      // The dragon's voice: he may push a thought into the rider's mind about what just happened.
+      dragonVoicePostRef.current(content);
       // Quest GM guides: the DM's hidden step tags tick the quest (this works with auto-sync off too).
 
       questApiRef.current?.applyQuestTags(content, [...storyMessagesRef.current].reverse().find(m => m.role === 'assistant')?.id);
@@ -1533,6 +1538,34 @@ ${oocLines}`;
       });
     return () => { cancelled = true; };
   }, [fightOpen, liveUserId]);
+
+  // The dragon's voice: he can push past the rider's shields (rare), his lines are chat bubbles,
+  // and what passes between them goes to the DM with the next Send to DM as private mind-speech.
+  const openDragonChatRef = useRef<() => void>(() => {});
+  const dragonVoice = useDragonVoice({
+    enabled: open && !isUnbonded,
+    campaignKey: activeCampaignId || 'none',
+    dragonName: config?.dragonName || 'Dragon',
+    riderName: characterName,
+    dragonNotes,
+    facing: showDragonChat,
+    getMoment: () => ({
+      strain: burnoutLevelRef.current,
+      strainMax: maxBurnout,
+      hp: autoSyncCallbacks?.getCurrentHP() ?? characterContext?.currentHP ?? 0,
+      hpMax: characterContext?.maxHP ?? 0,
+      fightOpen,
+    }),
+    recentStory: () => storyMessagesRef.current.filter(m => m.role === 'assistant' && m.content?.trim()).slice(-3, -1).map(m => String(m.content)),
+    addUnread: dragonBond.addDragonMessage,
+    clearUnread: dragonBond.markChatOpened,
+    turnToDragon: () => {
+      if (hallRing) setHallLook(prev => ({ where: 'seam', tick: prev.tick + 1 }));
+      else openDragonChatRef.current();
+    },
+  });
+  openDragonChatRef.current = () => { dragonVoice.takeUnread(); setShowDragonChat(true); };
+  dragonVoicePostRef.current = dragonVoice.onDmPost;
   const latestDmText = useMemo(() => {
     const last = [...messages].reverse().find(m => m.role === 'assistant' && m.content?.trim());
     return last ? String(last.content) : '';
@@ -1549,10 +1582,16 @@ ${oocLines}`;
       setRecapDismissed(true);
       // The table's note to the DM stays in the app's own instructions; a real scene hand-off asks for a full-length reply.
       const { dmNotes, ...rules } = liveTableRules;
+      // What the rider and the dragon said mind to mind since the last send (private; the note says so).
+      const bondNote = dragonVoice.bondNote();
+      const notes = [dmNotes ?? '', bondNote].filter(Boolean).join('\n\n');
       return sendMessage(prepareForDmRef.current(prompt), undefined, {
         liveTable: { ...rules },
         dropUserOnFail: true,
-        responseModePrompt: rules.hasInCharacter ? soloHandoffFormat(characterName, dmNotes ?? '') : undefined,
+        responseModePrompt: rules.hasInCharacter ? soloHandoffFormat(characterName, notes) : (bondNote ? `\n\n${bondNote}` : undefined),
+      }).then(replied => {
+        if (replied) dragonVoice.clearBondNote();
+        return replied;
       });
     },
     busy: isLoading,
@@ -1986,7 +2025,7 @@ ${oocLines}`;
         setHallLook(prev => ({ where: 'seam', tick: prev.tick + 1 }));
         return;
       }
-      dragonBond.markChatOpened();
+      dragonVoice.takeUnread();
       setShowDragonChat(true);
       return;
     }
@@ -2021,7 +2060,7 @@ ${oocLines}`;
     }
     // Dice and other tabs toggle the full-screen content panel
     setActiveNavTab(prev => prev === tab ? null : tab);
-  }, [dragonBond, hallRing]);
+  }, [dragonBond, hallRing, dragonVoice.takeUnread]);
 
   const handleDragonNotesChange = useCallback((notes: string) => {
     setDragonNotes(notes);
@@ -2566,7 +2605,7 @@ ${oocLines}`;
         ) : undefined}
         onSeamFacing={(facing) => {
           if (isUnbonded) return;
-          if (facing) { dragonBond.markChatOpened(); setShowDragonChat(true); }
+          if (facing) { dragonVoice.takeUnread(); setShowDragonChat(true); }
           else { setShowDragonChat(false); dragonBond.reload(); }
         }}
         lookAt={hallLook}
@@ -3680,6 +3719,15 @@ ${oocLines}`;
         campaignType="empyrean"
       />
 
+      {/* He pushes past the rider's shields: a short glow in the dragon's colour round the screen edge. */}
+      {dragonVoice.flash && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 z-[80] pointer-events-none motion-safe:animate-pulse"
+          style={{ boxShadow: `inset 0 0 70px 22px ${getDragonColorHex(config?.dragonColor) || '#22d3ee'}` }}
+        />
+      )}
+
       <DragonBondChat
         open={showDragonChat}
         inlineHost={hallRing ? dragonWall : undefined}
@@ -3694,56 +3742,15 @@ ${oocLines}`;
         dragonNotes={dragonNotes}
         characterContext={characterContext}
         burnoutLevel={burnoutLevel}
-        unreadDragonMessages={dragonBond.bondState.unreadDragonMessages}
+        incoming={dragonVoice.incoming}
+        onIncomingShown={dragonVoice.onIncomingShown}
+        onBondLine={dragonVoice.onBondLine}
         currentSituation={currentSituation}
         onDragonNotesChange={handleDragonNotesChange}
         recentNarrative={messages
           .filter(m => m.role === 'assistant')
           .slice(-5)
           .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content)}
-        onRequestOpinion={async () => {
-          const recentAssistant = messages
-            .filter(m => m.role === 'assistant')
-            .slice(-3)
-            .map(m => m.content.length > 500 ? m.content.slice(0, 500) + '…' : m.content);
-          if (recentAssistant.length === 0) return null;
-          try {
-            const dragon = config?.dragonName || 'Dragon';
-            const bs = dragonBond.bondState;
-            const opinionPrompt = buildDragonChatPrompt(
-              dragon,
-              characterName,
-              bs.trust,
-              bs.mood,
-              bs.memories,
-              dragonNotes,
-              bs.speechHabits,
-              recentAssistant,
-              bs.bond,
-              bs.riderEmotionalLog,
-            ) + '\n\nBased on recent events, share ONE unsolicited thought — a warning, an opinion, or a feeling. Under 2 sentences. Do not ask a question.';
-            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-dm`;
-            const token = (await supabase.auth.getSession()).data.session?.access_token;
-            const resp = await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              },
-              body: JSON.stringify({
-                messages: [{ role: 'user', content: 'What is on your mind right now?' }],
-                systemPromptOverride: opinionPrompt,
-                model: 'google/gemini-2.5-flash',
-              }),
-            });
-            if (!resp.ok) return null;
-            const data = await resp.json();
-            return data?.response || data?.content || null;
-          } catch {
-            return null;
-          }
-        }}
       />
 
       <AnimatePresence>
