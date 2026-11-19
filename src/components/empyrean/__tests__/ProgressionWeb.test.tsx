@@ -1,9 +1,66 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ProgressionWeb } from '@/components/empyrean/ProgressionWeb';
+import { ProgressionWeb, WEB_CANVAS, layoutWeb } from '@/components/empyrean/ProgressionWeb';
+import type { RulesWeb } from '@/lib/empyrean-rules-client';
 import { webView, normalizeLedger } from '../../../../supabase/functions/empyrean-rules/web';
 
-const web = (xp: number, nodes: string[] = []) => webView(normalizeLedger({ web: { nodes, camps: { c1: xp }, grant: 0 } }));
+const web = (xp: number, nodes: string[] = []): RulesWeb => webView(normalizeLedger({ web: { nodes, camps: { c1: xp }, grant: 0 } }));
+const TRUNK = [1, 2, 3, 4, 5].map(i => `vitality-${i}`);
+const node = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}, `) });
+// jsdom's pointer events carry no position, so build them from mouse events.
+const pointer = (el: Element, type: string, pointerId: number, clientX: number, clientY: number) => {
+  const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY });
+  Object.defineProperty(e, 'pointerId', { value: pointerId });
+  fireEvent(el, e);
+};
+
+describe('progression web: where things sit on the canvas', () => {
+  const rider = layoutWeb(web(0).spokes.filter(s => s.half === 'rider'));
+
+  it('places all 36 rider nodes inside the canvas, none on top of another', () => {
+    expect(rider.nodes.length).toBe(36);
+    for (const p of rider.nodes) {
+      expect(p.x).toBeGreaterThan(40); expect(p.x).toBeLessThan(WEB_CANVAS - 40);
+      expect(p.y).toBeGreaterThan(40); expect(p.y).toBeLessThan(WEB_CANVAS - 40);
+    }
+    let closest = Infinity;
+    rider.nodes.forEach((a, i) => rider.nodes.slice(i + 1).forEach(b => { closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y)); }));
+    // Every node is a 44 px touch target at least; they must not overlap.
+    expect(closest).toBeGreaterThanOrEqual(60);
+  });
+
+  it('runs the trunk out from the hub and fans the five branches from its last node', () => {
+    const at = (id: string) => { const p = rider.nodes.find(n => n.node.id === id); if (!p) throw new Error(id); return p; };
+    const hub = WEB_CANVAS / 2;
+    expect(at('vitality-1').from).toEqual({ x: hub, y: hub });
+    expect(at('vitality-1').x).toBe(hub);
+    expect(at('vitality-5').y).toBeLessThan(at('vitality-1').y);
+    const tip = { x: at('vitality-5').x, y: at('vitality-5').y };
+    for (const b of ['tough', 'ward', 'regen', 'adren', 'blood']) {
+      expect(at(`${b}-1`).from).toEqual(tip);
+      expect(at(`${b}-2`).from).toEqual({ x: at(`${b}-1`).x, y: at(`${b}-1`).y });
+    }
+    // The branches spread left to right in the order the server lists them.
+    const xs = ['tough', 'ward', 'regen', 'adren', 'blood'].map(b => at(`${b}-5`).x);
+    expect([...xs].sort((a, b) => a - b)).toEqual(xs);
+  });
+
+  it('labels every spoke and branch, and draws unbuilt spokes as stubs', () => {
+    expect(rider.stubs.map(s => s.key)).toEqual(['blade', 'tempo', 'saddle']);
+    const texts = rider.labels.map(l => l.text);
+    for (const t of ['Vitality', 'Channel', 'Blade', 'Tempo', 'Saddle', 'Toughness', 'Ward', 'Regeneration', 'Adrenaline', 'Lifeblood']) expect(texts).toContain(t);
+    const dragon = layoutWeb(web(0).spokes.filter(s => s.half === 'dragon'));
+    expect(dragon.nodes.length).toBe(0);
+    expect(dragon.stubs.length).toBe(5);
+  });
+
+  it('draws a web from an older server (no parents, no branches) as plain lines', () => {
+    const old = web(0).spokes.filter(s => s.id === 'channel').map(s => ({ ...s, branches: undefined, nodes: s.nodes.map(({ parent: _p, branch: _b, soon: _s, ...n }) => n) }));
+    const l = layoutWeb(old);
+    expect(l.nodes.length).toBe(6);
+    expect(l.nodes[1].from).toEqual({ x: l.nodes[0].x, y: l.nodes[0].y });
+  });
+});
 
 describe('progression web screen', () => {
   afterEach(() => cleanup());
@@ -18,51 +75,84 @@ describe('progression web screen', () => {
     expect(screen.getByText(/needs the game server/)).toBeTruthy();
   });
 
-  it('shows the XP to spend and opens on Channel with its six nodes', () => {
+  it('shows the XP to spend, a canvas to drag, and a hint until a node is tapped', () => {
     render(<ProgressionWeb open onClose={vi.fn()} web={web(150)} onBuy={vi.fn()} />);
     expect(screen.getByTestId('web-balance').textContent).toBe('150');
-    expect(screen.getByText('Signet Strain limit')).toBeTruthy();
-    for (const name of ['First Reserve', 'Second Reserve', 'Third Reserve', 'Tempered Conduit', 'Steady Conduit', 'Deep Well']) expect(screen.getByText(name)).toBeTruthy();
-    expect(screen.getByText('Unlock First Reserve first.')).toBeTruthy();
+    const canvas = screen.getByTestId('web-canvas');
+    expect(canvas.style.touchAction).toBe('none');
+    expect(screen.getByText(/Drag to explore/)).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(36);
   });
 
-  it('buys only after the confirm step', async () => {
+  it('tapping a node shows what it does; buying needs the confirm step', async () => {
     const onBuy = vi.fn(async () => true);
     render(<ProgressionWeb open onClose={vi.fn()} web={web(150)} onBuy={onBuy} />);
-    fireEvent.click(screen.getAllByRole('button', { name: '150 XP' })[0]);
+    fireEvent.click(node('Hale'));
+    expect(screen.getByText('Max HP +3.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '150 XP' }));
     expect(onBuy).not.toHaveBeenCalled();
-    expect(screen.getByText('Spend 150 XP on First Reserve?')).toBeTruthy();
+    expect(screen.getByText('Spend 150 XP on Hale?')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByText('Spend 150 XP on First Reserve?')).toBeNull();
-    fireEvent.click(screen.getAllByRole('button', { name: '150 XP' })[0]);
+    expect(screen.queryByText('Spend 150 XP on Hale?')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '150 XP' }));
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
-    await waitFor(() => expect(onBuy).toHaveBeenCalledWith('channel-1'));
+    await waitFor(() => expect(onBuy).toHaveBeenCalledWith('vitality-1'));
     expect(onBuy).toHaveBeenCalledTimes(1);
   });
 
-  it('a node that cannot be bought has a disabled button', () => {
-    render(<ProgressionWeb open onClose={vi.fn()} web={web(0)} onBuy={vi.fn()} />);
-    const buttons = screen.getAllByRole('button', { name: /^\d+,?\d* XP$/ }) as HTMLButtonElement[];
-    expect(buttons.length).toBe(6);
-    expect(buttons.every(b => b.disabled)).toBe(true);
-    expect(screen.getByText('You need 150 more XP.')).toBeTruthy();
-  });
-
-  it('marks an owned node and offers the next', () => {
-    render(<ProgressionWeb open onClose={vi.fn()} web={web(400, ['channel-1'])} onBuy={vi.fn()} />);
-    expect(screen.getByText('Owned')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Channel 1/6' })).toBeTruthy();
-    const next = screen.getAllByRole('button', { name: '150 XP' }) as HTMLButtonElement[];
-    expect(next[0].disabled).toBe(false);
-  });
-
-  it('shows the other spokes and the dragon half as coming', () => {
+  it('a drag moves the canvas both ways at once and never counts as a tap on a node', () => {
     render(<ProgressionWeb open onClose={vi.fn()} web={web(150)} onBuy={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Vitality' }));
-    expect(screen.getByText('Coming in a later update.')).toBeTruthy();
+    const canvas = screen.getByTestId('web-canvas');
+    canvas.scrollLeft = 500; canvas.scrollTop = 400;
+    pointer(node('Hale'), 'pointerdown', 1, 200, 300);
+    pointer(canvas, 'pointermove', 1, 197, 303);
+    expect(canvas.scrollLeft).toBe(500);
+    pointer(canvas, 'pointermove', 1, 140, 380);
+    expect(canvas.scrollLeft).toBe(560);
+    expect(canvas.scrollTop).toBe(320);
+    pointer(canvas, 'pointerup', 1, 140, 380);
+    fireEvent.click(node('Hale'));
+    expect(screen.getByText(/Drag to explore/)).toBeTruthy();
+    // A plain tap afterwards still chooses the node.
+    pointer(node('Hale'), 'pointerdown', 2, 200, 300);
+    pointer(canvas, 'pointerup', 2, 201, 300);
+    fireEvent.click(node('Hale'));
+    expect(screen.getByText('Max HP +3.')).toBeTruthy();
+  });
+
+  it('a locked node says what it needs and cannot be bought', () => {
+    render(<ProgressionWeb open onClose={vi.fn()} web={web(5000)} onBuy={vi.fn()} />);
+    fireEvent.click(node('Thick Hide'));
+    expect(screen.getByText('Vitality · Toughness')).toBeTruthy();
+    expect(screen.getByText('Unlock Ironblooded first.')).toBeTruthy();
+    expect((screen.getByRole('button', { name: '150 XP' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('owned nodes are marked, and the branch opens once the trunk is done', () => {
+    render(<ProgressionWeb open onClose={vi.fn()} web={web(5000, TRUNK)} onBuy={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Ironblooded, owned' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thick Hide, can unlock' })).toBeTruthy();
+    fireEvent.click(node('Ironblooded'));
+    expect(screen.getByText('Owned')).toBeTruthy();
+  });
+
+  it('a branch still to come is shown with its effect but cannot be bought', () => {
+    render(<ProgressionWeb open onClose={vi.fn()} web={web(5000, TRUNK)} onBuy={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'First Ward, coming' })).toBeTruthy();
+    fireEvent.click(node('First Ward'));
+    expect(screen.getByText(/4-point shield/)).toBeTruthy();
+    expect(screen.getByText('Coming in the next update.')).toBeTruthy();
+    expect((screen.getByRole('button', { name: '150 XP' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Channel is still there, and the dragon half shows five spokes to come', () => {
+    render(<ProgressionWeb open onClose={vi.fn()} web={web(150)} onBuy={vi.fn()} />);
+    fireEvent.click(node('First Reserve'));
+    expect(screen.getByText('Signet Strain limit +1.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Dragon' }));
-    expect(screen.getByRole('button', { name: 'Loyalty' })).toBeTruthy();
-    expect(screen.getByText('Coming in a later update.')).toBeTruthy();
+    expect(screen.queryAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(0);
+    expect(screen.getByText('Loyalty')).toBeTruthy();
+    expect(screen.getByText(/Drag to explore/)).toBeTruthy();
   });
 
   it('closes from the header', () => {
