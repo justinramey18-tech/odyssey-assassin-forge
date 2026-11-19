@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, Send, Link2, Trash2, Pencil, Check, Loader2, X, Brain, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -38,6 +39,8 @@ interface DragonBondChatProps {
   unreadDragonMessages?: string[];
   currentSituation?: string;
   onDragonNotesChange?: (notes: string) => void;
+  /** Wall mode (the solo hall's seam panel): given an element, or null while it mounts, the chat is drawn inside it and fills it, in place of covering the screen. Leave out for the full-screen chat. */
+  inlineHost?: HTMLElement | null;
 }
 
 const BOND_SENSE_RE = /<!--BOND_SENSE:(.+?)-->/g;
@@ -78,6 +81,7 @@ export default function DragonBondChat({
   unreadDragonMessages,
   currentSituation,
   onDragonNotesChange,
+  inlineHost,
 }: DragonBondChatProps) {
   const [bondState, setBondState] = useState<DragonBondState>(() => loadSoloDragonState());
   // Bond, trust and wounds live in the server record (D-30); any change elsewhere shows here too.
@@ -401,13 +405,16 @@ export default function DragonBondChat({
   }, []);
 
   if (!open) return null;
+  // Wall mode: wait for the wall to exist.
+  const onWall = inlineHost !== undefined;
+  if (onWall && !inlineHost) return null;
 
   const moodInfo = getMoodDescriptor(bondState.mood);
   const bondDesc = getBondDescriptor(bondState.bond);
   const trustDesc = getTrustDescriptor(bondState.trust);
 
-  return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-gradient-to-b from-[#0a0a1a] via-[#0d0815] to-[#0a0612]">
+  const view = (
+    <div className={cn(onWall ? 'relative flex-1 min-h-0 w-full' : 'fixed inset-0 z-[60]', 'flex flex-col bg-gradient-to-b from-[#0a0a1a] via-[#0d0815] to-[#0a0612]')}>
       {/* ── HEADER ── */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cyan-500/10">
         <button onClick={onClose} className="p-1.5 -ml-1 rounded-lg hover:bg-white/5 transition-colors">
@@ -861,4 +868,5 @@ export default function DragonBondChat({
       </div>
     </div>
   );
+  return onWall && inlineHost ? createPortal(view, inlineHost) : view;
 }
