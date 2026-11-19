@@ -33,6 +33,38 @@ import {
   type SeekContext,
 } from '@/lib/empyrean-quest-hub';
 import { seekQuests } from '@/lib/empyrean-quest-seeker';
+
+import {
+
+  GUIDES_KEY,
+
+  MAX_GUIDED_QUESTS,
+
+  finishedGuideKeys,
+
+  guideSlotFree,
+
+  guideStages,
+
+  keepsObjectives,
+
+  normalizeQuestGuides,
+
+  progressFromTags,
+
+  readQuestTags,
+
+  storedQuestGuides,
+
+  type GuideContext,
+
+  type QuestGuide,
+
+  type QuestGuideMap,
+
+} from '@/lib/empyrean-quest-guide';
+
+import { writeQuestGuide } from '@/lib/empyrean-quest-guide-writer';
 import { addPendingDmItems } from '@/lib/pendingDmItems';
 import {
   WORLD_STATE_KEY,
@@ -65,8 +97,12 @@ export interface UseEmpyreanQuestsOptions {
   onStrainRelief?: (amount: number) => void;
   /** Rules engine: send this quest's XP and gold to the server (see QuestPayResult). Without it, quests pay on the phone. */
   payQuest?: (payout: HubPayout) => Promise<QuestPayResult>;
-  /** Sends a message to the Empyrean DM (used when a quest is accepted). */
-  sendMessage?: (text: string) => void;
+  /** Sends a message to the Empyrean DM (used when a quest is accepted). Resolving false means the DM was busy and nothing was sent. */
+  sendMessage?: (text: string) => unknown;
+
+  /** Story context for a quest's GM guide, read when the writer is called. Without it the Seek context is used. */
+
+  getGuideContext?: () => Omit<GuideContext, 'otherQuests'>;
   /** Story context for "Seek a quest", read at the moment of the tap. */
   getSeekContext: () => Omit<SeekContext, 'existingTitles'>;
 }
@@ -92,6 +128,38 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
   const cardsRef = useRef<QuestCard[]>(cards);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { worldRef.current = worldState; }, [worldState]);
+
+
+
+  // GM guides (empyrean-quest-guide.ts): one hidden guide per active quest, written when it is accepted.
+
+  const guides = useMemo(() => normalizeQuestGuides(opts.questFlags?.[GUIDES_KEY]), [opts.questFlags]);
+
+  const guidesRef = useRef<QuestGuideMap>(guides);
+
+  useEffect(() => { guidesRef.current = guides; }, [guides]);
+
+  const writeGuides = useCallback((next: QuestGuideMap) => {
+
+    guidesRef.current = next;
+
+    optsRef.current.upsertQuest(GUIDES_KEY, storedQuestGuides(next));
+
+  }, []);
+
+  /** Quests whose guide is being written right now. */
+
+  const [preparing, setPreparing] = useState<string[]>([]);
+
+  const preparingRef = useRef(new Set<string>());
+
+  const setBusy = useCallback((key: string, busy: boolean) => {
+
+    if (busy) preparingRef.current.add(key); else preparingRef.current.delete(key);
+
+    setPreparing([...preparingRef.current]);
+
+  }, []);
 
   const writeQuest = useCallback((key: string, stored: Record<string, unknown>) => {
     optsRef.current.upsertQuest(key, stored);
@@ -194,18 +262,224 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
     if (plan.settled.length) recordWorldState(plan.settled.map(worldEntryFromQuest));
   }, [writeQuest, recordWorldState, settlePayout]);
 
+  // The opening message for an accepted quest. With a guide it waits until the guide has reached
+
+  // the DM's instructions (the next render), and it is sent again while the DM is busy.
+
+  const kickoffRef = useRef<{ key: string; text: string; tries: number } | null>(null);
+
+  const kickoffTimer = useRef<number | null>(null);
+
+  const tryKickoff = useCallback(() => {
+
+    const k = kickoffRef.current;
+
+    if (!k) return;
+
+    const quest = questsRef.current.find(q => q.key === k.key);
+
+    if (!quest || quest.status !== 'active') { kickoffRef.current = null; return; }
+
+    k.tries += 1;
+
+    Promise.resolve(optsRef.current.sendMessage?.(k.text)).then(sent => {
+
+      if (kickoffRef.current !== k) return;
+
+      if (sent === false && k.tries < 60) kickoffTimer.current = window.setTimeout(tryKickoff, 3000);
+
+      else kickoffRef.current = null;
+
+    }).catch(() => { if (kickoffRef.current === k) kickoffRef.current = null; });
+
+  }, []);
+
+  useEffect(() => {
+
+    const k = kickoffRef.current;
+
+    if (k && k.tries === 0 && guides[k.key]) tryKickoff();
+
+  }, [guides, tryKickoff]);
+
+  useEffect(() => () => { if (kickoffTimer.current !== null) window.clearTimeout(kickoffTimer.current); }, []);
+
+
+
+  // A finished or failed quest's guide is deleted (it stops reaching the DM the moment the quest stops being active).
+
+  useEffect(() => {
+
+    const gone = finishedGuideKeys(guidesRef.current, quests);
+
+    if (gone.length === 0) return;
+
+    const next = { ...guidesRef.current };
+
+    for (const key of gone) delete next[key];
+
+    writeGuides(next);
+
+  }, [quests, guides, writeGuides]);
+
+
+
+  const guideContext = useCallback((key: string): GuideContext => {
+
+    const o = optsRef.current;
+
+    const seek = o.getSeekContext();
+
+    const base = o.getGuideContext?.() ?? {
+
+      characterName: seek.characterName, dragonName: seek.dragonName, signetType: seek.signetType,
+
+      yearAtBasgiath: seek.yearAtBasgiath, campaignSummary: seek.campaignSummary, recentStory: seek.latestScene,
+
+    };
+
+    return { ...base, otherQuests: questsRef.current.filter(q => q.status === 'active' && q.key !== key).map(q => questTitle(q)) };
+
+  }, []);
+
+
+
+  /** Accept an offer. A GM guide is written first (unless three active quests already have one); if the writers fail the quest starts without one. */
+
   const accept = useCallback((key: string) => {
     const quest = questsRef.current.find(q => q.key === key);
-    if (!quest || quest.status !== 'offered') return;
-    const accepted = withQuestEvent({ ...quest, status: 'active', category: questCategory(quest) }, 'accepted', 'Quest accepted — the DM is now tracking it.');
-    writeQuest(key, toStored(accepted));
-    toast.success(`Accepted: ${questTitle(quest)}`);
-    optsRef.current.sendMessage?.(buildQuestKickoffPrompt(accepted));
+    if (!quest || quest.status !== 'offered' || preparingRef.current.has(key)) return;
+
+    const start = (q: Quest, guide: QuestGuide | null) => {
+
+      const base = guide ? { ...q, stages: guideStages(key, guide) } : q;
+
+      const accepted = withQuestEvent({ ...base, status: 'active', category: questCategory(q) }, 'accepted', 'Quest accepted — the DM is now tracking it.');
+
+      if (guide) writeGuides({ ...guidesRef.current, [key]: guide });
+
+      writeQuest(key, toStored(accepted));
+
+      toast.success(`Accepted: ${questTitle(q)}`);
+
+      kickoffRef.current = { key, text: buildQuestKickoffPrompt(accepted), tries: 0 };
+
+      if (!guide) tryKickoff();
+
+    };
+
+    if (!guideSlotFree(guidesRef.current, questsRef.current)) {
+
+      toast(`${questTitle(quest)} starts without a GM guide`, { description: `${MAX_GUIDED_QUESTS} active quests already have one.`, icon: '📜' });
+
+      start(quest, null);
+
+      return;
+
+    }
+
+    setBusy(key, true);
+
+    toast(`Preparing your quest: ${questTitle(quest)}`, { description: 'The DM is being briefed. This can take a minute or two.', icon: '📜' });
+
+    void writeQuestGuide(quest, guideContext(key)).then(result => {
+
+      setBusy(key, false);
+
+      // Declined or changed while the guide was being written: nothing to start.
+
+      const now = questsRef.current.find(q => q.key === key);
+
+      if (!now || now.status !== 'offered') return;
+
+      const guide = result.guide && guideSlotFree(guidesRef.current, questsRef.current) ? result.guide : null;
+
+      if (!guide) toast(`${questTitle(now)} starts without a GM guide`, { description: result.error || `${MAX_GUIDED_QUESTS} active quests already have one.`, icon: '📜' });
+
+      start(now, guide);
+
+    });
+
+    // writeGuides, setBusy, guideContext and tryKickoff never change, so they are not listed below.
   }, [writeQuest]);
+
+  /** Write a GM guide for a quest that is already active and has none. Its objectives are kept when it has at least two. */
+
+  const prepareGuide = useCallback((key: string) => {
+
+    const quest = questsRef.current.find(q => q.key === key);
+
+    if (!quest || quest.status !== 'active' || guidesRef.current[key] || preparingRef.current.has(key)) return;
+
+    if (!guideSlotFree(guidesRef.current, questsRef.current)) {
+
+      toast.error(`${MAX_GUIDED_QUESTS} active quests already have a GM guide`, { description: 'Finish one of them first.' });
+
+      return;
+
+    }
+
+    const keep = keepsObjectives(quest);
+
+    setBusy(key, true);
+
+    void writeQuestGuide(quest, guideContext(key)).then(result => {
+
+      setBusy(key, false);
+
+      const now = questsRef.current.find(q => q.key === key);
+
+      if (!now || now.status !== 'active' || guidesRef.current[key]) return;
+
+      if (!result.guide) { toast.error('No GM guide this time', { description: result.error }); return; }
+
+      if (!guideSlotFree(guidesRef.current, questsRef.current)) { toast.error(`${MAX_GUIDED_QUESTS} active quests already have a GM guide`); return; }
+
+      const next = keep
+
+        ? withQuestEvent(now, 'note', 'A GM guide was prepared for the DM.')
+
+        : withQuestEvent({ ...now, stages: guideStages(key, result.guide) }, 'note', 'A GM guide was prepared for the DM, with new objectives.');
+
+      writeGuides({ ...guidesRef.current, [key]: result.guide });
+
+      writeQuest(key, toStored(next));
+
+      toast.success(`GM guide ready: ${questTitle(now)}`);
+
+    });
+
+  }, [writeQuest, writeGuides, setBusy, guideContext]);
+
+
+
+  /** The DM's hidden quest tags in one finished reply: tick the steps, finish or fail the quest (paid once, like any quest). */
+
+  const applyQuestTags = useCallback((content: string, sourceMessageId?: string) => {
+
+    const progress = progressFromTags(readQuestTags(content), guidesRef.current, questsRef.current);
+
+    if (progress.length > 0) applyExtraction([], progress, sourceMessageId);
+
+  }, [applyExtraction]);
+
+
 
   const decline = useCallback((key: string) => {
     optsRef.current.removeQuest(key);
     questsRef.current = questsRef.current.filter(q => q.key !== key);
+
+    // An offer declined while its guide exists loses the guide too (writeGuides never changes, so it is not listed below).
+
+    if (guidesRef.current[key]) {
+
+      const next = { ...guidesRef.current };
+
+      delete next[key];
+
+      writeGuides(next);
+
+    }
   }, []);
 
   /** Move a quest to another category (the player's call wins over the word sort). */
@@ -255,6 +529,8 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
   const strainCeiling = signetStrainCeiling(hub.points.signet);
   const current = useMemo(() => currentQuest(quests), [quests]);
 
+  const guidedKeys = useMemo(() => Object.keys(guides), [guides]);
+
   return {
     quests,
     worldState,
@@ -268,6 +544,18 @@ export function useEmpyreanQuests(opts: UseEmpyreanQuestsOptions) {
     recordWorldState,
     accept,
     decline,
+
+    /** Keys of quests that have a GM guide (the guide text itself stays out of the screens). */
+
+    guidedKeys,
+
+    /** Keys of quests whose guide is being written right now. */
+
+    preparing,
+
+    prepareGuide,
+
+    applyQuestTags,
     moveCategory,
     seek,
   };
