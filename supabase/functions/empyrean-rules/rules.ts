@@ -62,11 +62,18 @@ export interface CampaignState {
   strain: number;
   /** The last DM reply the after-reply cool-down counted, so a reply is never counted twice. */
   strainCooled: string | null;
+  /** The progression web's Ward: the shield left right now, and the size it was last sized to (wardCap). */
+  ward: number;
+  wardCap: number;
+  /** The progression web's Regeneration: the campaign minute up to which it has been paid (0: not started). */
+  regenAt: number;
   /** Live clock: the server time (ms) of the last live check-in; 0 while the clock is not live. */
   liveAt: number;
   /** Turns whose story-time push was already applied (newest last), so a turn never adds time twice. */
   timeTurns: string[];
 }
+/** No web gives a Ward larger than this; anything larger is damaged data. */
+export const WARD_TOP = 100;
 export function freshState(): CampaignState {
   return {
     v: 1, seq: 0, restDay: 1, shortRests: 0, lastLongRestEnd: -100000, conditions: [], injuries: [],
@@ -75,7 +82,7 @@ export function freshState(): CampaignState {
     signet: { xpDay: 1, xpToday: 0, freeDay: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
     fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
-    strain: 0, strainCooled: null, liveAt: 0, timeTurns: [],
+    strain: 0, strainCooled: null, ward: 0, wardCap: 0, regenAt: 0, liveAt: 0, timeTurns: [],
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -113,6 +120,9 @@ export function normalizeState(raw: unknown): CampaignState {
     briefs: { day: Math.max(1, int(r.briefs?.day, 1)), n: Math.max(0, int(r.briefs?.n)) },
     strain: clamp(int(r.strain), 0, STRAIN_HARD_CAP),
     strainCooled: typeof r.strainCooled === 'string' ? r.strainCooled.slice(0, 100) : null,
+    ward: clamp(int(r.ward), 0, clamp(int(r.wardCap), 0, WARD_TOP)),
+    wardCap: clamp(int(r.wardCap), 0, WARD_TOP),
+    regenAt: Math.max(0, Number.isFinite(Number(r.regenAt)) ? Number(r.regenAt) : 0),
     liveAt: Math.max(0, int(r.liveAt)),
     timeTurns: (Array.isArray(r.timeTurns) ? r.timeTurns : []).filter((x: unknown) => typeof x === 'string' && x).map((x: string) => x.slice(0, 100)).slice(-8),
   };
@@ -231,19 +241,97 @@ export function raiseStrain(state: CampaignState, amount: number, limit: number 
     events: hit ? [{ kind: 'strain_limit', reason: String(reason || 'Signet Strain').slice(0, 120), idem_key: `strain-limit:${seq}`, payload: { strain: to, limit } }] : [],
   };
 }
+/** Lifeblood: a channel paid in blood always counts as reaching the limit (it costs bond, D-30), even when
+ *  strain was already there and could not rise. Adds the limit event unless the rise itself already wrote one. */
+export function pushedPast(state: CampaignState, limit: number | null, events: RuleEvent[], reason: string): { state: CampaignState; events: RuleEvent[] } {
+  if (limit == null || limit <= 0 || events.some(e => e.kind === 'strain_limit')) return { state, events };
+  const seq = state.seq + 1;
+  return { state: { ...state, seq }, events: [...events, { kind: 'strain_limit', reason: String(reason).slice(0, 120), idem_key: `strain-limit:${seq}`, payload: { strain: state.strain, limit, blood: true } }] };
+}
 export const lowerStrain = (state: CampaignState, amount: number): CampaignState =>
   ({ ...state, strain: Math.max(0, state.strain - Math.max(0, int(amount))) });
 /** A signet channel: mastery XP (signetUse) plus its strain cost, capped at the limit. */
 /** freeFirst (the progression web's Deep Well): the first channel of each in-game day costs no strain. */
-export function channelSignet(state: CampaignState, minute: number, intensity: number, rank: number, prodigy: number, limit: number | null, freeFirst = false):
-  { state: CampaignState; events: RuleEvent[]; xpDelta: number; cost: number; free: boolean } {
+/** Lifeblood (the progression web): how a channel bigger than the room left is paid for. price: HP per point
+ *  of strain over the limit; hp: the rider's HP now (null: unknown, so nothing is paid); ease: a paid channel
+ *  also eases strain by 1. Blood never takes the rider below 1 HP. */
+export interface BloodTerms { price: number; hp: number | null; ease: boolean }
+export function bloodFor(cost: number, room: number | null, blood?: BloodTerms | null): { points: number; hp: number } {
+  if (!blood || !(blood.price > 0) || room == null || blood.hp == null || cost <= room) return { points: 0, hp: 0 };
+  const price = clamp(int(blood.price), 1, 20);
+  const points = Math.min(cost - Math.max(0, room), Math.max(0, Math.floor((int(blood.hp) - 1) / price)));
+  return { points, hp: points * price };
+}
+export function channelSignet(state: CampaignState, minute: number, intensity: number, rank: number, prodigy: number, limit: number | null, freeFirst = false, blood: BloodTerms | null = null):
+  { state: CampaignState; events: RuleEvent[]; xpDelta: number; cost: number; free: boolean; bloodPoints: number; bloodHp: number } {
   const u = signetUse(state, minute, intensity, prodigy);
   const day = dayOf(minute);
   const free = freeFirst && u.state.signet.freeDay !== day;
   const cost = free ? 0 : signetStrainCost(intensity, rank, prodigy);
   const used: CampaignState = free ? { ...u.state, signet: { ...u.state.signet, freeDay: day } } : u.state;
-  const r = raiseStrain(used, cost, limit, 'Channeled to the limit');
-  return { state: r.state, events: r.events, xpDelta: u.xpDelta, cost, free };
+  // What does not fit under the limit is paid in blood (when the rider can); the rest is strain, as always.
+  const paid = bloodFor(cost, strainRoom(used, limit), blood);
+  const raised = raiseStrain(used, cost - paid.points, limit, 'Channeled to the limit');
+  if (!paid.points) return { state: raised.state, events: raised.events, xpDelta: u.xpDelta, cost, free, bloodPoints: 0, bloodHp: 0 };
+  const r = pushedPast(raised.state, limit, raised.events, 'Pushed past the limit in blood');
+  const seq = r.state.seq + 1;
+  const eased = blood?.ease ? Math.max(0, r.state.strain - 1) : r.state.strain;
+  const events: RuleEvent[] = [...r.events, {
+    kind: 'lifeblood', reason: `Lifeblood: ${paid.hp} HP for ${paid.points} Signet Strain over the limit`, hp: -paid.hp, idem_key: `blood:${seq}`,
+    payload: { points: paid.points, hp: paid.hp },
+  }];
+  return { state: { ...r.state, seq, strain: eased }, events, xpDelta: u.xpDelta, cost, free, bloodPoints: paid.points, bloodHp: paid.hp };
+}
+
+// ── the progression web's Ward and Regeneration ──
+/** Resize the Ward to what the rider owns now: new size is granted at once, a smaller size clamps. */
+export function syncWard(state: CampaignState, wardMax: number): CampaignState {
+  const cap = clamp(int(wardMax), 0, WARD_TOP);
+  if (cap === state.wardCap) return state;
+  return { ...state, wardCap: cap, ward: clamp(state.ward + Math.max(0, cap - state.wardCap), 0, cap) };
+}
+/** Damage about to be sent to the sheet goes through the Ward first. A fight's result and blood payments are
+ *  left alone (a fight has already used the Ward; blood is the rider's own). */
+export const WARD_SKIPS = ['fight', 'lifeblood'];
+export function soakEvents(state: CampaignState, events: RuleEvent[]): { state: CampaignState; events: RuleEvent[] } {
+  let ward = state.ward;
+  if (ward <= 0 || !events.some(e => (e.hp ?? 0) < 0 && !WARD_SKIPS.includes(e.kind))) return { state, events };
+  const out = events.map(e => {
+    const hp = e.hp ?? 0;
+    if (hp >= 0 || ward <= 0 || WARD_SKIPS.includes(e.kind)) return e;
+    const soaked = Math.min(ward, -hp);
+    ward -= soaked;
+    return { ...e, hp: hp + soaked, payload: { ...(e.payload || {}), wardSoaked: soaked } };
+  });
+  return { state: { ...state, ward }, events: out };
+}
+/** Damage decided on the phone (the DM's narration) asks the Ward first. Returns how much it took. */
+export function soakDamage(state: CampaignState, amount: unknown): { state: CampaignState; soaked: number } {
+  const soaked = Math.min(state.ward, clamp(int(amount), 0, 999));
+  return soaked > 0 ? { state: { ...state, ward: state.ward - soaked }, soaked } : { state, soaked: 0 };
+}
+export const REGEN_MAX_HOURS = 24;
+/** Regeneration: `perHour` HP for each whole game hour since it was last paid. room: how much HP the rider is
+ *  missing (null: unknown, so nothing is healed and the hours are simply used up). toWard: what HP cannot
+ *  hold refills the Ward. */
+export function regen(state: CampaignState, minute: number, perHour: number, room: number | null, toWard = false): { state: CampaignState; events: RuleEvent[] } {
+  const rate = clamp(int(perHour), 0, 20);
+  if (rate <= 0) return { state, events: [] };
+  if (!(state.regenAt > 0) || minute < state.regenAt) return { state: { ...state, regenAt: minute }, events: [] };
+  const passed = Math.floor((minute - state.regenAt) / 60);
+  if (passed <= 0) return { state, events: [] };
+  const hours = Math.min(REGEN_MAX_HOURS, passed);
+  const total = hours * rate;
+  const heal = room == null ? 0 : Math.min(Math.max(0, int(room)), total);
+  const refill = toWard && room != null ? Math.min(Math.max(0, state.wardCap - state.ward), total - heal) : 0;
+  const regenAt = state.regenAt + passed * 60;
+  const s: CampaignState = { ...state, regenAt, ward: state.ward + refill };
+  if (heal <= 0 && refill <= 0) return { state: s, events: [] };
+  const what = [heal > 0 ? `${heal} HP` : '', refill > 0 ? `${refill} Ward` : ''].filter(Boolean).join(' and ');
+  return {
+    state: s,
+    events: [{ kind: 'regen', reason: `Regeneration: ${what} over ${hours} hour${hours === 1 ? '' : 's'}`, hp: heal, idem_key: `regen:${Math.round(regenAt)}`, payload: { hours, heal, ward: refill } }],
+  };
 }
 export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export const STRAIN_REASONS: StrainReason[] = ['cool', 'ground', 'ground_roll', 'quest', 'raise', 'revive', 'fallen'];
@@ -337,15 +425,18 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
   hp = Math.max(hp, -Math.max(1, Math.floor(sheet.maxHp / 2)));
   const absorbed = Math.min(strain, clamp(int(input.strainOff), 0, 5));
   strain -= absorbed;
+  // The progression web's Ward takes the damage first.
+  const warded = Math.min(Math.max(0, s.ward), -hp);
+  if (warded > 0) { hp += warded; s = { ...s, ward: s.ward - warded }; }
   const label = String(input.label || 'Check').slice(0, 80);
   const seq = s.seq + 1;
   s = { ...s, seq, lastCheck: { label, outcome, minute } };
   const bits = [`d20 ${d20}`, `total ${total} vs DC ${dc}`, ...parts];
-  const cost = [hp ? `${-hp} damage` : '', strain ? `+${strain} Signet Strain` : '', absorbed ? `Channel training absorbed ${absorbed} Signet Strain` : '', condition ? `${(condition as Condition).name} (-${(condition as Condition).penalty} to checks for a while)` : '', injury ? `injury: ${(injury as Injury).name}` : ''].filter(Boolean);
+  const cost = [hp ? `${-hp} damage` : '', warded ? `the Ward absorbed ${warded} damage` : '', strain ? `+${strain} Signet Strain` : '', absorbed ? `Channel training absorbed ${absorbed} Signet Strain` : '', condition ? `${(condition as Condition).name} (-${(condition as Condition).penalty} to checks for a while)` : '', injury ? `injury: ${(injury as Injury).name}` : ''].filter(Boolean);
   const line = `[APP RULING, binding: ${label}: ${OUTCOME_LABEL[outcome]} (${bits.join(', ')}).${cost.length ? ` Consequence: ${cost.join('; ')}.` : ''}]`;
   const events: RuleEvent[] = [{
     kind: 'check', reason: `${label}: ${OUTCOME_LABEL[outcome]}`, hp, idem_key: `check:${seq}`,
-    payload: { outcome, dc, total, d20, strain, condition: condition ? (condition as Condition).name : null, injury: injury ? (injury as Injury).name : null, ...(absorbed ? { strainAbsorbed: absorbed } : {}) },
+    payload: { outcome, dc, total, d20, strain, condition: condition ? (condition as Condition).name : null, injury: injury ? (injury as Injury).name : null, ...(absorbed ? { strainAbsorbed: absorbed } : {}), ...(warded ? { wardSoaked: warded } : {}) },
   }];
   return { dc, total, outcome, parts, hp, strain, condition, injury, line, state: s, events };
 }
@@ -380,17 +471,20 @@ export const LONG_REST_GAP = 12 * 60;
 export type RestResult =
   | { ok: false; error: string }
   | { ok: true; state: CampaignState; events: RuleEvent[]; advance: number; setMinute: number | null; strainDelta: number; strainReset: boolean; summary: string };
-export function rest(state: CampaignState, minute: number, kind: 'short' | 'long'): RestResult {
+/** quickWard (the progression web's Quick Ward): a short rest refills the Ward to half. A long rest always refills it. */
+export function rest(state: CampaignState, minute: number, kind: 'short' | 'long', quickWard = false): RestResult {
   let s = tick(state, minute);
   const seq = s.seq + 1;
   if (kind === 'short') {
     if (s.shortRests >= SHORT_RESTS_PER_DAY) return { ok: false, error: `You have already taken ${SHORT_RESTS_PER_DAY} short rests today.` };
     // Healing and ability refresh come from the character sheet's own short rest, applied on the
     // phone when this event arrives, so a rest is never counted twice.
-    s = { ...s, seq, shortRests: s.shortRests + 1, strain: Math.max(0, s.strain - 2) };
+    const ward = quickWard ? Math.max(s.ward, Math.ceil(s.wardCap / 2)) : s.ward;
+    const warded = ward > s.ward;
+    s = { ...s, seq, shortRests: s.shortRests + 1, strain: Math.max(0, s.strain - 2), ward };
     return {
       ok: true, state: s, advance: 60, setMinute: null, strainDelta: -2, strainReset: false,
-      summary: 'Short rest: 1 hour passes. You catch your breath and Signet Strain eases by 2.',
+      summary: `Short rest: 1 hour passes. You catch your breath and Signet Strain eases by 2.${warded ? ` Your Ward is back to ${ward}.` : ''}`,
       events: [{ kind: 'rest', reason: 'Short rest', idem_key: `rest:${seq}`, payload: { rest: 'short', strainDelta: -2 } }],
     };
   }
@@ -401,7 +495,7 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
   const wake = nextDawn(minute);
   const healed = s.injuries.filter(i => i.severity <= 1).map(i => i.name);
   s = {
-    ...s, seq, lastLongRestEnd: wake, dragon: mendDragon(s.dragon, 0.5), strain: 0,
+    ...s, seq, lastLongRestEnd: wake, dragon: mendDragon(s.dragon, 0.5), strain: 0, ward: s.wardCap, regenAt: s.regenAt > 0 ? wake : 0,
     injuries: s.injuries.map(i => ({ ...i, severity: i.severity - 1 })).filter(i => i.severity >= 1),
     conditions: s.conditions.filter(c => c.untilMinute > wake),
   };

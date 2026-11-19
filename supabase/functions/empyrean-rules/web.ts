@@ -21,11 +21,27 @@ export interface WebBonuses {
   freeChannel: boolean;
   /** Added to the rider's max HP. The sheet adds it (Empyrean mode only) from the number sent here. */
   maxHp: number;
+  /** Ward: a shield over HP that takes damage first. It refills on a long rest; half on a short rest and
+   *  fully at the start of a fight with the two flags. */
+  wardMax: number; wardShortRest: boolean; wardFightRefill: boolean;
+  /** Regeneration: HP per game hour, HP on each of the rider's fight turns, and whether what HP cannot hold refills the Ward. */
+  regenHour: number; regenTurn: number; regenWard: boolean;
+  /** Adrenaline (fights, at half HP or less): damage, to-hit, doubled at a quarter HP or less, and a shorter wait between moves. */
+  adrDamage: number; adrHit: number; adrDouble: boolean; adrHasteMs: number;
+  /** Lifeblood: HP paid per point of strain over the limit (0: a channel cannot pass the limit), whether a
+   *  blood-paid channel also eases strain by 1, and whether a blood-paid fight strike rolls 2 extra dice. */
+  bloodPrice: number; bloodEase: boolean; heartfire: boolean;
 }
-export const NO_BONUSES: WebBonuses = { strainLimit: 0, backlashOff: 0, freeChannel: false, maxHp: 0 };
+export const NO_BONUSES: WebBonuses = {
+  strainLimit: 0, backlashOff: 0, freeChannel: false, maxHp: 0,
+  wardMax: 0, wardShortRest: false, wardFightRefill: false,
+  regenHour: 0, regenTurn: 0, regenWard: false,
+  adrDamage: 0, adrHit: 0, adrDouble: false, adrHasteMs: 0,
+  bloodPrice: 0, bloodEase: false, heartfire: false,
+};
 
 /** parent: the node that must be owned first (omitted: the node before it in the list; null: none).
- *  branch: the branch of the spoke it sits on (omitted: the spoke's trunk). soon: shown, not yet buyable. */
+ *  branch: the branch of the spoke it sits on (omitted: the spoke's trunk). soon: shown, not yet buyable (none today). */
 interface NodeDef { id: string; tier: NodeTier; name: string; effect: string; gives: Partial<WebBonuses>; parent?: string | null; branch?: string; soon?: boolean }
 interface BranchDef { id: string; name: string; aspect: string }
 interface SpokeDef { id: string; half: WebHalf; name: string; stat: string; blurb: string; nodes: NodeDef[]; branches?: BranchDef[] }
@@ -56,33 +72,33 @@ export const WEB_SPOKES: SpokeDef[] = [
       ...branch('tough', 'vitality-5', false, [
         ['Thick Hide', ...hp(4)], ['Deep Lungs', ...hp(4)], ['Oaken Frame', ...hp(6)], ['Mountain Heart', ...hp(6)], ["Titan's Frame", ...hp(10)],
       ]),
-      ...branch('ward', 'vitality-5', true, [
-        ['First Ward', 'A 4-point shield over your HP. It takes damage first and refills on a long rest.', {}],
-        ['Second Ward', 'Shield 8.', {}],
-        ['Third Ward', 'Shield 14.', {}],
-        ['Quick Ward', 'Half your shield refills on a short rest.', {}],
-        ['Bulwark', 'Shield 24. It refills at the start of every fight.', {}],
+      ...branch('ward', 'vitality-5', false, [
+        ['First Ward', 'A 4-point Ward over your HP. It takes damage first and refills on a long rest.', { wardMax: 4 }],
+        ['Second Ward', 'Ward 8.', { wardMax: 4 }],
+        ['Third Ward', 'Ward 14.', { wardMax: 6 }],
+        ['Quick Ward', 'Half your Ward refills on a short rest.', { wardShortRest: true }],
+        ['Bulwark', 'Ward 24. It refills at the start of every fight.', { wardMax: 10, wardFightRefill: true }],
       ]),
-      ...branch('regen', 'vitality-5', true, [
-        ['Slow Mend', 'Recover 1 HP every game hour.', {}],
-        ['Steady Mend', 'Recover 2 HP every game hour.', {}],
-        ['Battle Mend', 'Recover 1 HP on each of your turns in a fight.', {}],
-        ['Swift Mend', 'Recover 3 HP every game hour.', {}],
-        ['Wellspring', 'Recover 2 HP on each fight turn, and your regeneration refills your Ward too.', {}],
+      ...branch('regen', 'vitality-5', false, [
+        ['Slow Mend', 'Recover 1 HP every game hour.', { regenHour: 1 }],
+        ['Steady Mend', 'Recover 2 HP every game hour.', { regenHour: 1 }],
+        ['Battle Mend', 'Recover 1 HP on each of your turns in a fight.', { regenTurn: 1 }],
+        ['Swift Mend', 'Recover 3 HP every game hour.', { regenHour: 1 }],
+        ['Wellspring', 'Recover 2 HP on each fight turn, and regeneration your HP cannot hold refills your Ward.', { regenTurn: 1, regenWard: true }],
       ]),
-      ...branch('adren', 'vitality-5', true, [
-        ['Quickened Pulse', 'Under half HP: +1 damage in a fight.', {}],
-        ['Racing Pulse', 'Under half HP: +2 damage in a fight.', {}],
-        ['Cornered', 'Under half HP: also +1 to hit.', {}],
-        ['Last Reserves', 'Under a quarter HP those bonuses double.', {}],
-        ['Blood Up', 'Under half HP you act 1 second sooner.', {}],
+      ...branch('adren', 'vitality-5', false, [
+        ['Quickened Pulse', 'At half HP or less: +1 damage in a fight.', { adrDamage: 1 }],
+        ['Racing Pulse', 'At half HP or less: +2 damage in a fight.', { adrDamage: 1 }],
+        ['Cornered', 'At half HP or less: also +1 to hit.', { adrHit: 1 }],
+        ['Last Reserves', 'At a quarter HP or less those bonuses double.', { adrDouble: true }],
+        ['Blood Up', 'At half HP or less you act 1 second sooner in a fight.', { adrHasteMs: 1000 }],
       ]),
-      ...branch('blood', 'vitality-5', true, [
-        ['Open Vein', 'Channel past your Signet Strain limit: each point over costs 4 HP.', {}],
-        ['Willing Vein', 'Each point over costs 3 HP.', {}],
-        ['Practiced Vein', 'Each point over costs 2 HP.', {}],
-        ['Bloodletting', 'A channel paid in blood also eases Signet Strain by 1.', {}],
-        ['Heartfire', 'In a fight, a signet strike paid in blood rolls 2 extra dice.', {}],
+      ...branch('blood', 'vitality-5', false, [
+        ['Open Vein', 'Channel past your Signet Strain limit: each point over costs 4 HP. Reaching the limit still costs bond.', { bloodPrice: 4 }],
+        ['Willing Vein', 'Each point over costs 3 HP.', { bloodPrice: 3 }],
+        ['Practiced Vein', 'Each point over costs 2 HP.', { bloodPrice: 2 }],
+        ['Bloodletting', 'A channel paid in blood also eases Signet Strain by 1.', { bloodEase: true }],
+        ['Heartfire', 'In a fight, a signet strike paid in blood rolls 2 extra dice.', { heartfire: true }],
       ]),
     ],
   },
@@ -196,6 +212,20 @@ export function webBonuses(l: WebLedger): WebBonuses {
     out.backlashOff += g.backlashOff ?? 0;
     if (g.freeChannel) out.freeChannel = true;
     out.maxHp += g.maxHp ?? 0;
+    out.wardMax += g.wardMax ?? 0;
+    if (g.wardShortRest) out.wardShortRest = true;
+    if (g.wardFightRefill) out.wardFightRefill = true;
+    out.regenHour += g.regenHour ?? 0;
+    out.regenTurn += g.regenTurn ?? 0;
+    if (g.regenWard) out.regenWard = true;
+    out.adrDamage += g.adrDamage ?? 0;
+    out.adrHit += g.adrHit ?? 0;
+    if (g.adrDouble) out.adrDouble = true;
+    out.adrHasteMs += g.adrHasteMs ?? 0;
+    // The price of blood only ever falls: the cheapest owned node sets it.
+    if (g.bloodPrice) out.bloodPrice = out.bloodPrice > 0 ? Math.min(out.bloodPrice, g.bloodPrice) : g.bloodPrice;
+    if (g.bloodEase) out.bloodEase = true;
+    if (g.heartfire) out.heartfire = true;
   }
   return out;
 }
