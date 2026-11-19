@@ -157,13 +157,15 @@ import { strainCeiling } from '@/lib/dragon-meters';
 import { PRODIGY_STRAIN_CAP, prodigyStrainBonus, prodigyTier } from '@/lib/empyreanClasses/prodigy';
 import { useEmpyreanQuests } from '@/hooks/use-empyrean-quests';
 import { hubUnlocks, questCardsFor, standingFactsLine } from '@/lib/empyrean-quest-hub';
+
+import { buildQuestGuidesBlock, stripQuestTags } from '@/lib/empyrean-quest-guide';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
 import { SoloHallScene } from '@/components/empyrean/SoloHallScene';
 import { SignetIntensitySelector } from '@/components/empyrean/SignetIntensitySelector';
 import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
-import { normalizeWorldState } from '@/lib/quests';
+import { normalizeWorldState, worldStateContextLines } from '@/lib/quests';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
   loadNarrativeCooldowns,
@@ -260,7 +262,11 @@ const BURNOUT_LABELS = [
   'Maximum capacity — sever or die',
 ];
 
-function stripAllMetaTags(content: string): string {
+function stripAllMetaTags(raw: string): string {
+
+  // Quest GM guides: the DM's hidden quest tags never show (a half-typed one at the end of a streaming reply too).
+
+  const content = stripQuestTags(raw);
   return content
     .replace(/<!--BURNOUT:\d+-->/g, '')
     .replace(/<!--BURNOUT_TICK:.+?-->/g, '')
@@ -755,6 +761,16 @@ ${oocLines}`;
     return { ...characterContext, equipment };
   }, [characterContext, empyreanLoadout]);
 
+  // Quest GM guides (hidden): the guides of active quests go to the story DM only, beside its world facts.
+
+  // They are never added to combinedGuidesContent, so the OOC chat and the NPCs never see them.
+
+  const questGuidesBlock = useMemo(() => buildQuestGuidesBlock(gameState.gameState.quest_flags), [gameState.gameState.quest_flags]);
+
+  const dmWorldPrompt = useMemo(() => [worldStatePrompt, questGuidesBlock].filter(Boolean).join('\n\n'), [worldStatePrompt, questGuidesBlock]);
+
+
+
   const oocDmChat = useOocDmChat({
     characterContext: empyreanCharacterContext,
     campaignSummary: null,
@@ -794,11 +810,15 @@ ${oocLines}`;
     dmPersonaPrompt,
     responseModePrompt: resolveResponseModePrompt(responseMode),
     selectedModel,
-    worldStatePrompt,
+    worldStatePrompt: dmWorldPrompt,
     sessionStorageKey: EMPYREAN_SESSION_KEY,
     summarizeStorageKey: EMPYREAN_SUMMARY_KEY,
     activeCampaignIdKey: 'empyrean-active-campaign-id',
     onMessageComplete: (content: string) => {
+      // Quest GM guides: the DM's hidden step tags tick the quest (this works with auto-sync off too).
+
+      questApiRef.current?.applyQuestTags(content, [...storyMessagesRef.current].reverse().find(m => m.role === 'assistant')?.id);
+
       // Solo Live NPCs (D-38): people this post names are met, and they remember the scene.
       {
         const lastPlayer = [...storyMessagesRef.current].reverse().find(m => m.role === 'user');
@@ -999,6 +1019,26 @@ ${oocLines}`;
       ? rulesRef.current.questPayout(p)
       : Promise.resolve('off' as const)),
     sendMessage,
+    getGuideContext: () => ({
+
+      characterName: config?.characterName || characterName,
+
+      dragonName: isUnbonded ? undefined : config?.dragonName,
+
+      signetType: isUnbonded ? undefined : config?.signetType,
+
+      yearAtBasgiath: config?.yearAtBasgiath,
+
+      campaignSummary: (campaignSummary || '').slice(-8000),
+
+      recentStory: messages.slice(-8).map(m => `${m.role === 'assistant' ? 'DM' : 'RIDER'}: ${stripAllMetaTags(String(m.content ?? '')).slice(0, 2500)}`).join('\n\n'),
+
+      worldFacts: worldStateContextLines(normalizeWorldState(gameState.gameState.quest_flags)),
+
+      standingLine: questApiRef.current ? standingFactsLine(questApiRef.current.hub) : undefined,
+
+    }),
+
     getSeekContext: () => {
       const lastDm = [...messages].reverse().find(m => m.role === 'assistant');
       return {
@@ -2831,6 +2871,8 @@ ${oocLines}`;
                         <SoloQuestCards
                           views={questCardsFor(questApi.cards, questApi.quests, message.id)}
                           busy={isLoading}
+
+                          preparing={questApi.preparing}
                           onAccept={questApi.accept}
                           onDecline={questApi.decline}
                           onOpenHub={() => setQuestHubOpen(true)}
