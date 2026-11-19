@@ -618,9 +618,24 @@ UNBONDED RIDER RULES:
     else autoSyncCallbacks?.onRestOccurred?.(type);
   }, [autoSyncCallbacks]);
 
+  // Damage the DM narrates is applied here on the phone. The progression web's Ward (kept by the rules
+  // server) takes it first: the Ward's share is reported to the server and only the rest reaches the sheet.
+  const wardedHPChange = useCallback((change: number, type: 'damage' | 'healing') => {
+    const r = rulesRef.current;
+    const ward = r?.active ? r.ward?.now ?? 0 : 0;
+    const soaked = type === 'damage' ? Math.min(ward, Math.abs(change)) : 0;
+    if (r && soaked > 0) {
+      r.wardSoak(soaked);
+      toast(`Your Ward absorbed ${soaked} damage`);
+      if (soaked >= Math.abs(change)) return;
+      change = change < 0 ? change + soaked : change - soaked;
+    }
+    autoSyncCallbacks?.onHPChange?.(change, type);
+  }, [autoSyncCallbacks]);
+
   // Auto-sync hook
   const autoSync = useDmAutoSync({
-    onHPChange: autoSyncCallbacks?.onHPChange ?? NOOP_TWO_ARG,
+    onHPChange: wardedHPChange,
     onAddXP: syncAddXP,
     onGoldChange: syncGoldChange,
     onConditionChange: autoSyncCallbacks?.onConditionChange ?? NOOP_TWO_ARG,
@@ -1243,7 +1258,8 @@ ${oocLines}`;
     campaignId: activeCampaignId,
     dragonName: config?.dragonName,
     bonded: !isUnbonded && !!config?.dragonName,
-    getSheet: () => ({ level: characterContext?.level, maxHp: characterContext?.maxHP, riderClass: prodigy ? 'prodigy' : null }),
+    // hp is sent so the server can pay Regeneration and Lifeblood (progression web) against the rider's real HP.
+    getSheet: () => ({ level: characterContext?.level, maxHp: characterContext?.maxHP, hp: autoSyncCallbacks?.getCurrentHP?.() ?? characterContext?.currentHP, riderClass: prodigy ? 'prodigy' : null }),
     getPlace: soloMap.place,
     live: !mapOpen,
     getCurrentHP: autoSyncCallbacks?.getCurrentHP ?? NOOP_RETURN_ZERO,
@@ -2680,6 +2696,7 @@ ${oocLines}`;
         <VerticalHealthBar
           currentHP={autoSyncCallbacks?.getCurrentHP() ?? characterContext.currentHP}
           maxHP={characterContext.maxHP ?? 1}
+          tempHP={rules.ward?.now ?? 0}
           isWildShape={characterContext.wildShape?.isTransformed}
           onTap={() => drawerContext?.openStatsDrawer()}
         />
@@ -3208,6 +3225,8 @@ ${oocLines}`;
               toast(`🔥 Signet armed at intensity ${intensity}. Your next action channels it.`);
             }}
             onCancel={() => setSignetPickerOpen(false)}
+            bloodPrice={rules.bloodPrice}
+            currentHP={autoSyncCallbacks?.getCurrentHP?.() ?? characterContext?.currentHP ?? 0}
           />
         </div>
       )}

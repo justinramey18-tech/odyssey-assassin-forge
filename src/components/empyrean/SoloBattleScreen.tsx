@@ -10,7 +10,7 @@ import { CounterClashRing } from '@/components/ai-dm/CounterClashRing';
 import type * as M from '@/lib/combatMinigames';
 import type { CharacterContext } from '@/components/oracle/types';
 import type { SoloFightApi } from '@/hooks/use-solo-fight';
-import { signetStrainCost, type FightView, type RulesContext } from '@/lib/empyrean-rules-client';
+import { bloodCost, signetStrainCost, type FightView, type RulesContext } from '@/lib/empyrean-rules-client';
 import { prodigyRiderCooldownMs, type ProdigyTier } from '@/lib/empyreanClasses/prodigy';
 import '@/components/ai-dm/battle/battle.css';
 import { arenaBackdrop, dragonPortrait, foePortrait } from '@/lib/empyreanArt';
@@ -92,9 +92,12 @@ export function SoloBattleScreen({ fight, characterContext, bonded, signetName, 
   }
   if (bonded) for (const s of SIGNET_LEVELS) {
     const cost = signetStrainCost(s.intensity, masteryRank, prodigy);
+    // Lifeblood (progression web): strain that does not fit under the limit is paid in HP, never the last of it.
+    const blood = bloodCost(cost, strainRoom, view.rider.bloodPrice, view.rider.hp);
     moves.push({
       id: `s:${s.intensity}`, name: `${signetName || 'Signet'} (${s.label})`, row: 'spell', side: 'enemy', level: null, school: 'signet',
-      sub: `${s.intensity}d6 · ${cost} strain`, disabledReason: cost > strainRoom ? 'Too much strain' : null,
+      sub: blood ? `${s.intensity}d6 · ${Math.min(cost, strainRoom)} strain · ${blood} HP` : `${s.intensity}d6 · ${cost} strain`,
+      disabledReason: blood === null ? ((view.rider.bloodPrice ?? 0) > 0 ? 'Not enough blood' : 'Too much strain') : null,
     });
   }
   for (const p of potions) moves.push({ id: `p:${p.name}`, name: p.name, row: 'item', side: 'ally', sub: p.healingDice?.formula ?? undefined });
@@ -128,6 +131,17 @@ export function SoloBattleScreen({ fight, characterContext, bonded, signetName, 
     <div className="battle-root fixed inset-0 z-[70] flex flex-col" style={{ background: 'var(--b-night)', paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="h-11 shrink-0 flex items-center gap-1 pl-3 pr-1" style={{ color: '#f4ecd8' }}>
         <span className="flex-1 text-[15px] font-bold tracking-[0.12em]" style={{ color: '#ff8a72' }}>{title}</span>
+        {/* The progression web in this fight: the Ward that takes hits first, and adrenaline while it is up. */}
+        {(view.rider.shieldMax ?? 0) > 0 && (
+          <span className="px-2 py-1 rounded text-[12px] font-bold bg-secondary text-secondary-foreground" aria-label={`Ward ${view.rider.shield ?? 0} of ${view.rider.shieldMax}`}>
+            Ward {view.rider.shield ?? 0}/{view.rider.shieldMax}
+          </span>
+        )}
+        {(view.rider.adrenaline ?? 0) > 0 && (
+          <span className="px-2 py-1 rounded text-[12px] font-bold bg-destructive/30 text-destructive">
+            Adrenaline{view.rider.adrenaline === 2 ? ' x2' : ''}
+          </span>
+        )}
         <button type="button" onClick={() => setShowLog(v => !v)} aria-pressed={showLog} className="min-h-[44px] px-2.5 text-[13px] font-semibold" style={{ color: '#cfd6ec', touchAction: 'manipulation' }}>LOG</button>
       </div>
 
