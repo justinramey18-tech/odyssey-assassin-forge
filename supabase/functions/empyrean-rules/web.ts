@@ -31,6 +31,14 @@ export interface WebBonuses {
   /** Lifeblood: HP paid per point of strain over the limit (0: a channel cannot pass the limit), whether a
    *  blood-paid channel also eases strain by 1, and whether a blood-paid fight strike rolls 2 extra dice. */
   bloodPrice: number; bloodEase: boolean; heartfire: boolean;
+  /** Channel, Power: flat damage and extra dice on a signet strike in a fight, and 1 strain back when the strike drops an enemy. */
+  sigDamage: number; sigDice: number; sigKillRefund: boolean;
+  /** Channel, Control: a bonus on signet checks, and a signet check can no longer fail critically. */
+  signetCheck: number; steadySignet: boolean;
+  /** Channel, Recovery: extra strain eased by a short rest, by Ground Yourself and by the after-reply cool-down, and strain eased per game hour. */
+  restEase: number; groundEase: number; coolEase: number; strainHour: number;
+  /** Channel, Mastery: extra Signet Mastery XP per channel and per day, and whether mastery counts as one rank higher. */
+  masteryXp: number; masteryCap: number; masteryRankUp: boolean;
 }
 export const NO_BONUSES: WebBonuses = {
   strainLimit: 0, backlashOff: 0, freeChannel: false, maxHp: 0,
@@ -38,6 +46,10 @@ export const NO_BONUSES: WebBonuses = {
   regenHour: 0, regenTurn: 0, regenWard: false,
   adrDamage: 0, adrHit: 0, adrDouble: false, adrHasteMs: 0,
   bloodPrice: 0, bloodEase: false, heartfire: false,
+  sigDamage: 0, sigDice: 0, sigKillRefund: false,
+  signetCheck: 0, steadySignet: false,
+  restEase: 0, groundEase: 0, coolEase: 0, strainHour: 0,
+  masteryXp: 0, masteryCap: 0, masteryRankUp: false,
 };
 
 /** parent: the node that must be owned first (omitted: the node before it in the list; null: none).
@@ -103,14 +115,52 @@ export const WEB_SPOKES: SpokeDef[] = [
     ],
   },
   {
-    id: 'channel', half: 'rider', name: 'Channel', stat: 'Signet Strain limit', blurb: 'Hold more power before it burns you.',
+    id: 'channel', half: 'rider', name: 'Channel', stat: 'Signet power', blurb: 'Hold more power, and do more with it.',
+    branches: [
+      { id: 'reserve', name: 'Reservoir', aspect: 'Signet Strain limit' },
+      { id: 'power', name: 'Power', aspect: 'Signet strikes in a fight' },
+      { id: 'control', name: 'Control', aspect: 'Signet checks' },
+      { id: 'recover', name: 'Recovery', aspect: 'Strain that eases faster' },
+      { id: 'mastery', name: 'Mastery', aspect: 'Signet Mastery' },
+    ],
     nodes: [
-      { id: 'channel-1', tier: 'small', name: 'First Reserve', effect: 'Signet Strain limit +1.', gives: { strainLimit: 1 } },
-      { id: 'channel-2', tier: 'small', name: 'Second Reserve', effect: 'Signet Strain limit +1.', gives: { strainLimit: 1 } },
-      { id: 'channel-3', tier: 'small', name: 'Third Reserve', effect: 'Signet Strain limit +1.', gives: { strainLimit: 1 } },
-      { id: 'channel-4', tier: 'big', name: 'Tempered Conduit', effect: 'Signet Strain limit +1. A failed signet check adds 1 less strain.', gives: { strainLimit: 1, backlashOff: 1 } },
-      { id: 'channel-5', tier: 'big', name: 'Steady Conduit', effect: 'Signet Strain limit +1. A failed signet check adds 1 less strain.', gives: { strainLimit: 1, backlashOff: 1 } },
-      { id: 'channel-6', tier: 'capstone', name: 'Deep Well', effect: 'Signet Strain limit +2. Your first story channel each day costs no strain.', gives: { strainLimit: 2, freeChannel: true } },
+      // The trunk: every branch grows from its last node. (channel-1 to channel-5 keep the ids riders already own.)
+      ...['First', 'Second', 'Third', 'Fourth', 'Fifth'].map((n, i): NodeDef => ({ id: `channel-${i + 1}`, tier: 'small', name: `${n} Reserve`, effect: 'Signet Strain limit +1.', gives: { strainLimit: 1 } })),
+      ...branch('reserve', 'channel-5', false, [
+        ['Deeper Reserve', 'Signet Strain limit +1.', { strainLimit: 1 }],
+        ['Wider Reserve', 'Signet Strain limit +1.', { strainLimit: 1 }],
+        ['Tempered Conduit', 'Signet Strain limit +1.', { strainLimit: 1 }],
+        ['Steady Conduit', 'Signet Strain limit +1.', { strainLimit: 1 }],
+        ['Deep Well', 'Signet Strain limit +2. Your first story channel each day costs no strain.', { strainLimit: 2, freeChannel: true }],
+      ]),
+      ...branch('power', 'channel-5', false, [
+        ['Kindled', 'Signet strikes in a fight deal 2 more damage.', { sigDamage: 2 }],
+        ['Burning', 'Signet strikes deal 4 more damage.', { sigDamage: 2 }],
+        ['Surge', 'Signet strikes roll 1 extra die.', { sigDice: 1 }],
+        ['Torrent', 'Signet strikes roll 2 extra dice.', { sigDice: 1 }],
+        ['Stormheart', 'A signet strike that drops an enemy gives 1 Signet Strain back.', { sigKillRefund: true }],
+      ]),
+      ...branch('control', 'channel-5', false, [
+        ['Firm Grip', '+1 on signet checks.', { signetCheck: 1 }],
+        ['Sure Grip', '+2 on signet checks.', { signetCheck: 1 }],
+        ['Braced', 'A failed signet check adds 1 less strain.', { backlashOff: 1 }],
+        ['Unshaken', 'A failed signet check adds 2 less strain.', { backlashOff: 1 }],
+        ['Perfect Control', 'A signet check can fail, but never critically.', { steadySignet: true }],
+      ]),
+      ...branch('recover', 'channel-5', false, [
+        ['Easy Breath', 'A short rest eases 1 more Signet Strain.', { restEase: 1 }],
+        ['Rooted', 'Ground Yourself eases 1 more Signet Strain.', { groundEase: 1 }],
+        ['Cool Head', 'The cool-down after a quiet DM reply eases 2 strain (from 1).', { coolEase: 1 }],
+        ['Deep Calm', 'A short rest and Ground Yourself each ease 1 more again.', { restEase: 1, groundEase: 1 }],
+        ['Still Water', 'Signet Strain eases by 1 every game hour.', { strainHour: 1 }],
+      ]),
+      ...branch('mastery', 'channel-5', false, [
+        ['Student', '+1 Signet Mastery XP for every channel.', { masteryXp: 1 }],
+        ['Diligent', 'You can earn 4 more Signet Mastery XP a day.', { masteryCap: 4 }],
+        ['Adept', '+2 Signet Mastery XP for every channel.', { masteryXp: 1 }],
+        ['Tireless', 'You can earn 8 more Signet Mastery XP a day.', { masteryCap: 4 }],
+        ['Attuned', 'Your Signet Mastery counts as one rank higher.', { masteryRankUp: true }],
+      ]),
     ],
   },
   { id: 'blade', half: 'rider', name: 'Blade', stat: 'Attack and damage', blurb: 'Hit more often, and harder.', nodes: [] },
@@ -226,6 +276,18 @@ export function webBonuses(l: WebLedger): WebBonuses {
     if (g.bloodPrice) out.bloodPrice = out.bloodPrice > 0 ? Math.min(out.bloodPrice, g.bloodPrice) : g.bloodPrice;
     if (g.bloodEase) out.bloodEase = true;
     if (g.heartfire) out.heartfire = true;
+    out.sigDamage += g.sigDamage ?? 0;
+    out.sigDice += g.sigDice ?? 0;
+    if (g.sigKillRefund) out.sigKillRefund = true;
+    out.signetCheck += g.signetCheck ?? 0;
+    if (g.steadySignet) out.steadySignet = true;
+    out.restEase += g.restEase ?? 0;
+    out.groundEase += g.groundEase ?? 0;
+    out.coolEase += g.coolEase ?? 0;
+    out.strainHour += g.strainHour ?? 0;
+    out.masteryXp += g.masteryXp ?? 0;
+    out.masteryCap += g.masteryCap ?? 0;
+    if (g.masteryRankUp) out.masteryRankUp = true;
   }
   return out;
 }

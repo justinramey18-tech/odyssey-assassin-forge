@@ -67,6 +67,8 @@ export interface CampaignState {
   wardCap: number;
   /** The progression web's Regeneration: the campaign minute up to which it has been paid (0: not started). */
   regenAt: number;
+  /** The progression web's Still Water: the campaign minute up to which hourly strain easing has been counted (0: not started). */
+  easeAt: number;
   /** Live clock: the server time (ms) of the last live check-in; 0 while the clock is not live. */
   liveAt: number;
   /** Turns whose story-time push was already applied (newest last), so a turn never adds time twice. */
@@ -82,7 +84,7 @@ export function freshState(): CampaignState {
     signet: { xpDay: 1, xpToday: 0, freeDay: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
     fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
-    strain: 0, strainCooled: null, ward: 0, wardCap: 0, regenAt: 0, liveAt: 0, timeTurns: [],
+    strain: 0, strainCooled: null, ward: 0, wardCap: 0, regenAt: 0, easeAt: 0, liveAt: 0, timeTurns: [],
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -123,6 +125,7 @@ export function normalizeState(raw: unknown): CampaignState {
     ward: clamp(int(r.ward), 0, clamp(int(r.wardCap), 0, WARD_TOP)),
     wardCap: clamp(int(r.wardCap), 0, WARD_TOP),
     regenAt: Math.max(0, Number.isFinite(Number(r.regenAt)) ? Number(r.regenAt) : 0),
+    easeAt: Math.max(0, Number.isFinite(Number(r.easeAt)) ? Number(r.easeAt) : 0),
     liveAt: Math.max(0, int(r.liveAt)),
     timeTurns: (Array.isArray(r.timeTurns) ? r.timeTurns : []).filter((x: unknown) => typeof x === 'string' && x).map((x: string) => x.slice(0, 100)).slice(-8),
   };
@@ -209,10 +212,12 @@ export function signetStrainCost(intensity: number, rank: number, prodigy = 0): 
 /** Mastery XP an in-game day allows (a Prodigy gets twice as much). */
 export const masteryDailyXp = (prodigy = 0) => MASTERY_DAILY_XP * P.prodigyMasteryMultiplier(clamp(int(prodigy), 0, 5) as P.ProdigyTier);
 /** Mastery XP for one channel: up to 3 a use, 8 an in-game day (a Prodigy: twice both). */
-export function signetUse(state: CampaignState, minute: number, intensity: number, prodigy = 0): { state: CampaignState; xpDelta: number } {
+/** The progression web's Mastery branch: extra Signet Mastery XP per channel, and extra XP that can be earned in a day. */
+export interface MasteryBoost { perChannel: number; cap: number }
+export function signetUse(state: CampaignState, minute: number, intensity: number, prodigy = 0, boost: MasteryBoost | null = null): { state: CampaignState; xpDelta: number } {
   const s = tick(state, minute);
-  const want = clamp(Math.ceil(clamp(int(intensity, 1), 1, 8) / 3), 1, 3) * P.prodigyMasteryMultiplier(clamp(int(prodigy), 0, 5) as P.ProdigyTier);
-  const xpDelta = Math.max(0, Math.min(want, masteryDailyXp(prodigy) - s.signet.xpToday));
+  const want = (clamp(Math.ceil(clamp(int(intensity, 1), 1, 8) / 3), 1, 3) + clamp(int(boost?.perChannel), 0, 5)) * P.prodigyMasteryMultiplier(clamp(int(prodigy), 0, 5) as P.ProdigyTier);
+  const xpDelta = Math.max(0, Math.min(want, masteryDailyXp(prodigy) + clamp(int(boost?.cap), 0, 40) - s.signet.xpToday));
   return { state: { ...s, signet: { ...s.signet, xpToday: s.signet.xpToday + xpDelta } }, xpDelta };
 }
 
@@ -262,9 +267,9 @@ export function bloodFor(cost: number, room: number | null, blood?: BloodTerms |
   const points = Math.min(cost - Math.max(0, room), Math.max(0, Math.floor((int(blood.hp) - 1) / price)));
   return { points, hp: points * price };
 }
-export function channelSignet(state: CampaignState, minute: number, intensity: number, rank: number, prodigy: number, limit: number | null, freeFirst = false, blood: BloodTerms | null = null):
+export function channelSignet(state: CampaignState, minute: number, intensity: number, rank: number, prodigy: number, limit: number | null, freeFirst = false, blood: BloodTerms | null = null, boost: MasteryBoost | null = null):
   { state: CampaignState; events: RuleEvent[]; xpDelta: number; cost: number; free: boolean; bloodPoints: number; bloodHp: number } {
-  const u = signetUse(state, minute, intensity, prodigy);
+  const u = signetUse(state, minute, intensity, prodigy, boost);
   const day = dayOf(minute);
   const free = freeFirst && u.state.signet.freeDay !== day;
   const cost = free ? 0 : signetStrainCost(intensity, rank, prodigy);
@@ -310,6 +315,21 @@ export function soakDamage(state: CampaignState, amount: unknown): { state: Camp
   const soaked = Math.min(state.ward, clamp(int(amount), 0, 999));
   return soaked > 0 ? { state: { ...state, ward: state.ward - soaked }, soaked } : { state, soaked: 0 };
 }
+/** Still Water (the progression web's Recovery capstone): strain eases by `perHour` for each whole game hour. */
+export function easeStrain(state: CampaignState, minute: number, perHour: number): CampaignState {
+  const rate = clamp(int(perHour), 0, 5);
+  if (rate <= 0) return state;
+  if (!(state.easeAt > 0) || minute < state.easeAt) return { ...state, easeAt: minute };
+  const passed = Math.floor((minute - state.easeAt) / 60);
+  if (passed <= 0) return state;
+  return { ...state, easeAt: state.easeAt + passed * 60, strain: Math.max(0, state.strain - passed * rate) };
+}
+/** Attuned (the progression web's Mastery capstone): the mastery XP to judge by, one rank higher than earned (top rank stays the top). */
+export function attunedXp(xp: number, up: boolean): number {
+  if (!up) return xp;
+  const rank = masteryRank(xp);
+  return Math.max(xp, MASTERY_THRESHOLDS[Math.min(MASTERY_THRESHOLDS.length - 1, rank + 1)]);
+}
 export const REGEN_MAX_HOURS = 24;
 /** Regeneration: `perHour` HP for each whole game hour since it was last paid. room: how much HP the rider is
  *  missing (null: unknown, so nothing is healed and the hours are simply used up). toWard: what HP cannot
@@ -336,7 +356,8 @@ export function regen(state: CampaignState, minute: number, perHour: number, roo
 export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export const STRAIN_REASONS: StrainReason[] = ['cool', 'ground', 'ground_roll', 'quest', 'raise', 'revive', 'fallen'];
 /** Every other way strain moves. Fixed amounts; only Signet quest relief carries one (1 to 4). */
-export function changeStrain(state: CampaignState, reason: StrainReason, limit: number | null, opts: { messageId?: string; channeled?: boolean; amount?: number } = {}):
+/** coolEase and groundEase (the progression web's Recovery branch): extra strain eased by the cool-down and by Ground Yourself. */
+export function changeStrain(state: CampaignState, reason: StrainReason, limit: number | null, opts: { messageId?: string; channeled?: boolean; amount?: number; coolEase?: number; groundEase?: number } = {}):
   { state: CampaignState; events: RuleEvent[] } {
   switch (reason) {
     case 'cool': {
@@ -344,9 +365,9 @@ export function changeStrain(state: CampaignState, reason: StrainReason, limit: 
       const id = typeof opts.messageId === 'string' ? opts.messageId.slice(0, 100) : '';
       if (!id || state.strainCooled === id) return { state, events: [] };
       const s = { ...state, strainCooled: id };
-      return { state: opts.channeled ? s : lowerStrain(s, 1), events: [] };
+      return { state: opts.channeled ? s : lowerStrain(s, 1 + clamp(int(opts.coolEase), 0, 3)), events: [] };
     }
-    case 'ground': return { state: lowerStrain(state, 2), events: [] };
+    case 'ground': return { state: lowerStrain(state, 2 + clamp(int(opts.groundEase), 0, 5)), events: [] };
     case 'ground_roll': return { state: lowerStrain(state, 1), events: [] };
     case 'quest': return { state: lowerStrain(state, clamp(int(opts.amount, 2), 1, 4)), events: [] };
     case 'raise': return raiseStrain(state, 1, limit, 'Strain raised to the limit');
@@ -376,8 +397,9 @@ export function checkPenalty(state: CampaignState): number {
   const cond = Math.min(3, state.conditions.reduce((sum, c) => sum + c.penalty, 0));
   return Math.min(4, injury + cond);
 }
-/** strainOff (the progression web's Channel spoke): strain taken off a failed signet check. */
-export interface CheckInput { d20: number; modifier: number; dc: unknown; risk: Risk; label: string; masteryXp: number; bond: number | null; strainOff?: number }
+/** strainOff (the progression web's Channel spoke): strain taken off a failed signet check.
+ *  webSignet: its bonus on signet checks. steadySignet: a signet check never fails critically. */
+export interface CheckInput { d20: number; modifier: number; dc: unknown; risk: Risk; label: string; masteryXp: number; bond: number | null; strainOff?: number; webSignet?: number; steadySignet?: boolean }
 export interface CheckResult {
   dc: number; total: number; outcome: Outcome; parts: string[]; hp: number; strain: number;
   condition: Condition | null; injury: Injury | null; line: string; state: CampaignState; events: RuleEvent[];
@@ -392,6 +414,8 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
   const pt = sheetProdigyTier(sheet);
   if (input.risk === 'signet') { const b = masteryInfo(input.masteryXp).checkBonus; if (b) { bonus += b; parts.push(`+${b} Signet Mastery`); } }
   if (input.risk === 'signet' && P.prodigyCheckBonus(pt)) { bonus += P.prodigyCheckBonus(pt); parts.push(`+${P.prodigyCheckBonus(pt)} Prodigy`); }
+  const trained = input.risk === 'signet' ? clamp(int(input.webSignet), 0, 5) : 0;
+  if (trained) { bonus += trained; parts.push(`+${trained} Control`); }
   const assist = dragonAssist(input.bond) + (input.bond != null ? P.prodigyDragonAssistBonus(pt) : 0);
   if (assist) { bonus += assist; parts.push(`+${assist} dragon's help`); }
   const pen = checkPenalty(s);
@@ -400,6 +424,8 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
   let outcome: Outcome = total >= dc + 10 ? 'critical_success' : total >= dc ? 'success' : total <= dc - 10 ? 'critical_failure' : 'failure';
   if (d20 === 20) outcome = total >= dc ? 'critical_success' : 'success';
   if (d20 === 1) outcome = 'critical_failure';
+  // Perfect Control (progression web): a signet check can fail, but never critically.
+  if (input.risk === 'signet' && input.steadySignet && outcome === 'critical_failure') { outcome = 'failure'; parts.push('Perfect Control: no critical failure'); }
 
   let hp = 0, strain = 0;
   let condition: Condition | null = null, injury: Injury | null = null;
@@ -471,8 +497,9 @@ export const LONG_REST_GAP = 12 * 60;
 export type RestResult =
   | { ok: false; error: string }
   | { ok: true; state: CampaignState; events: RuleEvent[]; advance: number; setMinute: number | null; strainDelta: number; strainReset: boolean; summary: string };
-/** quickWard (the progression web's Quick Ward): a short rest refills the Ward to half. A long rest always refills it. */
-export function rest(state: CampaignState, minute: number, kind: 'short' | 'long', quickWard = false): RestResult {
+/** quickWard (the progression web's Quick Ward): a short rest refills the Ward to half. A long rest always refills it.
+ *  restEase (its Recovery branch): extra Signet Strain a short rest eases. */
+export function rest(state: CampaignState, minute: number, kind: 'short' | 'long', quickWard = false, restEase = 0): RestResult {
   let s = tick(state, minute);
   const seq = s.seq + 1;
   if (kind === 'short') {
@@ -481,10 +508,11 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
     // phone when this event arrives, so a rest is never counted twice.
     const ward = quickWard ? Math.max(s.ward, Math.ceil(s.wardCap / 2)) : s.ward;
     const warded = ward > s.ward;
-    s = { ...s, seq, shortRests: s.shortRests + 1, strain: Math.max(0, s.strain - 2), ward };
+    const eases = 2 + clamp(int(restEase), 0, 5);
+    s = { ...s, seq, shortRests: s.shortRests + 1, strain: Math.max(0, s.strain - eases), ward };
     return {
-      ok: true, state: s, advance: 60, setMinute: null, strainDelta: -2, strainReset: false,
-      summary: `Short rest: 1 hour passes. You catch your breath and Signet Strain eases by 2.${warded ? ` Your Ward is back to ${ward}.` : ''}`,
+      ok: true, state: s, advance: 60, setMinute: null, strainDelta: -eases, strainReset: false,
+      summary: `Short rest: 1 hour passes. You catch your breath and Signet Strain eases by ${eases}.${warded ? ` Your Ward is back to ${ward}.` : ''}`,
       events: [{ kind: 'rest', reason: 'Short rest', idem_key: `rest:${seq}`, payload: { rest: 'short', strainDelta: -2 } }],
     };
   }
