@@ -14,6 +14,7 @@ import { bloodCost, signetStrainCost, type FightView, type RulesContext } from '
 import { prodigyRiderCooldownMs, type ProdigyTier } from '@/lib/empyreanClasses/prodigy';
 import '@/components/ai-dm/battle/battle.css';
 import { arenaBackdrop, dragonPortrait, foePortrait } from '@/lib/empyreanArt';
+import { dragonBattleSprite, dragonPlayFor } from '@/lib/battle-sprites';
 
 const SIGNET_LEVELS = [{ intensity: 2, label: 'focused' }, { intensity: 4, label: 'strong' }, { intensity: 6, label: 'all-out' }];
 const TONE: Record<string, 'neutral' | 'warn' | 'good' | 'bad'> = { info: 'neutral', muted: 'neutral', warn: 'warn', good: 'good' };
@@ -82,7 +83,12 @@ export function SoloBattleScreen({ fight, characterContext, bonded, signetName, 
     return { id: e.id, name: e.name, portrait: foePortrait(e.kind, e.name) ?? null, hp: e.hp, maxHp: e.maxHp, status: e.status === 'up' ? 'up' : view.lethal ? 'dead' : 'ko', tag: view.challenge, line, chips: e.pending?.warded ? ['WARDED'] : [] };
   });
   const me: StageFighter = { id: view.rider.id, name: view.rider.name, hp: view.rider.hp, maxHp: view.rider.maxHp, status: view.rider.hp > 0 ? 'up' : 'down', level: view.rider.level, portrait: riderPortrait ?? null };
-  const party: StageFighter[] = view.dragon ? [{ id: view.dragon.id, name: view.dragon.name, hp: view.dragon.hp, maxHp: view.dragon.maxHp, status: view.dragon.status === 'up' ? 'up' : 'dead', ally: true, portrait: dragonPortrait(dragonColor) }] : [];
+  // A black dragon is drawn from its animated sheet and plays the move the referee tagged on the log line now on screen; the other colours keep their portrait.
+  const dragonSheet = dragonBattleSprite(dragonColor);
+  const party: StageFighter[] = view.dragon ? [{
+    id: view.dragon.id, name: view.dragon.name, hp: view.dragon.hp, maxHp: view.dragon.maxHp, status: view.dragon.status === 'up' ? 'up' : 'dead', ally: true, portrait: dragonPortrait(dragonColor),
+    sprite: dragonSheet ? { sheet: dragonSheet, play: dragonPlayFor(fight.line, view.dragon.id) } : null,
+  }] : [];
 
   const moves: BattleMove[] = [];
   const weapons = view.rider.weapons.length ? view.rider.weapons : ['Unarmed strike'];

@@ -5,6 +5,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { hpBand } from '@/lib/battle-feed';
+import type { BattleSprite, SpritePlay } from '@/lib/battle-sprites';
+import { SpriteSheet } from './SpriteSheet';
 import './battle.css';
 
 export interface StageLine { text: string; tone: 'warn' | 'muted' | 'info' | 'good'; blink?: boolean }
@@ -26,6 +28,8 @@ export interface StageFighter {
   chips?: string[];
   /** An NPC fighting on the party's side (D-24). */
   ally?: boolean;
+  /** An animated sprite sheet in place of the portrait card, and the one-shot it should play now. Solo Empyrean only so far. */
+  sprite?: { sheet: BattleSprite; play?: SpritePlay | null } | null;
   deathOk?: number;
   deathBad?: number;
   pinned?: boolean;
@@ -98,6 +102,40 @@ function Sprite({ f, size, front, back, flash }: { f: StageFighter; size: 'lg' |
       </div>
       {flash && (
         <span key={`n${flash.key}`} className="battle-pop pointer-events-none absolute left-1/2 -top-2 text-[26px] font-bold" style={{ color: flash.kind === 'hit' ? '#ff4a2f' : '#4ae06a', textShadow: '2px 2px 0 #1c1810' }}>
+          {flash.kind === 'hit' ? `-${flash.amount}` : `+${flash.amount}`}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** A fighter drawn from an animated sprite sheet: no card, just the figure standing on the field. It fills its wrapper's width. */
+function SpriteFigure({ f, flash }: { f: StageFighter; flash?: StageFlash }) {
+  const box = useRef<HTMLDivElement>(null);
+  const flashKey = flash?.key ?? null;
+  const flashClass = flash?.kind === 'heal' ? 'battle-heal' : 'battle-hit';
+  // Shake or glow without remounting the sprite: a remount would restart its animation.
+  useEffect(() => {
+    const el = box.current;
+    if (!el || !flashKey) return;
+    el.classList.remove('battle-hit', 'battle-heal');
+    void el.offsetWidth;
+    el.classList.add(flashClass);
+  }, [flashKey, flashClass]);
+  if (!f.sprite) return null;
+  const fallen = out(f.status) || f.status === 'down';
+  const body = f.sprite.sheet.body;
+  return (
+    <div className="relative w-full pointer-events-none" role="img" aria-label={f.name}>
+      <div ref={box} className={cn(out(f.status) && 'battle-faint', f.status === 'down' && 'opacity-50 grayscale')}>
+        <SpriteSheet sprite={f.sprite.sheet} play={fallen ? null : f.sprite.play} className="w-full" />
+      </div>
+      {flash && (
+        <span
+          key={`n${flash.key}`}
+          className="battle-pop pointer-events-none absolute text-[26px] font-bold"
+          style={{ left: `${(body.left + body.right) * 50}%`, top: `calc(${body.top * 100}% - 22px)`, color: flash.kind === 'hit' ? '#ff4a2f' : '#4ae06a', textShadow: '2px 2px 0 #1c1810' }}
+        >
           {flash.kind === 'hit' ? `-${flash.amount}` : `+${flash.amount}`}
         </span>
       )}
@@ -203,6 +241,8 @@ export function BattleStage({ enemies, party, me, targetId, onPickEnemy, onPickF
   const behind = enemies.filter(f => f.id !== front?.id).slice(0, 2);
   const more = Math.max(0, enemies.length - 3);
   const mates = party.slice(0, 3);
+  // An animated ally (the rider's dragon) stands large at the back, and the player stands in front of it.
+  const bigMate = mates[0]?.sprite ? mates[0] : null;
   // The enemy column scrolls when it is taller than the stage allows.
   const colRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -242,10 +282,16 @@ export function BattleStage({ enemies, party, me, targetId, onPickEnemy, onPickF
 
       {/* Party platform and sprites (bottom left), seen from behind. */}
       <div aria-hidden className="absolute left-[-6%] bottom-[-3%] w-[64%] h-[12%] rounded-[50%]" style={{ background: 'var(--b-pad)', border: '3px solid var(--b-pad-edge)' }} />
-      {mates[0] && <div className="absolute left-[1%] bottom-[22%]"><Sprite f={mates[0]} size="sm" back flash={flashOf(mates[0].id)} /></div>}
+      {bigMate
+        ? <div className="pointer-events-none absolute left-[-10%] bottom-[1%] w-[68%]"><SpriteFigure f={bigMate} flash={flashOf(bigMate.id)} /></div>
+        : mates[0] && <div className="absolute left-[1%] bottom-[22%]"><Sprite f={mates[0]} size="sm" back flash={flashOf(mates[0].id)} /></div>}
       {mates[1] && <div className="absolute left-[36%] bottom-[18%]"><Sprite f={mates[1]} size="sm" back flash={flashOf(mates[1].id)} /></div>}
       {mates[2] && <div className="absolute left-[25%] bottom-[30%]"><Sprite f={mates[2]} size="sm" back flash={flashOf(mates[2].id)} /></div>}
-      {me && <div className="absolute left-[8%] bottom-[3%]"><Sprite f={me} size="lg" back flash={flashOf(me.id)} /></div>}
+      {me && (me.sprite
+        ? <div className={cn('pointer-events-none absolute bottom-[1%] w-[44%]', bigMate ? 'left-[22%]' : 'left-[2%]')}><SpriteFigure f={me} flash={flashOf(me.id)} /></div>
+        : bigMate
+          ? <div className="absolute left-[30%] bottom-[2%]"><Sprite f={me} size="md" back flash={flashOf(me.id)} /></div>
+          : <div className="absolute left-[8%] bottom-[3%]"><Sprite f={me} size="lg" back flash={flashOf(me.id)} /></div>)}
 
       {/* My box and the party strip (bottom right). */}
       <div className="absolute right-[3%] bottom-[3%] w-[47%] flex flex-col gap-1.5">
