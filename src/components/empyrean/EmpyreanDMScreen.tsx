@@ -139,6 +139,7 @@ import { SoloBattleScreen, buildFightSheet } from '@/components/empyrean/SoloBat
 import { SoloFightSetupSheet } from '@/components/empyrean/SoloFightSetupSheet';
 import { SoloTravelSheet, type TravelRequest } from '@/components/empyrean/SoloTravelSheet';
 import { useSoloTravel } from '@/hooks/use-solo-travel';
+import { useSoloTravelBeats } from '@/hooks/use-solo-travel-beats';
 import { parseTravelOffers, resolveTravelTarget, travelButtonLabel, travelPlaceNames } from '@/lib/travel-offers';
 import { Compass } from 'lucide-react';
 import { EmpyreanCampSheet, EmpyreanEngineButtons } from '@/components/empyrean/EmpyreanCampSheet';
@@ -1624,6 +1625,28 @@ ${oocLines}`;
     sparAvailable: rules.active,
     travelPlaces,
     traveling: soloMap.traveling,
+  });
+  // Travel beats (src/lib/travel-beats.ts): the DM is told when the rider sets out, stops for the night,
+  // arrives or makes a short move, so the story carries on without the rider announcing it.
+  const travelBeats = useSoloTravelBeats({
+    storageKey: activeCampaignId ? `solo-travel-beats:${activeCampaignId}` : null,
+    mapState: soloMap.map.rawState,
+    getState: () => soloMap.map.getViewState()?.state ?? null,
+    now: soloMap.map.serverNow,
+    ready: open && rules.active && soloMap.ready && messages.length > 0,
+    idle: !isLoading && !fightOpen && !liveTable.dmSending && !liveTable.sceneRunning && liveTable.thinking.length === 0 && !soloTravel.busy,
+    riderName: characterName,
+    // Sent as the rider's own line; the writing instruction rides along for this one reply. No signet or Threshing tag is added.
+    send: (line, format) => {
+      setRecapDismissed(true);
+      return sendMessage(line, undefined, { dropUserOnFail: true, responseModePrompt: format });
+    },
+    // The map facts the DM reads are rebuilt for where the rider is now.
+    onPrepare: () => setFactsTick(n => n + 1),
+    // No answer from the DM: the line waits at the table for the rider to send, as before.
+    onFailed: (line) => toTable(line),
+    // The send-off is not the "first post after the trip": the companion's count starts after it.
+    onSent: (beat) => { if (beat.kind === 'depart' && beat.companionKey) liveTable.setCompanions([beat.companionKey]); },
   });
   // At full Signet Strain the rider can't act: the table locks like the old message box did.
   const tableLocked = !isUnbonded && maxBurnout > 0 && burnoutLevel >= maxBurnout;
@@ -3534,15 +3557,17 @@ ${oocLines}`;
         onGo={(pace) => {
           const req = travelRequest;
           if (!req) return;
+          // A journey is remembered before it starts, so its night stops and arrival are told to the DM.
+          travelBeats.begin(req.target, req.companion ?? null);
           void soloTravel.go(req.target, pace).then((r) => {
-            if (r.ok === false) { toast.error("Couldn't set out", { description: r.error }); return; }
+            if (r.ok === false) { travelBeats.abandon(); toast.error("Couldn't set out", { description: r.error }); return; }
             setTravelRequest(null);
             liveTable.setCompanions(req.companion ? [req.companion.key] : []);
             liveTable.clearTravelOffer();
             void soloMap.reloadGuides();
             void rules.refresh();
-            // The rider tells the DM in their own words: the line is ready at the table, not sent for them.
-            toTable(`I ${req.target.kind === 'move' ? 'head to' : req.target.kind === 'enter' ? 'go into' : req.target.kind === 'leave' ? 'leave for' : 'set out for'} ${req.target.name}${req.companion ? ` with ${req.companion.name}` : ''}.`);
+            // The app tells the DM the rider has set out (or moved); the DM answers without being asked.
+            travelBeats.started(req.target, req.companion ?? null);
           });
         }}
       />
