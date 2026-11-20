@@ -18,16 +18,16 @@ const TIER_SIZE: Record<RulesWebNode['tier'], number> = { small: 40, big: 48, ca
 const TAP_SLOP_PX = 8;
 
 // ── layout (pure: the same web always draws the same way) ──
-export const WEB_CANVAS = 1800;
+export const WEB_CANVAS = 2000;
 const HUB = WEB_CANVAS / 2;
 const FIRST = 96;       // hub → first trunk node
 const STEP = 66;        // between trunk nodes
-const BRANCH_FIRST = 112; // trunk end → first branch node
-const BRANCH_STEP = 64; // between branch nodes
-const FAN = 36;         // degrees between neighbouring branches
+const BRANCH_FIRST = 150; // trunk end → first branch node (further out from the hub)
+const BRANCH_STEP = 70; // between branch nodes
+const FAN = 14;         // degrees between neighbouring branches, seen from the hub
 
 export interface PlacedNode { node: RulesWebNode; spoke: RulesWebSpoke; x: number; y: number; from: { x: number; y: number } }
-export interface PlacedLabel { key: string; text: string; sub?: string; x: number; y: number; dim?: boolean }
+export interface PlacedLabel { key: string; text: string; sub?: string; x: number; y: number; dim?: boolean; anchor?: 'start' | 'middle' | 'end' }
 export interface WebLayout { nodes: PlacedNode[]; labels: PlacedLabel[]; stubs: Array<{ key: string; x: number; y: number }> }
 
 const polar = (from: { x: number; y: number }, degrees: number, r: number) => {
@@ -58,16 +58,26 @@ export function layoutWeb(spokes: RulesWebSpoke[]): WebLayout {
     });
     const tip = prev;
     out.labels.push({ key: spoke.id, text: spoke.name, sub: spoke.stat, ...polar(hub, angle + (branches.length ? 20 : 0), FIRST + STEP * (branches.length ? 1.5 : trunk.length) + (branches.length ? 0 : 6)) });
+    // Branches run outward from the hub, side by side inside the spoke's own slice of the web, so two
+    // neighbouring spokes that both have branches never cross.
+    const tipR = FIRST + STEP * Math.max(0, trunk.length - 1);
     branches.forEach((b, j) => {
       const direction = angle + (j - (branches.length - 1) / 2) * FAN;
       let last = tip;
       const nodes = spoke.nodes.filter(n => onBranch(n) === b.id);
       nodes.forEach((node, k) => {
-        const p = polar(tip, direction, BRANCH_FIRST + BRANCH_STEP * k);
+        const p = polar(hub, direction, tipR + BRANCH_FIRST + BRANCH_STEP * k);
         out.nodes.push({ node, spoke, ...p, from: last });
         last = p;
       });
-      out.labels.push({ key: `${spoke.id}:${b.id}`, text: b.name, sub: b.aspect, dim: nodes.every(n => n.soon), ...polar(tip, direction, BRANCH_FIRST + BRANCH_STEP * nodes.length + 4) });
+      // A branch that runs sideways gets its label past its last node, reading away from it; one that runs up or down gets it centred beyond.
+      const side = Math.cos(direction * (Math.PI / 180));
+      const end = tipR + BRANCH_FIRST + BRANCH_STEP * Math.max(0, nodes.length - 1);
+      out.labels.push({
+        key: `${spoke.id}:${b.id}`, text: b.name, sub: b.aspect, dim: nodes.every(n => n.soon),
+        anchor: side > 0.5 ? 'start' : side < -0.5 ? 'end' : 'middle',
+        ...polar(hub, direction, end + (Math.abs(side) > 0.5 ? 42 : 56)),
+      });
     });
   });
   return out;
@@ -209,7 +219,7 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
           >
             <div className="relative" style={{ width: WEB_CANVAS, height: WEB_CANVAS }}>
               <svg width={WEB_CANVAS} height={WEB_CANVAS} className="absolute inset-0 pointer-events-none" aria-hidden="true">
-                {[150, 330, 520, 720, 860].map(r => <circle key={r} cx={HUB} cy={HUB} r={r} fill="none" stroke="#27272a" strokeWidth={1} strokeDasharray="2 7" />)}
+                {[150, 330, 510, 650, 790, 940].map(r => <circle key={r} cx={HUB} cy={HUB} r={r} fill="none" stroke="#27272a" strokeWidth={1} strokeDasharray="2 7" />)}
                 {layout.stubs.map(s => (
                   <g key={s.key} opacity={0.5}>
                     <line x1={HUB} y1={HUB} x2={s.x} y2={s.y} stroke="#52525b" strokeWidth={1.5} strokeDasharray="4 6" />
@@ -228,8 +238,8 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
                 <circle cx={HUB} cy={HUB} r={36} fill="none" stroke="#fbbf24" strokeWidth={1} opacity={0.4} />
                 {layout.labels.map(l => (
                   <g key={l.key} opacity={l.dim ? 0.55 : 1}>
-                    <text x={l.x} y={l.y} textAnchor="middle" fontSize="13" fill="#fde68a" className="font-cinzel">{l.text}</text>
-                    {l.sub && <text x={l.x} y={l.y + 14} textAnchor="middle" fontSize="10" fill="#a1a1aa">{l.sub}</text>}
+                    <text x={l.x} y={l.y} textAnchor={l.anchor ?? 'middle'} fontSize="13" fill="#fde68a" className="font-cinzel">{l.text}</text>
+                    {l.sub && <text x={l.x} y={l.y + 14} textAnchor={l.anchor ?? 'middle'} fontSize="10" fill="#a1a1aa">{l.sub}</text>}
                   </g>
                 ))}
               </svg>

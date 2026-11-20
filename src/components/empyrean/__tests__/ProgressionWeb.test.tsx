@@ -17,8 +17,8 @@ const pointer = (el: Element, type: string, pointerId: number, clientX: number, 
 describe('progression web: where things sit on the canvas', () => {
   const rider = layoutWeb(web(0).spokes.filter(s => s.half === 'rider'));
 
-  it('places all 36 rider nodes inside the canvas, none on top of another', () => {
-    expect(rider.nodes.length).toBe(36);
+  it('places all 60 rider nodes inside the canvas, none on top of another', () => {
+    expect(rider.nodes.length).toBe(60);
     for (const p of rider.nodes) {
       expect(p.x).toBeGreaterThan(40); expect(p.x).toBeLessThan(WEB_CANVAS - 40);
       expect(p.y).toBeGreaterThan(40); expect(p.y).toBeLessThan(WEB_CANVAS - 40);
@@ -45,10 +45,20 @@ describe('progression web: where things sit on the canvas', () => {
     expect([...xs].sort((a, b) => a - b)).toEqual(xs);
   });
 
+  it('two neighbouring spokes that both branch keep clear of each other', () => {
+    const of = (prefixes: string[]) => rider.nodes.filter(p => prefixes.some(x => p.node.id.startsWith(x)));
+    const vitality = of(['vitality-', 'tough-', 'ward-', 'regen-', 'adren-', 'blood-']);
+    const channel = of(['channel-', 'reserve-', 'power-', 'control-', 'recover-', 'mastery-']);
+    expect(vitality.length).toBe(30); expect(channel.length).toBe(30);
+    let closest = Infinity;
+    for (const a of vitality) for (const b of channel) closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y));
+    expect(closest).toBeGreaterThanOrEqual(100);
+  });
+
   it('labels every spoke and branch, and draws unbuilt spokes as stubs', () => {
     expect(rider.stubs.map(s => s.key)).toEqual(['blade', 'tempo', 'saddle']);
     const texts = rider.labels.map(l => l.text);
-    for (const t of ['Vitality', 'Channel', 'Blade', 'Tempo', 'Saddle', 'Toughness', 'Ward', 'Regeneration', 'Adrenaline', 'Lifeblood']) expect(texts).toContain(t);
+    for (const t of ['Vitality', 'Channel', 'Blade', 'Tempo', 'Saddle', 'Toughness', 'Ward', 'Regeneration', 'Adrenaline', 'Lifeblood', 'Reservoir', 'Power', 'Control', 'Recovery', 'Mastery']) expect(texts).toContain(t);
     const dragon = layoutWeb(web(0).spokes.filter(s => s.half === 'dragon'));
     expect(dragon.nodes.length).toBe(0);
     expect(dragon.stubs.length).toBe(5);
@@ -57,7 +67,7 @@ describe('progression web: where things sit on the canvas', () => {
   it('draws a web from an older server (no parents, no branches) as plain lines', () => {
     const old = web(0).spokes.filter(s => s.id === 'channel').map(s => ({ ...s, branches: undefined, nodes: s.nodes.map(({ parent: _p, branch: _b, soon: _s, ...n }) => n) }));
     const l = layoutWeb(old);
-    expect(l.nodes.length).toBe(6);
+    expect(l.nodes.length).toBe(30);
     expect(l.nodes[1].from).toEqual({ x: l.nodes[0].x, y: l.nodes[0].y });
   });
 });
@@ -81,7 +91,7 @@ describe('progression web screen', () => {
     const canvas = screen.getByTestId('web-canvas');
     expect(canvas.style.touchAction).toBe('none');
     expect(screen.getByText(/Drag to explore/)).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(36);
+    expect(screen.getAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(60);
   });
 
   it('tapping a node shows what it does; buying needs the confirm step', async () => {
