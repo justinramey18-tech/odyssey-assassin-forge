@@ -1,4 +1,4 @@
-// Solo Empyrean progression web: the rider spends XP on nodes.
+// Solo Empyrean progression web: the rider spends XP on the rider's half and Kinship on the dragon's half.
 
 // One very large canvas per half (Rider, Dragon) that the player drags around in any direction and
 
@@ -470,6 +470,10 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
   const n = selected?.node ?? null;
 
+  /** What the chosen node is paid with: Kinship on the dragon's half, XP on the rider's (and from an older server that does not say). */
+
+  const unit = n?.currency === 'kin' ? 'Kinship' : 'XP';
+
   const branchName = n && selected ? (selected.spoke.branches ?? []).find(b => b.id === n.branch)?.name ?? null : null;
 
 
@@ -490,7 +494,7 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
             <p className="text-xs text-muted-foreground leading-tight">
 
-              <span className="text-amber-300 font-semibold text-base" data-testid="web-balance">{web.xp.balance}</span> XP to spend
+              <span className="text-amber-300 font-semibold text-base" data-testid="web-balance">{half === 'dragon' ? web.kin?.balance ?? 0 : web.xp.balance}</span> {half === 'dragon' ? 'Kinship to spend' : 'XP to spend'}
 
             </p>
 
@@ -778,7 +782,13 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
               {!n ? (
 
-                <p className="text-xs text-muted-foreground text-center">Drag to explore, pinch to zoom. Tap a node to see what it does.</p>
+                <p className="text-xs text-muted-foreground text-center">
+
+                  Drag to explore, pinch to zoom. Tap a node to see what it does.
+
+                  {half === 'dragon' && <span className="block mt-1">Kinship comes from time with your dragon: a hunt, a flight, a night's rest, a real fight won side by side.</span>}
+
+                </p>
 
               ) : (
 
@@ -826,7 +836,7 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
                       >
 
-                        {n.cost} XP
+                        {n.cost} {unit}
 
                       </button>
 
@@ -838,7 +848,7 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
                     <div className="mt-3 flex items-center gap-2">
 
-                      <p className="flex-1 text-xs text-foreground">Spend {n.cost} XP on {n.name}?</p>
+                      <p className="flex-1 text-xs text-foreground">Spend {n.cost} {unit} on {n.name}?</p>
 
                       <button
 

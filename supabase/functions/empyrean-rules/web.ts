@@ -122,7 +122,13 @@ function branch(id: string, from: string, soon: boolean, defs: Array<[name: stri
 }
 const hp = (n: number): [string, Partial<WebBonuses>] => [`Max HP +${n}.`, { maxHp: n }];
 
-/** The whole web. A spoke with no nodes is shown as "coming": it cannot be bought yet. */
+type Def = [name: string, effect: string, gives: Partial<WebBonuses>];
+/** A five-node trunk of small nodes; a spoke's two branches grow from its last node. */
+const trunk = (id: string, defs: Def[]): NodeDef[] => defs.map(([name, effect, gives], i) => ({ id: `${id}-${i + 1}`, tier: 'small', name, effect, gives }));
+/** Five trunk nodes that all do the same thing. */
+const same = (id: string, names: string[], effect: string, gives: Partial<WebBonuses>): NodeDef[] => trunk(id, names.map((name): Def => [name, effect, gives]));
+
+/** The whole web: ten spokes, 180 nodes. (A spoke with no nodes would be shown as "coming".) */
 export const WEB_SPOKES: SpokeDef[] = [
   {
     id: 'vitality', half: 'rider', name: 'Vitality', stat: 'Max HP', blurb: 'A body that takes more punishment.',
@@ -218,14 +224,204 @@ export const WEB_SPOKES: SpokeDef[] = [
       ]),
     ],
   },
-  { id: 'blade', half: 'rider', name: 'Blade', stat: 'Attack and damage', blurb: 'Hit more often, and harder.', nodes: [] },
-  { id: 'tempo', half: 'rider', name: 'Tempo', stat: 'Speed', blurb: 'Act sooner in a fight, and get clear of one.', nodes: [] },
-  { id: 'saddle', half: 'rider', name: 'Saddle', stat: "Your dragon's help", blurb: 'Draw more from the bond.', nodes: [] },
-  { id: 'vigor', half: 'dragon', name: 'Vigor', stat: 'Dragon HP', blurb: 'A dragon that stays in the fight.', nodes: [] },
-  { id: 'fang-and-flame', half: 'dragon', name: 'Fang and Flame', stat: 'Attack and fire', blurb: 'Sharper strikes and more fire.', nodes: [] },
-  { id: 'wing', half: 'dragon', name: 'Wing', stat: 'Speed', blurb: 'It strikes sooner and flies further.', nodes: [] },
-  { id: 'scale', half: 'dragon', name: 'Scale', stat: 'Armor', blurb: 'Harder to hit, harder to hurt.', nodes: [] },
-  { id: 'loyalty', half: 'dragon', name: 'Loyalty', stat: 'Trust', blurb: 'Trust that changes what it will do for you.', nodes: [] },
+  {
+    id: 'blade', half: 'rider', name: 'Blade', stat: 'Attack and damage', blurb: 'Hit more often, and harder.',
+    branches: [{ id: 'edge', name: 'Edge', aspect: 'Weapon damage' }, { id: 'precise', name: 'Precision', aspect: 'To-hit and critical hits' }],
+    nodes: [
+      ...trunk('blade', [
+        ['Whetted', 'Weapon hits deal 1 more damage.', { wpnDamage: 1 }],
+        ['Trained Eye', '+1 to hit with weapons.', { wpnHit: 1 }],
+        ['Weighted', 'Weapon hits deal 1 more damage.', { wpnDamage: 1 }],
+        ['Sure Hand', '+1 to hit with weapons.', { wpnHit: 1 }],
+        ['Bladework', 'Weapon hits deal 1 more damage.', { wpnDamage: 1 }],
+      ]),
+      ...branch('edge', 'blade-5', false, [
+        ['Keen Edge', 'Weapon hits deal 1 more damage.', { wpnDamage: 1 }],
+        ['Honed Edge', 'Weapon hits deal 1 more damage.', { wpnDamage: 1 }],
+        ['Heavy Hand', 'Weapon hits deal 2 more damage.', { wpnDamage: 2 }],
+        ['Cleaving Blow', 'Weapon hits roll 1 extra weapon die.', { wpnDice: 1 }],
+        ['Killing Stroke', 'Against an enemy at half HP or less, weapon hits roll 2 more dice.', { wpnFinish: 2 }],
+      ]),
+      ...branch('precise', 'blade-5', false, [
+        ['Steady Aim', '+1 to hit with weapons.', { wpnHit: 1 }],
+        ['Patient Aim', '+1 to hit with weapons.', { wpnHit: 1 }],
+        ['Weak Points', 'Weapon attacks are critical on a 19 or 20.', { critFrom: 19 }],
+        ['Glancing Blow', 'A weapon attack that misses by 2 or less still lands for half damage.', { graze: 2 }],
+        ['Deadeye', 'Weapon attacks are critical on an 18, 19 or 20.', { critFrom: 18 }],
+      ]),
+    ],
+  },
+  {
+    id: 'tempo', half: 'rider', name: 'Tempo', stat: 'Speed', blurb: 'Act sooner in a fight, and get clear of one.',
+    branches: [{ id: 'init', name: 'Initiative', aspect: 'The first seconds of a fight' }, { id: 'evade', name: 'Evasion', aspect: 'Harder to hit, easier to get away' }],
+    nodes: [
+      ...same('tempo', ['Quick', 'Quicker', 'Fleet', 'Swift', 'Lightning'], 'Act 0.4 seconds sooner in a fight.', { tempoMs: 400 }),
+      ...branch('init', 'tempo-5', false, [
+        ['Quick Draw', 'You are ready to act the moment a fight starts.', { openReady: true }],
+        ['Wrong-Footed', "Every enemy's first move comes 2 seconds later.", { foeDelayMs: 2000 }],
+        ['First Blood', 'Your first hit in a fight is a critical hit.', { firstCrit: true }],
+        ['Off Balance', "Every enemy's first move comes 3 seconds later again (5 in all).", { foeDelayMs: 3000 }],
+        ['Blur', 'After your first move in a fight you can act again at once.', { blur: true }],
+      ]),
+      ...branch('evade', 'tempo-5', false, [
+        ['Light Feet', '+1 AC in a fight.', { fightAc: 1 }],
+        ['Open Ground', '+2 to Flee.', { flee: 2 }],
+        ['Sidestep', 'Each time an enemy misses you, your next move comes 1 second sooner.', { missHasteMs: 1000 }],
+        ['Slippery', '+1 AC in a fight and +2 to Flee, again.', { fightAc: 1, flee: 2 }],
+        ['Untouchable', 'The first hit that would land on you in each fight misses instead.', { dodgeFirst: true }],
+      ]),
+    ],
+  },
+  {
+    id: 'saddle', half: 'rider', name: 'Saddle', stat: "Your dragon's help", blurb: 'Draw more from the bond.',
+    branches: [{ id: 'guide', name: 'Guidance', aspect: 'Checks with your dragon' }, { id: 'mount', name: 'Mounted', aspect: 'Fights with your dragon up' }],
+    nodes: [
+      ...trunk('saddle', [
+        ['Leaning In', "Your dragon's help on checks +1.", { help: 1 }],
+        ['Stirrup Strike', 'While your dragon is up in a fight: +1 to hit.', { mountHit: 1 }],
+        ['Shared Calm', 'With a bonded dragon, wounds and conditions take 1 less off your checks.', { helpSteady: 1 }],
+        ['Wing Cover', 'While your dragon is up in a fight: +1 AC.', { mountAc: 1 }],
+        ['One Mind', "Your dragon's help on checks +1, again.", { help: 1 }],
+      ]),
+      ...branch('guide', 'saddle-5', false, [
+        ['Warning Growl', 'With a bonded dragon, a failed physical check costs 2 less HP.', { helpSoften: 2 }],
+        ['Steady Presence', 'Wounds and conditions take 1 less off your checks, again.', { helpSteady: 1 }],
+        ['Shared Senses', "Your dragon's help on checks +1, again.", { help: 1 }],
+        ['Second Look', "Once a day, a failed check is rolled again with your dragon's help. The better roll stands.", { secondLook: 1 }],
+        ['Mind-speak', 'Second Look works three times a day, and with a bonded dragon a check never fails critically.', { secondLook: 2, helpNoCrit: true }],
+      ]),
+      ...branch('mount', 'saddle-5', false, [
+        ['Paired Strike', 'While your dragon is up in a fight, your hits deal 1 more damage.', { mountDamage: 1 }],
+        ['High Seat', 'While your dragon is up: +1 to hit, again.', { mountHit: 1 }],
+        ['Under the Wing', 'While your dragon is up: +1 AC again, and every hit on you deals 1 less damage.', { mountAc: 1, mountGuard: 1 }],
+        ['Shared Fury', 'When your dragon is hit, your next move comes 1.5 seconds sooner.', { mountHasteMs: 1500 }],
+        ['Dragonrider', 'While your dragon is up, your hits roll 1 extra die and every hit on you deals 1 less damage, again.', { mountDice: 1, mountGuard: 1 }],
+      ]),
+    ],
+  },
+  {
+    id: 'vigor', half: 'dragon', name: 'Vigor', stat: 'Dragon HP', blurb: 'A dragon that stays in the fight.',
+    branches: [{ id: 'mend', name: 'Mending', aspect: 'Health that comes back' }, { id: 'endure', name: 'Endurance', aspect: 'More health, and a last stand' }],
+    nodes: [
+      ...same('vigor', ['Hearty', 'Broad', 'Thick-Blooded', 'Mighty', 'Towering'], "Your dragon's max HP +10.", { dHp: 10 }),
+      ...branch('mend', 'vigor-5', false, [
+        ['Good Hunting', 'A hunt mends half its health (from a quarter).', { dHuntMend: true }],
+        ['Battle Mend', 'It recovers 2 HP on each of its turns in a fight.', { dMendTurn: 2 }],
+        ['Deep Rest', 'A long rest mends it fully (from half).', { dRestMend: true }],
+        ['Knitting Scales', 'It recovers 3 more HP on each of its turns (5 in all).', { dMendTurn: 3 }],
+        ['Second Wind', 'Once a fight, when it falls to a quarter of its health or less, it recovers a third of it.', { dSecondWind: true }],
+      ]),
+      ...branch('endure', 'vigor-5', false, [
+        ['Broad Chest', "Your dragon's max HP +12.", { dHp: 12 }],
+        ['Deep Reserves', "Your dragon's max HP +12.", { dHp: 12 }],
+        ['Old Strength', "Your dragon's max HP +20.", { dHp: 20 }],
+        ["Victor's Rest", 'After a fight you win, it mends a fifth of its health.', { dWinMend: true }],
+        ['Unbroken', 'Once a fight, a blow that would kill it leaves it at 1 HP.', { dLastStand: true }],
+      ]),
+    ],
+  },
+  {
+    id: 'fang-and-flame', half: 'dragon', name: 'Fang and Flame', stat: 'Attack and fire', blurb: 'Sharper strikes and more fire.',
+    branches: [{ id: 'bite', name: 'Fang', aspect: 'Its bite' }, { id: 'flame', name: 'Flame', aspect: 'Its fire' }],
+    nodes: [
+      ...trunk('ff', [
+        ['Sharp Teeth', 'Its bite deals 2 more damage.', { dBite: 2 }],
+        ["Hunter's Eye", '+1 to hit with its bite and its fire.', { dAtk: 1 }],
+        ['Strong Jaws', 'Its bite deals 2 more damage.', { dBite: 2 }],
+        ['Sure Strike', '+1 to hit with its bite and its fire.', { dAtk: 1 }],
+        ['Killer', 'Its bite deals 2 more damage.', { dBite: 2 }],
+      ]),
+      ...branch('bite', 'ff-5', false, [
+        ['Long Fangs', 'Its bite rolls 1 extra die.', { dBiteDice: 1 }],
+        ['Crushing Jaws', 'Its bite deals 3 more damage.', { dBite: 3 }],
+        ['Throat-Seeker', 'Its bite is critical on a 19 or 20.', { dCritFrom: 19 }],
+        ['Rending', 'Its bite rolls 2 more dice.', { dBiteDice: 2 }],
+        ['Savage', 'When its bite drops an enemy, it bites another at once.', { dCleave: true }],
+      ]),
+      ...branch('flame', 'ff-5', false, [
+        ['Hotter', 'Its fire rolls 1 more die.', { dFireDice: 1 }],
+        ['Eager Flame', 'It breathes fire whenever its fire is ready, even at a single enemy.', { dFireEager: true }],
+        ['Quick Breath', 'Its fire is ready every second turn (from every third).', { dFireFast: true }],
+        ['White Heat', 'Its fire rolls 2 more dice.', { dFireDice: 2 }],
+        ['Inferno', 'It opens every fight with fire, and no enemy half-avoids its fire.', { dFireOpen: true }],
+      ]),
+    ],
+  },
+  {
+    id: 'wing', half: 'dragon', name: 'Wing', stat: 'Speed', blurb: 'It strikes sooner and flies further.',
+    branches: [{ id: 'swoop', name: 'Swoop', aspect: 'Striking first' }, { id: 'flight', name: 'Flight', aspect: 'The air, and getting you out' }],
+    nodes: [
+      ...same('wing', ['Tailwind', 'Updraft', 'Slipstream', 'Gale', 'Windborn'], 'Your dragon acts 0.4 seconds sooner in a fight.', { dTempoMs: 400 }),
+      ...branch('swoop', 'wing-5', false, [
+        ['Quick Launch', 'Its first move in a fight comes 3 seconds sooner.', { dOpenMs: 3000 }],
+        ['Buffet', 'An enemy it bites has its next move delayed by 1 second.', { dHarryMs: 1000 }],
+        ['Dive', 'It strikes the moment a fight starts.', { dOpenMs: 3000 }],
+        ['Harry', 'An enemy it bites is delayed by 1.5 seconds more (2.5 in all).', { dHarryMs: 1500 }],
+        ['Stormrider', "Every enemy's first move comes 4 seconds later.", { dFoeDelayMs: 4000 }],
+      ]),
+      ...branch('flight', 'wing-5', false, [
+        ['Strong Wings', 'With your dragon up, +2 to Flee.', { dFlee: 2 }],
+        ['Long Glide', 'It needs to fly with you every 3 days (from every 2).', { flyDays: 1 }],
+        ['Sky Hunter', 'In a fight in the air: +2 to hit, and its bite deals 4 more damage.', { dAirHit: 2, dAirBite: 4 }],
+        ['Tireless', 'It needs to fly every 4 days, and +2 to Flee again.', { flyDays: 1, dFlee: 2 }],
+        ['Skyborne', 'With your dragon up, fleeing always works.', { dSureFlee: true }],
+      ]),
+    ],
+  },
+  {
+    id: 'scale', half: 'dragon', name: 'Scale', stat: 'Armor', blurb: 'Harder to hit, harder to hurt.',
+    branches: [{ id: 'hide', name: 'Hide', aspect: 'Taking less from every hit' }, { id: 'guard', name: 'Guardian', aspect: 'Shielding you' }],
+    nodes: [
+      ...trunk('scale', [
+        ['Hard Scales', "Your dragon's AC +1.", { dAc: 1 }],
+        ['Thick Plates', 'Every hit on your dragon deals 1 less damage.', { dSoak: 1 }],
+        ['Harder Scales', "Your dragon's AC +1.", { dAc: 1 }],
+        ['Thicker Plates', 'Every hit on your dragon deals 1 less damage.', { dSoak: 1 }],
+        ['Armored', "Your dragon's AC +1.", { dAc: 1 }],
+      ]),
+      ...branch('hide', 'scale-5', false, [
+        ['Thick Hide', 'Every hit on your dragon deals 1 less damage.', { dSoak: 1 }],
+        ['Layered Scales', "Your dragon's AC +1.", { dAc: 1 }],
+        ['Braced', 'Big telegraphed moves deal half damage to your dragon.', { dBrace: true }],
+        ['Stone Hide', 'Every hit on your dragon deals 2 less damage.', { dSoak: 2 }],
+        ['Ironhide', 'The first hit on your dragon in each fight does nothing.', { dFirstHit: true }],
+      ]),
+      ...branch('guard', 'scale-5', false, [
+        ['Watchful', 'It shields you from a big move 65% of the time (from half).', { dShieldChance: 15 }],
+        ['Close Guard', 'It shields you from bond 41 (from 61).', { dShieldBond: 41 }],
+        ['Wingwall', 'A blow it shields deals a quarter of its damage (from half).', { dShieldDeep: true }],
+        ['Ever Watchful', 'It shields you 90% of the time, at any bond.', { dShieldChance: 25, dShieldBond: 1 }],
+        ['Aegis', 'Shielding you no longer uses its turn.', { dShieldFree: true }],
+      ]),
+    ],
+  },
+  {
+    id: 'loyalty', half: 'dragon', name: 'Loyalty', stat: 'Trust', blurb: 'Trust that changes what it will do for you.',
+    branches: [{ id: 'fierce', name: 'Fierce', aspect: 'Trust that sharpens its attacks' }, { id: 'devoted', name: 'Devoted', aspect: 'Trust that protects you' }],
+    nodes: [
+      ...trunk('loyalty', [
+        ['Kept Faith', 'A hunt together earns 1 trust (once a day).', { trustHunt: 1 }],
+        ['Shared Sky', 'A flight together earns 1 trust (once a day).', { trustFly: 1 }],
+        ['Patient', 'It needs to hunt every 4 days (from every 3).', { huntDays: 1 }],
+        ['Blooded Together', 'Winning a real fight side by side earns 1 trust.', { trustFight: 1 }],
+        ['Forgiving', 'An unmet need costs no trust on its first day.', { needGrace: 1 }],
+      ]),
+      ...branch('fierce', 'loyalty-5', false, [
+        ['Bared Teeth', 'At Guarded trust (21 or more): +1 to hit with its bite and its fire.', { t21Atk: 1 }],
+        ['Blood Oath', 'At Guarded trust (21 or more): its bite deals 2 more damage.', { t21Bite: 2 }],
+        ['Wrath', 'At Open trust (41 or more): it acts 1 second sooner in a fight.', { t41TempoMs: 1000 }],
+        ['Vengeance', 'At Open trust (41 or more): once a fight, when you fall to half HP or less, it strikes at once.', { t41Avenge: true }],
+        ['Fury', 'At Deep trust (61 or more): its bite rolls 2 extra dice.', { t61BiteDice: 2 }],
+      ]),
+      ...branch('devoted', 'loyalty-5', false, [
+        ['At Your Side', "At Guarded trust (21 or more): your dragon's help on checks +1.", { t21Help: 1 }],
+        ['Carry Me', 'At Guarded trust (21 or more): with your dragon up, +2 to Flee.', { t21Flee: 2 }],
+        ['Take the Blow', 'At Open trust (41 or more): once a fight, a hit that would drop you lands on your dragon instead.', { t41TakeBlow: true }],
+        ["Heart's Ease", 'At Open trust (41 or more): a short rest eases 1 more Signet Strain.', { t41RestEase: 1 }],
+        ['Devoted', 'At Deep trust (61 or more): once a day, if you fall in a real fight it carries you out. The fight ends and you live at 1 HP.', { t61Rescue: true }],
+      ]),
+    ],
+  },
 ];
 
 /** Each node with the node that must be owned before it (null: none). */
