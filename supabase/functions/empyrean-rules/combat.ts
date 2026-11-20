@@ -451,7 +451,8 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
 
   const hp = clamp(int(input.hp, maxHp), 1, maxHp);
 
-  const atk = Number.isFinite(Number(input.attackBonus)) ? clamp(int(input.attackBonus), -2, 20) : proficiency(level) + 3;
+  // A missing attack bonus (null or undefined) must fall back to the level-based default. Number(null) is 0, so it has to be ruled out first.
+  const atk = input.attackBonus != null && Number.isFinite(Number(input.attackBonus)) ? clamp(int(input.attackBonus), -2, 20) : proficiency(level) + 3;
 
   const pt = clamp(int(input.prodigy, 0), 0, 5) as P.ProdigyTier;
 
