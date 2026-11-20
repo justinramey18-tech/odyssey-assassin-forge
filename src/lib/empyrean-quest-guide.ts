@@ -250,6 +250,10 @@ export function buildGuidePrompt(quest: Quest, ctx: GuideContext): { system: str
 
     '- Write situations, people and pressures, not a script. The rider decides what happens. For every major beat give at least two ways it can go, and say how the quest continues if the rider refuses, fails, cheats or takes a path you did not plan.',
 
+    '- The rider is one cadet among hundreds. Do not build the quest on leadership (wingleaders, section leaders, squad leaders, professors, command) taking a special interest in the rider, making decisions about the rider or arguing over the rider, unless the notes you are given show that the rider\'s own actions caused it. Give the cast business of their own that would go on without the rider.',
+
+    '- Never rewrite a canon event or a canon character\'s story so that it is about the rider, and never move canon dates to suit the quest. Keep the quest inside what a cadet could really be doing at that point of the year.',
+
     '- Failure must move the story forward: a cost, a complication or a harder road, never a dead end. Say what truly fails the quest.',
 
     '- Fit the difficulty and the stakes to the challenge rating you are given. Do not hand out XP, gold or levels; you may suggest story rewards (favors, access, reputation, a keepsake).',
@@ -503,6 +507,8 @@ const DM_RULES = [
   'These guides are for you alone. Never quote them, never name a twist, a secret or a later step before the story reaches it, and never mention that a guide exists.',
 
   'They describe situations, people and pressures, not a script. The rider\'s choices always win: if the rider goes another way, bend the guide\'s material to where the story is and never force a scene. Where the story has already contradicted a guide, the story is right.',
+
+  'Where a guide disagrees with THE WORLD IN MOTION rules or with the Calendar lines in GAME FACTS, those win. Use the guide for its places, obstacles and people, but never let it make leadership or canon characters revolve around the rider, and never move canon dates to suit it. A guide written before those rules may assume otherwise: quietly play it their way.',
 
   'PROGRESS TAGS: when a numbered step of a quest has truly happened in the reply you are writing (not merely been attempted or planned), put its tag on its own line at the very end of the reply, written exactly like this: <!--QUEST_STEP:quest_key:step_number-->. One tag for each step finished in this reply. When a quest\'s "Complete when" test is met, add <!--QUEST_DONE:quest_key-->. When its "Failed when" test is met, add <!--QUEST_FAILED:quest_key-->. Copy the quest key exactly. Never mention the tags, never tag a step marked [done], and never tag a step the story has not reached.',
 
