@@ -36,33 +36,39 @@ describe('progression web: where things sit on the canvas', () => {
 
 
 
-  it('places all 60 rider nodes inside the canvas, none on top of another', () => {
+  it('places all 105 rider nodes and all 75 dragon nodes inside the canvas, none on top of another', () => {
 
-    expect(rider.nodes.length).toBe(60);
+    const dragon = layoutWeb(web(0).spokes.filter(s => s.half === 'dragon'));
 
-    for (const p of rider.nodes) {
+    expect(rider.nodes.length).toBe(105);
 
-      expect(p.x).toBeGreaterThan(40); expect(p.x).toBeLessThan(WEB_CANVAS - 40);
+    expect(dragon.nodes.length).toBe(75);
 
-      expect(p.y).toBeGreaterThan(40); expect(p.y).toBeLessThan(WEB_CANVAS - 40);
+    for (const half of [rider, dragon]) {
+
+      for (const p of half.nodes) {
+
+        expect(p.x).toBeGreaterThan(40); expect(p.x).toBeLessThan(WEB_CANVAS - 40);
+
+        expect(p.y).toBeGreaterThan(40); expect(p.y).toBeLessThan(WEB_CANVAS - 40);
+
+      }
+
+      let closest = Infinity;
+
+      half.nodes.forEach((a, i) => half.nodes.slice(i + 1).forEach(b => { closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y)); }));
+
+      // The biggest node is 74 px across and a name sits under each one; they must not crowd.
+
+      expect(closest).toBeGreaterThanOrEqual(96);
+
+      // Pulled all the way together the nodes shrink with the web, so they still do not touch.
+
+      expect(closest * ZOOM_MIN).toBeGreaterThanOrEqual(74 * ZOOM_MIN);
 
     }
 
-    let closest = Infinity;
-
-    rider.nodes.forEach((a, i) => rider.nodes.slice(i + 1).forEach(b => { closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y)); }));
-
-    // The biggest node is 74 px across and a name sits under each one; they must not crowd.
-
-    expect(closest).toBeGreaterThanOrEqual(96);
-
-    // Pulled all the way together the nodes shrink with the web, so they still do not touch.
-
-    expect(closest * ZOOM_MIN).toBeGreaterThanOrEqual(74 * ZOOM_MIN);
-
   });
-
-
 
   it('runs the trunk out from the hub and fans the five branches from its last node', () => {
 
@@ -116,23 +122,53 @@ describe('progression web: where things sit on the canvas', () => {
 
 
 
-  it('labels every spoke and branch, and draws unbuilt spokes as stubs', () => {
+  it('labels every spoke and branch on both halves, and a spoke with no nodes is still drawn as a stub', () => {
 
-    expect(rider.stubs.map(s => s.key)).toEqual(['blade', 'tempo', 'saddle']);
+    expect(rider.stubs.length).toBe(0);
 
     const texts = rider.labels.map(l => l.text);
 
-    for (const t of ['Vitality', 'Channel', 'Blade', 'Tempo', 'Saddle', 'Toughness', 'Ward', 'Regeneration', 'Adrenaline', 'Lifeblood', 'Reservoir', 'Power', 'Control', 'Recovery', 'Mastery']) expect(texts).toContain(t);
+    for (const t of ['Vitality', 'Channel', 'Blade', 'Tempo', 'Saddle', 'Toughness', 'Ward', 'Regeneration', 'Adrenaline', 'Lifeblood', 'Reservoir', 'Power', 'Control', 'Recovery', 'Mastery', 'Edge', 'Precision', 'Initiative', 'Evasion', 'Guidance', 'Mounted']) expect(texts).toContain(t);
 
     const dragon = layoutWeb(web(0).spokes.filter(s => s.half === 'dragon'));
 
-    expect(dragon.nodes.length).toBe(0);
+    expect(dragon.stubs.length).toBe(0);
 
-    expect(dragon.stubs.length).toBe(5);
+    const names = dragon.labels.map(l => l.text);
+
+    for (const t of ['Vigor', 'Fang and Flame', 'Wing', 'Scale', 'Loyalty', 'Mending', 'Endurance', 'Fang', 'Flame', 'Swoop', 'Flight', 'Hide', 'Guardian', 'Fierce', 'Devoted']) expect(names).toContain(t);
+
+    const empty = layoutWeb(web(0).spokes.filter(s => s.half === 'dragon').map(s => ({ ...s, coming: true, nodes: [] })));
+
+    expect(empty.nodes.length).toBe(0);
+
+    expect(empty.stubs.length).toBe(5);
 
   });
 
+  it('two branches of a 15-node spoke keep clear of each other and of the next spoke', () => {
 
+    const of = (prefixes: string[]) => rider.nodes.filter(p => prefixes.some(x => p.node.id.startsWith(x)));
+
+    const blade = of(['blade-', 'edge-', 'precise-']);
+
+    const tempo = of(['tempo-', 'init-', 'evade-']);
+
+    const channel = of(['channel-', 'reserve-', 'power-', 'control-', 'recover-', 'mastery-']);
+
+    expect(blade.length).toBe(15); expect(tempo.length).toBe(15);
+
+    for (const [one, other] of [[blade, tempo], [blade, channel]]) {
+
+      let closest = Infinity;
+
+      for (const a of one) for (const b of other) closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y));
+
+      expect(closest).toBeGreaterThanOrEqual(100);
+
+    }
+
+  });
 
   it('draws a web from an older server (no parents, no branches) as plain lines', () => {
 
@@ -188,7 +224,7 @@ describe('progression web screen', () => {
 
     expect(screen.getByText(/Drag to explore/)).toBeTruthy();
 
-    expect(screen.getAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(60);
+    expect(screen.getAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(105);
 
   });
 
@@ -320,7 +356,7 @@ describe('progression web screen', () => {
 
     render(<ProgressionWeb open onClose={vi.fn()} web={web(150)} onBuy={vi.fn()} />);
 
-    expect(screen.getAllByTestId('web-node-name').length).toBe(60);
+    expect(screen.getAllByTestId('web-node-name').length).toBe(105);
 
     const inn = screen.getByRole('button', { name: 'Pull the web together' });
 
@@ -328,7 +364,7 @@ describe('progression web screen', () => {
 
     expect(1 / 1.25).toBeGreaterThanOrEqual(NAMES_FROM_ZOOM);
 
-    expect(screen.getAllByTestId('web-node-name').length).toBe(60);
+    expect(screen.getAllByTestId('web-node-name').length).toBe(105);
 
     fireEvent.click(inn);
 
@@ -428,25 +464,59 @@ describe('progression web screen', () => {
 
 
 
-  it('Channel is still there, and the dragon half shows five spokes to come', () => {
+  it('the dragon half is paid with Kinship: its own balance, its own prices, and a line on how it is earned', async () => {
 
-    render(<ProgressionWeb open onClose={vi.fn()} web={web(150)} onBuy={vi.fn()} />);
+    const onBuy = vi.fn(async () => true);
+
+    const both: RulesWeb = webView(normalizeLedger({ web: { nodes: [], camps: { c1: 150 }, grant: 0, kcamps: { c1: 4 }, kgrant: 0 } }));
+
+    render(<ProgressionWeb open onClose={vi.fn()} web={both} onBuy={onBuy} />);
 
     fireEvent.click(node('First Reserve'));
 
     expect(screen.getByText('Signet Strain limit +1.')).toBeTruthy();
 
+    expect(screen.getByTestId('web-balance').textContent).toBe('150');
+
+    expect(screen.getByText(/XP to spend/)).toBeTruthy();
+
     fireEvent.click(screen.getByRole('button', { name: 'Dragon' }));
 
-    expect(screen.queryAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(0);
+    expect(screen.getByTestId('web-balance').textContent).toBe('4');
+
+    expect(screen.getByText(/Kinship to spend/)).toBeTruthy();
+
+    expect(screen.getByText(/Kinship comes from time with your dragon/)).toBeTruthy();
+
+    expect(screen.getAllByRole('button', { name: /, (owned|can unlock|locked|coming)$/ }).length).toBe(75);
 
     expect(screen.getByText('Loyalty')).toBeTruthy();
 
-    expect(screen.getByText(/Drag to explore/)).toBeTruthy();
+    fireEvent.click(node('Hearty'));
+
+    expect(screen.getByText("Your dragon's max HP +10.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '3 Kinship' }));
+
+    expect(screen.getByText('Spend 3 Kinship on Hearty?')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
+
+    await waitFor(() => expect(onBuy).toHaveBeenCalledWith('vigor-1'));
+
+    // A web from an older server (no Kinship, no currency on the nodes) still draws, priced in XP.
+
+    cleanup();
+
+    const old = { ...both, kin: undefined, spokes: both.spokes.map(s => ({ ...s, nodes: s.nodes.map(({ currency: _c, ...n }) => n) })) } as RulesWeb;
+
+    render(<ProgressionWeb open onClose={vi.fn()} web={old} onBuy={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dragon' }));
+
+    expect(screen.getByTestId('web-balance').textContent).toBe('0');
 
   });
-
-
 
   it('closes from the header', () => {
 

@@ -12,11 +12,11 @@ describe('progression web: the ledger', () => {
   it('reads an empty or broken rider row as an empty ledger', () => {
     for (const raw of [undefined, null, {}, { web: 7 }, { web: { nodes: 'x', camps: [] } }, 'junk']) {
       const l = W.normalizeLedger(raw, NEW);
-      expect(l).toEqual({ v: 1, nodes: [], spent: 0, camps: {}, grant: 0 });
+      expect(l).toEqual({ v: 1, nodes: [], spent: 0, camps: {}, grant: 0, kspent: 0, kcamps: {}, kgrant: 0 });
       expect(W.xpBalance(l)).toBe(0);
+      expect(W.kinBalance(l)).toBe(0);
     }
   });
-
   it('gives riders from before the cutoff a one-time grant worth one small node, and nobody else', () => {
     expect(W.normalizeLedger({}, OLD).grant).toBe(W.NODE_COST.small);
     expect(W.normalizeLedger({}, NEW).grant).toBe(0);
@@ -68,7 +68,8 @@ describe('progression web: buying', () => {
   it('refuses a node out of order, a node already owned, and anything not in the web', () => {
     expect(W.buyNode(withXp(5000), 'channel-3')).toEqual({ ok: false, error: 'Unlock Second Reserve first.' });
     expect(W.buyNode(withXp(5000, ['channel-1']), 'channel-1')).toEqual({ ok: false, error: 'You already have that upgrade.' });
-    expect(W.buyNode(withXp(5000), 'saddle-1').ok).toBe(false);
+    expect(W.buyNode(withXp(5000), 'saddle-2')).toEqual({ ok: false, error: 'Unlock Leaning In first.' });
+    expect(W.buyNode(withXp(5000), 'no-such-node').ok).toBe(false);
     expect(W.buyNode(withXp(5000), '').ok).toBe(false);
   });
 
@@ -162,11 +163,12 @@ describe('progression web: what the nodes do', () => {
 });
 
 describe('progression web: what the phone is shown', () => {
-  it('lists ten spokes, five a half, with Vitality and Channel open', () => {
+  it('lists ten spokes, five a half, every one of them open', () => {
     const v = W.webView(withXp(150));
     expect(v.spokes.length).toBe(10);
     expect(v.spokes.filter(s => s.half === 'rider').length).toBe(5);
-    expect(v.spokes.filter(s => !s.coming).map(s => s.id)).toEqual(['vitality', 'channel']);
+    expect(v.spokes.filter(s => !s.coming).map(s => s.id)).toEqual(['vitality', 'channel', 'blade', 'tempo', 'saddle', 'vigor', 'fang-and-flame', 'wing', 'scale', 'loyalty']);
+    expect(v.spokes.map(s => s.nodes.length)).toEqual([30, 30, 15, 15, 15, 15, 15, 15, 15, 15]);
     expect(v.xp).toEqual({ earned: 150, spent: 0, balance: 150 });
     const channel = v.spokes.find(s => s.id === 'channel');
     expect(channel?.nodes.length).toBe(30);
