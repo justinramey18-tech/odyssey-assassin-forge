@@ -28,6 +28,7 @@ export function replyShapeSection(turn: number): string {
     'So that replies do not all look alike, write this reply in one of these two shapes, whichever fits the moment better:',
     `- ${a.text}`,
     `- ${b.text}`,
+    'When the scene moves to a new place or skips ahead in time, put a line with only *** on it between the two parts. Put each spoken line in double quotation marks.',
     "Do not repeat the shape of your previous reply. The moment still wins: if the player's action needs something else, serve the action. Hidden tags, checks, app rulings and GAME FACTS work exactly as before. Never mention shapes to the player.",
   ].join('\n');
 }

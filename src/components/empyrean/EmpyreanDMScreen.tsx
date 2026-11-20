@@ -171,6 +171,7 @@ import { SignetIntensitySelector } from '@/components/empyrean/SignetIntensitySe
 import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
 import { replyShapeSection } from '@/lib/reply-shapes';
+import { SoloStoryText } from '@/components/empyrean/SoloStoryText';
 import { normalizeWorldState, worldStateContextLines } from '@/lib/quests';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
@@ -2929,25 +2930,7 @@ ${oocLines}`;
                             <span className="text-[9px] italic text-amber-400/50">NPC</span>
                           </div>
                         )}
-                        <div className="text-xs prose prose-invert prose-xs max-w-none break-words overflow-wrap-anywhere">
-                          <ReactMarkdown
-                            rehypePlugins={[rehypeRaw]}
-                            components={{
-                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                              strong: ({ children }) => <strong className="text-purple-300 font-semibold">{children}</strong>,
-                              em: ({ children }) => <em className="text-amber-300/90">{children}</em>,
-                              ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
-                              ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
-                              blockquote: ({ children }) => (
-                                <blockquote className="border-l-2 border-purple-500/40 pl-3 italic text-muted-foreground my-2">
-                                  {children}
-                                </blockquote>
-                              ),
-                            }}
-                          >
-                            {cleanNarrative}
-                          </ReactMarkdown>
-                        </div>
+                        <SoloStoryText text={cleanNarrative} dragonName={config?.dragonName} />
                         {whisperTrayEnabled && whispers.length > 0 && (
                           <WhisperTray whispers={whispers} onAutoRoll={handleWhisperAutoRoll} onOpenRoller={handleWhisperOpenRoller} />
                         )}
