@@ -170,6 +170,7 @@ import { useDragonVoice } from '@/hooks/use-dragon-voice';
 import { SignetIntensitySelector } from '@/components/empyrean/SignetIntensitySelector';
 import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
 import { buildCanonLockBlock } from '@/lib/worldStateGuard';
+import { replyShapeSection } from '@/lib/reply-shapes';
 import { normalizeWorldState, worldStateContextLines } from '@/lib/quests';
 import { computeCooldownTurns, getAbilityById } from '@/lib/empyreanAbilities';
 import {
@@ -1434,11 +1435,13 @@ ${oocLines}`;
   }, [soloMap.flying]);
   const standingFacts = standingFactsLine(questApi.hub);
   const ruleFacts = rules.active ? [rules.snapshot?.facts ?? '', standingFacts].filter(Boolean).join('\n') : '';
+  // A different shape for each reply: the number of DM replies so far picks the two shapes offered for the next one.
+  const dmReplyCount = messages.filter(m => m.role === 'assistant').length;
   useEffect(() => {
-    setGameFacts(rules.active ? buildGameFacts(ruleFacts, soloMap.ready ? soloMap.mapFacts() : '') : '');
+    setGameFacts([rules.active ? buildGameFacts(ruleFacts, soloMap.ready ? soloMap.mapFacts() : '') : '', replyShapeSection(dmReplyCount)].filter(Boolean).join('\n\n'));
     setAreaGuidesText(rules.active && soloMap.ready ? soloMap.areaGuides() : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules.active, ruleFacts, soloMap.ready, soloMap.mapFacts, soloMap.areaGuides, factsTick]);
+  }, [rules.active, ruleFacts, soloMap.ready, soloMap.mapFacts, soloMap.areaGuides, factsTick, dmReplyCount]);
 
   // Auto-create + restore a persistent campaign so linking is always available
   useAutoCampaign({
