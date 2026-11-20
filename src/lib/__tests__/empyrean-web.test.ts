@@ -72,18 +72,24 @@ describe('progression web: buying', () => {
     expect(W.buyNode(withXp(5000), '').ok).toBe(false);
   });
 
-  it('a whole spoke costs 2,250 XP and can be bought in order', () => {
-    let l = withXp(2250);
-    for (let i = 1; i <= 6; i++) {
+  it('the Channel trunk costs 750 XP, is bought in order, and saves and reads back the same', () => {
+    let l = withXp(750);
+    for (let i = 1; i <= 5; i++) {
       const r = W.buyNode(l, `channel-${i}`);
       expect(r.ok).toBe(true);
       if (r.ok) l = r.ledger;
     }
-    expect(l.spent).toBe(2250);
+    expect(l.spent).toBe(750);
     expect(W.xpBalance(l)).toBe(0);
-    expect(W.webBonuses(l)).toEqual({ ...W.NO_BONUSES, strainLimit: 7, backlashOff: 2, freeChannel: true });
-    // What is saved reads back the same.
+    expect(W.webBonuses(l)).toEqual({ ...W.NO_BONUSES, strainLimit: 5 });
     expect(W.normalizeLedger(W.withLedger({}, l))).toEqual(l);
+  });
+
+  it('a node id the web no longer has (the old sixth Channel node) is dropped and its XP comes back', () => {
+    const l = W.normalizeLedger({ web: { nodes: ['channel-1', 'channel-6'], camps: { c1: 2000 }, grant: 0 } });
+    expect(l.nodes).toEqual(['channel-1']);
+    expect(l.spent).toBe(150);
+    expect(W.xpBalance(l)).toBe(1850);
   });
 
   it('never lets the balance go below zero', () => {
@@ -163,7 +169,8 @@ describe('progression web: what the phone is shown', () => {
     expect(v.spokes.filter(s => !s.coming).map(s => s.id)).toEqual(['vitality', 'channel']);
     expect(v.xp).toEqual({ earned: 150, spent: 0, balance: 150 });
     const channel = v.spokes.find(s => s.id === 'channel');
-    expect(channel?.nodes.map(n => n.canBuy)).toEqual([true, false, false, false, false, false]);
+    expect(channel?.nodes.length).toBe(30);
+    expect(channel?.nodes.filter(n => n.canBuy).map(n => n.id)).toEqual(['channel-1']);
     expect(channel?.nodes[1].why).toBe('Unlock First Reserve first.');
   });
 
@@ -250,11 +257,8 @@ describe('progression web: Vitality, a trunk that splits into five branches', ()
     expect(after(['blood-1', 'blood-2', 'blood-3']).bloodEase).toBe(false);
   });
 
-  it('Channel still works the same beside it, and both add up', () => {
+  it('Channel and Vitality add up side by side', () => {
     const l = buyAll(withXp(9999), ['channel-1', ...TRUNK]);
     expect(W.webBonuses(l)).toEqual({ ...W.NO_BONUSES, strainLimit: 1, maxHp: 15 });
-    const channel = W.webView(l).spokes.find(s => s.id === 'channel');
-    expect(channel?.nodes.map(n => n.parent)).toEqual([null, 'channel-1', 'channel-2', 'channel-3', 'channel-4', 'channel-5']);
-    expect(channel?.branches).toEqual([]);
   });
 });
