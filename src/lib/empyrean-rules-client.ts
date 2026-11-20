@@ -151,7 +151,10 @@ export const CHALLENGE_OPTIONS: FightChallenge[] = ['easy', 'moderate', 'hard', 
 export type ClashSide = 'left' | 'top' | 'right';
 export type ClashQuality = 'perfect' | 'block' | 'wrong' | 'bait' | 'early';
 export interface FightClash { id: string; move: 'heavy' | 'signature' | 'sweep' | 'pin'; swings: Array<{ off: number; side: ClashSide; feint: boolean }> }
-export interface FightLogLine { n: number; at: number; text: string; tone: 'info' | 'good' | 'warn' | 'muted'; targetId?: string; amount?: number; flash?: 'hit' | 'heal' }
+/** Who acted and how, when the referee says (a newer server): the fight animations read it. */
+export type FightActor = 'rider' | 'dragon';
+export type FightMove = 'attack' | 'signet' | 'potion' | 'counter' | 'claw' | 'bite' | 'fire' | 'guard';
+export interface FightLogLine { n: number; at: number; text: string; tone: 'info' | 'good' | 'warn' | 'muted'; targetId?: string; amount?: number; flash?: 'hit' | 'heal'; by?: FightActor; move?: FightMove }
 export interface FightEnemyView {
   id: string; name: string; kind: FoeKind; hp: number; maxHp: number; status: 'up' | 'down'; nextAt: number;
   pending: { move: FightClash['move']; label: string; target: 'rider' | 'dragon' | 'both'; strikeAt: number; clash: FightClash | null; warded: boolean } | null;
