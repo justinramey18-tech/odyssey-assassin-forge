@@ -41,6 +41,25 @@ describe('canon Empyrean guides (D-32)', () => {
     expect(all).toContain('Second Squad, Flame Section, Fourth Wing');
   });
 
+  it('solo persona keeps the world moving and no longer makes the rider the hero', () => {
+    const solo = buildEmpyreanDMPersona([], [], null, 'Kael', 'Ruadh', 'fire', 'first-year', 'balanced', '', 50, undefined, undefined, undefined, undefined, undefined, false, true);
+
+    expect(solo).toContain("RULE OF COOL — THE PLAYER'S CHOICES STAND");
+    expect(solo).toContain('THE WORLD IN MOTION (SOLO)');
+    expect(solo).toContain('NEVER refuse, deny, block, or push back');
+    expect(solo).not.toContain('IS the protagonist');
+    expect(solo).not.toContain('Bend the world around them');
+    expect(solo).not.toContain('hero of their own impossible story');
+    expect(solo).not.toContain('8-10 paragraph');
+    expect(solo).not.toContain('drives the plot');
+  });
+
+  it('party persona gets neither the Rule of Cool nor the solo world section', () => {
+    const party = buildEmpyreanDMPersona([], [], null, 'the party', '', '');
+    expect(party).not.toContain('RULE OF COOL');
+    expect(party).not.toContain('THE WORLD IN MOTION');
+  });
+
   it('drops the invented recurring cast from the solo DM persona', () => {
     const persona = buildEmpyreanDMPersona([], [], null, 'Kael', 'Ruadh', 'fire');
     expect(persona).toContain('CANON CAST AND ORIGINAL CHARACTERS');

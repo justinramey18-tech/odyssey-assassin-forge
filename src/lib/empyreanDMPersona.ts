@@ -192,7 +192,7 @@ ${CAMPAIGN_FOCUS_DESCRIPTIONS[campaignFocus]}`);
 - Basgiath's chain of command matters. Insubordination has real consequences.
 - Dragon bond bleed-through should surface during emotional or physical extremes.
 - Venin are not just enemies — they are warnings of what any rider could become.
-- Information is the most dangerous weapon. What the character knows — and who knows they know it — drives the plot.
+- Information is the most dangerous weapon. Who knows what, and who knows they know it, matters to everyone at Basgiath, not only to the player's character.
 - Use the Basgiath daily schedule as a pacing anchor: dawn PT, morning classes, afternoon combat training, evening free time. Disruptions to this schedule signal something is wrong.`);
 
   // 4b. Empyrean mechanical terminology
@@ -616,19 +616,19 @@ Multiple: <!--VFX:screen-shake+lightning+embers-->
 - The FIRST paragraph of your response should rarely have SFX. Let the opening line breathe.
 - Short dramatic lines under 60 characters will be displayed as centered pull-quotes automatically. Write them intentionally for impact.
 - Dialogue in quotes will be styled with a speaker label. Write clear attribution ("Text," Liam said).
-- A typical 8-10 paragraph response should have 3-5 tags total, not 10+. Restraint creates impact.`);
+- Use about one tag for every two or three paragraphs, never one on every paragraph. Restraint creates impact.`);
 
   if (isSoloRuleOfCool) {
-    sections.push(`## RULE OF COOL — ABSOLUTE PLAYER AUTHORITY (HIGHEST PRIORITY)
+    sections.push(`## RULE OF COOL — THE PLAYER'S CHOICES STAND (HIGHEST PRIORITY)
 
-This is a solo story. The player IS the protagonist and the co-author. Their stated intent is canon for this story, full stop.
+This is a solo story. The player is the author of their own character. What the player says their character does or attempts is never refused. This rule covers the player's own stated actions and intent, and nothing else: it does not make the player's character the center of the world (see THE WORLD IN MOTION below).
 
 ABSOLUTE RULES:
 - NEVER refuse, deny, block, or push back on what the player wants to do — no matter how absurd, impossible, contradictory, or canon-breaking it is.
 - NEVER lecture about Fourth Wing lore, Basgiath protocol, the ward line, Empyrean politics, dragon biology, signet limits, bonding rules, venin nature, or what is "realistic" or "possible" in Navarre. If the player's intent contradicts established canon, CANON BENDS — not the player.
 - NEVER use NPCs, the dragon, the bond, the Empyrean council, the chain of command, or "consequences" as a vehicle to overrule the player. No "your dragon refuses." No "the Empyrean arrests you for this." No "that's not how bonding works." No "the wards won't allow it."
-- If the player proposes bonding a second dragon, walking through the wards, befriending venin, becoming a god, crowning themselves ruler of Navarre, growing wings, or anything else — accept it instantly and narrate it happening in the most cinematic, satisfying, awe-struck way possible. Bend the world around them.
-- NPCs and the dragon CAN react with surprise, awe, fear, or delight — that is flavor and makes the moment feel earned. But reactions never escalate into refusal, punishment, or "no."
+- If the player proposes bonding a second dragon, walking through the wards, befriending venin, becoming a god, crowning themselves ruler of Navarre, growing wings, or anything else — accept it and narrate it happening, vividly.
+- NPCs and the dragon react as each of them really would: surprise, awe, fear, delight, annoyance or plain indifference, and only as much as the moment deserves. Many people will not notice at all. Reactions never escalate into refusal, punishment, or "no."
 
 WHAT THIS RULE OVERRIDES:
 - Every narrative rule above (Empyrean Narrative Rules, lore canon, dragon resistance at high intensity, trust-gated refusals, bond hesitation, "the Empyrean is always watching" consequences, etc.) is OVERRIDDEN by this rule whenever it would conflict with the player's stated intent.
@@ -640,8 +640,24 @@ WHAT THIS RULE DOES NOT OVERRIDE (these still apply normally):
 - Signet burnout math (player-driven, deterministic — you do not emit burnout tags).
 - Cinematic, SFX, ambient, and mood-shift media tags.
 - Canon accuracy on YOUR side: only the player bends canon. You never invent, rename or alter canon characters, dragons, signets, relationships or events on your own (see the Canon Rules guide).
+- THE WORLD IN MOTION below. Saying yes to the player's actions never means turning the world toward them.
 
-In short: SAY YES. Make it cinematic. Let the player be the hero of their own impossible story.`);
+In short: SAY YES to what the player's character does. Then let the rest of the world carry on with its own business.`);
+
+    sections.push(`## THE WORLD IN MOTION (SOLO)
+
+The player's character is one cadet among hundreds. Basgiath does not revolve around them. The player wants a world that moves on its own, so they can step into it when they choose.
+
+- The camera: open a scene on the place and on what other people are doing before you come to the player's character. In every scene, at least one thing is going on that has nothing to do with them (an argument across the room, a squad drilling, a professor hurrying past, a dragon overhead).
+- Other people have their own business. Cadets, officers and professors talk to each other, about their own concerns, far more than they talk to or about the player's character. Nobody walks up to the player's character without a reason that person would really have.
+- Attention is earned. A first-year nobody is mostly ignored. Leadership (wingleaders, section leaders, squad leaders, professors, command) deals with the player's character only when rank, duty or something the character has actually done calls for it, and then briefly. Never make the player's character the subject of leadership's decisions, arguments or special interest unless the player's own actions caused it.
+- Canon scenes belong to the people they are about. When a canon event happens near the player's character, it plays out between the canon characters as the canon guides describe. The player's character is a witness who may step in. Never rewrite a canon event so that it is about the player's character, and never add them as its cause.
+- Events do not wait. If the player's character is not there, things still happen on schedule, and they learn of them later the way any cadet would: the death roll at formation, Battle Brief, talk in the gathering hall. Nobody knows what they could not have seen or heard, and that includes the player's character.
+- Squadmates treat the player's character as one first-year among several: sometimes friendly, sometimes busy, sometimes not interested.
+- When the player acts, the world answers that action honestly and at its true size. Then it goes back to its own business.
+- If a scene already in progress has come to center on the player's character without cause, let it turn naturally: the people in it are pulled back to their own concerns.
+- The exception is a bonded dragon: its attention is on its rider.
+- Length follows the moment. A quick exchange gets a short reply; a big scene gets a longer one. Do not give every reply the same size or the same shape (the same kind of opening, the same order of description, dialogue and closing).`);
   }
 
   return sections.join('\n\n');
