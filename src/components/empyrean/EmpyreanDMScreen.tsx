@@ -165,6 +165,7 @@ import { readTimeTag, stripTimeTags } from '@/lib/empyrean-story-time';
 import { EmpyreanQuestHub, QuestObjectiveStrip } from '@/components/empyrean/EmpyreanQuestHub';
 import { SoloQuestCards } from '@/components/empyrean/SoloQuestCards';
 import { SoloHallScene } from '@/components/empyrean/SoloHallScene';
+import { SoloWebPanel } from '@/components/empyrean/SoloWebPanel';
 import { useDragonVoice } from '@/hooks/use-dragon-voice';
 import { SignetIntensitySelector } from '@/components/empyrean/SignetIntensitySelector';
 import { SoloRiderWall, SoloWorldWall } from '@/components/empyrean/SoloRoomWalls';
@@ -315,6 +316,8 @@ export function EmpyreanDMScreen({
   const [showToolsDrawer, setShowToolsDrawer] = useState(false);
   const [characterSheetOpen, setCharacterSheetOpen] = useState(false);
   const [progressionOpen, setProgressionOpen] = useState(false);
+  // The half the web opens on: set by the hall's wall panel (the half that was tapped); undefined from the sheet (the half last looked at).
+  const [progressionHalf, setProgressionHalf] = useState<'rider' | 'dragon' | undefined>(undefined);
   const [directorScreenOpen, setDirectorScreenOpen] = useState(false);
   const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
   const [riderLoadoutOpen, setRiderLoadoutOpen] = useState(false);
@@ -2619,6 +2622,9 @@ ${oocLines}`;
             {!isUnbonded && <div ref={setDragonWall} className="relative flex-1 min-h-0 flex flex-col" />}
           </>
         ) : undefined}
+        aside={hallRing ? (
+          <SoloWebPanel web={rules.web} onOpen={(half) => { setProgressionHalf(half); setProgressionOpen(true); }} />
+        ) : undefined}
         onSeamFacing={(facing) => {
           if (isUnbonded) return;
           if (facing) { dragonVoice.takeUnread(); setShowDragonChat(true); }
@@ -3344,7 +3350,7 @@ ${oocLines}`;
         onOpenAbilityTrees={() => setAbilityTreesOpen(true)}
         onOpenEmpyreanCooldowns={() => setEmpyreanCooldownsOpen(true)}
         onOpenSignetManagement={() => setSignetManagementOpen(true)}
-        onOpenProgression={engineOn ? () => setProgressionOpen(true) : undefined}
+        onOpenProgression={engineOn ? () => { setProgressionHalf(undefined); setProgressionOpen(true); } : undefined}
         xpToSpend={rules.web ? rules.web.xp.balance : null}
       />
 
@@ -3355,6 +3361,7 @@ ${oocLines}`;
         web={rules.web}
         busy={rules.busy}
         onBuy={rules.buyNode}
+        startHalf={progressionHalf}
       />
 
       {/* Talk to the DM — full-screen overlay (Empyrean Director) */}
