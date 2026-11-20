@@ -3,6 +3,7 @@
 // Time is the campaign map's clock (minutes since Day 1, 00:00).
 
 import * as P from './prodigy.ts';
+import * as Cal from './calendar.ts';
 
 export type Rand = () => number;
 export const d = (sides: number, rand: Rand) => Math.floor(rand() * sides) + 1;
@@ -82,6 +83,8 @@ export interface CampaignState {
   liveAt: number;
   /** Turns whose story-time push was already applied (newest last), so a turn never adds time twice. */
   timeTurns: string[];
+  /** Story calendar: days added to the clock's day to get the canon day (1 = Conscription Day). The player sets it; the clock never does. */
+  calOffset: number;
 }
 /** No web gives a Ward larger than this; anything larger is damaged data. */
 export const WARD_TOP = 100;
@@ -97,7 +100,7 @@ export function freshState(): CampaignState {
     fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
     strain: 0, strainCooled: null, ward: 0, wardCap: 0, regenAt: 0, easeAt: 0,
     kin: { total: 0, day: 1, today: 0, huntDay: 0, flyDay: 0, restDay: 0 }, look: { day: 1, n: 0 }, rescueDay: 0, dragonWeb: 0,
-    liveAt: 0, timeTurns: [],
+    liveAt: 0, timeTurns: [], calOffset: 0,
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -148,6 +151,7 @@ export function normalizeState(raw: unknown): CampaignState {
     dragonWeb: clamp(int(r.dragonWeb), 0, DRAGON_WEB_TOP),
     liveAt: Math.max(0, int(r.liveAt)),
     timeTurns: (Array.isArray(r.timeTurns) ? r.timeTurns : []).filter((x: unknown) => typeof x === 'string' && x).map((x: string) => x.slice(0, 100)).slice(-8),
+    calOffset: clamp(int(r.calOffset), -Cal.CAL_MAX_DAY, Cal.CAL_MAX_DAY),
   };
 }
 
@@ -774,6 +778,18 @@ export function rollEvent(state: CampaignState, minute: number, placeKind: unkno
 export const consumeEvent = (state: CampaignState): CampaignState =>
   (state.events.pending ? { ...state, events: { ...state.events, pending: null } } : state);
 
+// ── story calendar ──
+/** The canon day today is (1 = Conscription Day): the clock's day plus the campaign's offset. */
+export function calendarView(state: CampaignState, minute: number): { day: number; label: string; name: string | null } {
+  const day = Cal.clampDay(dayOf(minute) + state.calOffset);
+  return { day, label: Cal.dateLabel(day), name: Cal.dayName(day) };
+}
+/** The player says which canon day today is. Only the offset changes; the clock does not move. */
+export function setCalendar(state: CampaignState, minute: number, canonDay: unknown): CampaignState {
+  const want = Cal.clampDay(int(canonDay, 1));
+  return { ...state, calOffset: clamp(want - dayOf(minute), -Cal.CAL_MAX_DAY, Cal.CAL_MAX_DAY) };
+}
+
 // ── unlocks and the facts block ──
 export interface Unlock { id: string; label: string; source: string; unlocked: boolean }
 export function unlockList(masteryXp: number, bond: number | null): Unlock[] {
@@ -799,6 +815,7 @@ export function buildRuleFacts(state: CampaignState, f: FactsInput): string {
   lines.push(f.traveling
     ? `Time: ${formatTime(f.minute)} (${timeOfDay(f.minute)}). The journey moves the clock. Never skip days or announce a new day yourself, and write no TIME tag during a journey.`
     : `Time: ${formatTime(f.minute)} (${timeOfDay(f.minute)}). The clock runs on its own while the rider plays, one minute for each real minute. When your reply covers more than the moment (crossing the college, a class, a long wait, an afternoon of drills), end the reply with a hidden tag on its own line that gives the time the reply covered: <!--TIME:+20m-->, <!--TIME:+2h--> or <!--TIME:+1h30m--> (4 hours at most in one reply). Give no tag to a single moment or a short exchange. Never mention the tag. Never skip to another day or have the rider sleep through the night yourself: rests and longer waits are the rider's choice in Camp, and a reply in which the rider beds down gets no tag.`);
+  lines.push(Cal.calendarFacts(dayOf(f.minute) + s.calOffset));
   const canLong = f.minute - s.lastLongRestEnd >= LONG_REST_GAP;
   lines.push(`Rest: ${SHORT_RESTS_PER_DAY - s.shortRests} short rest${SHORT_RESTS_PER_DAY - s.shortRests === 1 ? '' : 's'} left today; a long rest is ${canLong ? 'available' : 'not available yet'}. A rest only counts when the player uses the Rest button; if the story calls for one, suggest it.`);
   if (s.injuries.length) lines.push(`Injuries (real, not healed by narration): ${s.injuries.map(i => `${i.name} (${['', 'light', 'serious', 'severe'][i.severity]})`).join('; ')}. Each long rest eases them one step.`);

@@ -30,7 +30,7 @@ const PLANNER_MODEL = 'qwen-3-6-plus';
 const Body = z.object({
   action: z.enum(['state', 'ack', 'rest', 'pass_time', 'check', 'signet_used', 'quest_payout', 'story_reward', 'strain', 'story_time',
     'set_events', 'event_done', 'travel_launch', 'travel_sync', 'travel_cancel',
-    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief', 'web_buy', 'ward_soak']),
+    'fight_start', 'fight_tick', 'fight_act', 'fight_clash', 'fight_close', 'battle_brief', 'web_buy', 'ward_soak', 'set_calendar']),
   campaignId: uuid,
   riderKey: z.string().min(1).max(80).default('local'),
   dragonName: z.string().max(80).optional(),
@@ -84,6 +84,8 @@ const Body = z.object({
   // Live clock: the solo screen is showing and nothing else owns the clock. Story time: the minutes the DM's reply covered (messageId is the turn).
   live: z.boolean().optional(),
   minutes: z.number().optional(),
+  // Story calendar: the canon day (1 = Conscription Day) the player says today is.
+  canonDay: z.number().optional(),
 });
 type Req = z.infer<typeof Body>;
 
@@ -184,6 +186,7 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
   return {
     ok: true, ...extra,
     version: l.version, hasMap: !!l.envelope, minute: l.minute, clock: R.formatTime(l.minute), timeOfDay: R.timeOfDay(l.minute),
+    calendar: R.calendarView(s, l.minute),
     traveling: l.traveling,
     rules: {
       shortRestsLeft: R.SHORT_RESTS_PER_DAY - s.shortRests,
@@ -781,6 +784,9 @@ Deno.serve(async (req) => {
       case 'web_buy':
         if (!b.nodeId) return json(400, { ok: false, error: 'Invalid request.' });
         result = await buyNode(db, userId, b);
+        break;
+      case 'set_calendar':
+        result = await mutate(db, userId, b, l => ({ state: R.setCalendar(l.state, l.minute, b.canonDay) }));
         break;
       case 'set_events':
         result = await mutate(db, userId, b, l => ({ state: { ...l.state, events: { ...l.state.events, level: b.level ?? 'normal' } } }));
