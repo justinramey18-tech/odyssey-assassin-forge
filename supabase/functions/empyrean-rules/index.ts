@@ -6,6 +6,7 @@
 // POST { action, campaignId, riderKey?, dragonName?, bonded?, sheet?, place?, ... }
 //   state | ack | rest | pass_time | check | signet_used | quest_payout | story_reward | strain
 //   set_events | event_done | travel_launch | travel_sync | travel_cancel | web_buy | ward_soak
+//   (web_buy buys a progression web node: the rider's half with XP, the dragon's half with Kinship)
 //   fight_start | fight_tick | fight_act | fight_clash | fight_close   (real-time solo fights, combat.ts)
 // Every reply carries the fresh snapshot: clock, rule state, mastery, unlocks, the rule half of
 // the GAME FACTS block, and the inbox (results the phone has not applied yet).
@@ -89,6 +90,8 @@ type Req = z.infer<typeof Body>;
 interface Loaded {
   state: R.CampaignState; version: number; envelope: Record<string, any> | null; mapUpdatedAt: string | null;
   node: T.ActiveNode | null; minute: number; traveling: boolean; masteryXp: number; bond: number | null; bonded: boolean;
+  /** The bonded dragon's trust (null: no bonded dragon, or no record of it yet). Loyalty's branches unlock by it. */
+  trust: number | null;
   /** The progression web's ledger, and the rider row it was read from (null: no row yet). */
   web: W.WebLedger; rider: { id: string; updatedAt: string; data: unknown } | null; campaignRider: string | null;
 }
@@ -99,7 +102,7 @@ async function load(db: any, userId: string, b: Req): Promise<Loaded> {
     db.from('solo_campaign_maps').select('state_data, updated_at').eq('campaign_id', b.campaignId).eq('user_id', userId).maybeSingle(),
     db.from('empyrean_riders').select('id, signet_xp, data, created_at, updated_at').eq('user_id', userId).eq('rider_key', b.riderKey).maybeSingle(),
     b.dragonName
-      ? db.from('empyrean_dragons').select('bond').eq('user_id', userId).eq('rider_key', b.riderKey).eq('dragon_name', b.dragonName).maybeSingle()
+      ? db.from('empyrean_dragons').select('bond, trust').eq('user_id', userId).eq('rider_key', b.riderKey).eq('dragon_name', b.dragonName).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
   if (cs.error || map.error || rider.error) throw new Error('read_failed');
@@ -107,10 +110,11 @@ async function load(db: any, userId: string, b: Req): Promise<Loaded> {
   const node = T.activeNode(envelope);
   const bonded = b.bonded ?? !!b.dragonName;
   const bond = bonded && Number.isFinite(Number(dragon.data?.bond)) ? Number(dragon.data.bond) : null;
+  const trust = bonded && dragon.data?.trust != null && Number.isFinite(Number(dragon.data.trust)) ? Number(dragon.data.trust) : null;
   return {
     state: R.normalizeState(cs.data?.state), version: cs.data?.version ?? 0, envelope, mapUpdatedAt: map.data?.updated_at ?? null,
     node, minute: T.currentMinute(envelope, Date.now()), traveling: T.isTraveling(node),
-    masteryXp: rider.data?.signet_xp ?? 0, bond, bonded,
+    masteryXp: rider.data?.signet_xp ?? 0, bond, bonded, trust,
     web: W.normalizeLedger(rider.data?.data, rider.data?.created_at),
     rider: rider.data?.id ? { id: rider.data.id, updatedAt: rider.data.updated_at, data: rider.data.data } : null,
     campaignRider: typeof cs.data?.rider_key === 'string' ? cs.data.rider_key : null,
@@ -118,6 +122,11 @@ async function load(db: any, userId: string, b: Req): Promise<Loaded> {
 }
 
 // ── the progression web (the ledger lives in the rider's row; see web.ts) ──
+/** What the rider's nodes add up to, with the dragon's trust applied (a Loyalty branch node works only at its trust tier). */
+const perksOf = (l: Loaded): W.WebBonuses => W.withTrust(W.webBonuses(l.web), l.bonded ? l.trust : null);
+/** The nodes that change life with the dragon between fights: mending, how often it needs to hunt and fly, and the trust it earns. */
+const careOf = (p: W.WebBonuses): R.DragonCare =>
+  ({ huntMend: p.dHuntMend, restMend: p.dRestMend, huntDays: p.huntDays, flyDays: p.flyDays, grace: p.needGrace, trustHunt: p.trustHunt, trustFly: p.trustFly });
 /** Save the ledger only if the rider row has not changed since it was read, so two saves can never overwrite each other. */
 async function saveLedger(db: any, userId: string, b: Req, l: Loaded, ledger: W.WebLedger): Promise<boolean> {
   const data = W.withLedger(l.rider?.data, ledger);
@@ -128,18 +137,20 @@ async function saveLedger(db: any, userId: string, b: Req, l: Loaded, ledger: W.
   const { error } = await db.from('empyrean_riders').insert({ user_id: userId, rider_key: b.riderKey, signet_xp: 0, data });
   return !error;
 }
-/** The ledger with this campaign's XP so far counted in. XP is counted from the server's own reward records, never from the phone. */
+/** The ledger with this campaign's XP and Kinship so far counted in. XP is counted from the server's own reward records and
+ *  Kinship from the campaign's own rule state, never from the phone. */
 async function creditedLedger(db: any, userId: string, b: Req, l: Loaded): Promise<W.WebLedger> {
   if (l.campaignRider !== b.riderKey) return l.web;
+  const web = W.creditKinship(l.web, b.campaignId, l.state.kin.total);
   let total = 0;
   for (let from = 0; from < 20000; from += 1000) {
     const { data, error } = await db.from('empyrean_rule_events').select('xp')
       .eq('user_id', userId).eq('campaign_id', b.campaignId).gt('xp', 0).order('created_at').order('id').range(from, from + 999);
-    if (error) return l.web;
+    if (error) return web;
     for (const row of data || []) total += Math.max(0, Math.trunc(Number(row.xp)) || 0);
     if (!data || data.length < 1000) break;
   }
-  return W.creditCampaign(l.web, b.campaignId, total);
+  return W.creditCampaign(web, b.campaignId, total);
 }
 /** For the snapshot: count new XP in and keep it (best effort; a missed save is simply counted again next time). Never throws. */
 async function webNow(db: any, userId: string, b: Req, l: Loaded): Promise<W.WebLedger> {
@@ -165,8 +176,8 @@ async function buyNode(db: any, userId: string, b: Req): Promise<{ ok: true; ext
 }
 async function snapshot(db: any, userId: string, b: Req, extra: Record<string, unknown> = {}) {
   const l = await load(db, userId, b);
-  const perks = W.webBonuses(l.web);
-  const s = R.syncWard(R.tick(l.state, l.minute), perks.wardMax);
+  const perks = perksOf(l);
+  const s = R.syncDragon(R.syncWard(R.tick(l.state, l.minute), perks.wardMax), perks.dHp);
   const { data: inbox } = await db.from('empyrean_rule_events')
     .select('id, kind, reason, xp, gold, hp, payload, created_at')
     .eq('user_id', userId).eq('campaign_id', b.campaignId).is('applied_at', null).order('created_at').limit(50);
@@ -180,12 +191,12 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
       conditions: s.conditions.map(c => ({ ...c, until: R.formatTime(c.untilMinute) })),
       injuries: s.injuries,
       checkPenalty: R.checkPenalty(s),
-      unmetNeeds: l.bonded ? R.unmetNeeds(s, l.minute) : [],
+      unmetNeeds: l.bonded ? R.unmetNeeds(s, l.minute, careOf(perks)) : [],
       eventLevel: s.events.level,
       eventPending: !!s.events.pending,
     },
     mastery: R.masteryInfo(l.masteryXp),
-    dragonAssist: R.dragonAssist(l.bond),
+    dragonAssist: R.dragonAssist(l.bond) + (l.bond != null ? perks.help : 0),
     dragonBody: l.bonded && s.dragon && s.dragon.name === (b.dragonName || '') ? { hp: s.dragon.hp, maxHp: s.dragon.maxHp } : null,
     fightOpen: !!C.cleanFight(s.fight),
     strain: s.strain,
@@ -194,7 +205,7 @@ async function snapshot(db: any, userId: string, b: Req, extra: Record<string, u
     bloodPrice: perks.bloodPrice,
     web: W.webView(await webNow(db, userId, b, l)),
     unlocks: R.unlockList(l.masteryXp, l.bond),
-    facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling, sheet: R.normalizeSheet(b.sheet) }),
+    facts: R.buildRuleFacts(s, { minute: l.minute, masteryXp: l.masteryXp, bond: l.bond, bonded: l.bonded, traveling: l.traveling, sheet: R.normalizeSheet(b.sheet), care: careOf(perks) }),
     prodigy: { tier: R.sheetProdigyTier(R.normalizeSheet(b.sheet)), briefsLeft: R.briefsLeft(s, l.minute, R.normalizeSheet(b.sheet)) },
     inbox: inbox || [],
   };
@@ -212,8 +223,8 @@ async function mutate(db: any, userId: string, b: Req, step: Step): Promise<{ ok
     const l = await load(db, userId, b);
     // The progression web rides along with every change: the Ward is sized to what the rider owns before the
     // rule runs, then damage on its way to the sheet goes through the Ward and Regeneration is paid.
-    const perks = W.webBonuses(l.web);
-    l.state = R.syncWard(l.state, perks.wardMax);
+    const perks = perksOf(l);
+    l.state = R.syncDragon(R.syncWard(l.state, perks.wardMax), perks.dHp);
     const made = step(l);
     if (!made) return { ok: true, extra: {} };
     if ('error' in made) return { ok: false, error: made.error };
@@ -249,7 +260,7 @@ function withWeb(l: Loaded, b: Req, perks: W.WebBonuses, c: Change): Change {
 
 /** Rules that ride along with any change: the dragon's needs. */
 function withUpkeep(l: Loaded, c: Change, minuteAfter: number): Change {
-  const need = R.chargeNeeds(c.state, minuteAfter, l.bonded);
+  const need = R.chargeNeeds(c.state, minuteAfter, l.bonded, careOf(perksOf(l)));
   return { ...c, state: need.state, events: [...(c.events || []), ...need.events] };
 }
 
@@ -293,13 +304,21 @@ async function settleFight(db: any, userId: string, b: Req): Promise<void> {
     const s0 = R.tick(l.state, l.minute);
     const out = C.settle(f, rand);
     let s: R.CampaignState = { ...s0, seq: s0.seq + 1, fight: { ...f, settled: true } };
-    if (f.dragon) s = { ...s, dragon: { name: f.dragon.name, hp: out.dragonHp ?? f.dragon.hp, maxHp: f.dragon.maxHp } };
+    if (f.dragon) s = { ...s, dragon: { name: f.dragon.name, hp: out.dragonHp ?? f.dragon.hp, maxHp: f.dragon.maxHp }, dragonWeb: out.dragonWeb };
     // What is left of the Ward after the fight is what the rider keeps.
     if (out.shield != null) s = { ...s, ward: Math.min(out.shield, s.wardCap) };
     const condition = out.condition;
     if (condition) s = { ...s, conditions: [...s.conditions.filter(c => c.name !== condition.name), { id: `fight-${s.seq}`, name: condition.name, penalty: condition.penalty, untilMinute: l.minute + condition.minutes }].slice(-8) };
     if (out.injury && s.injuries.length < 6) s = { ...s, injuries: [...s.injuries, { id: `fight-${s.seq}`, name: out.injury, severity: 1 }] };
     const events = out.events.map(e => ({ ...e }));
+    // A real fight won side by side is time with the dragon: it counts toward Kinship, and with Loyalty it earns trust.
+    if (out.together) {
+      s = R.earnKin(s, l.minute, 'fight').state;
+      const trust = perksOf(l).trustFight;
+      if (trust > 0) events.push(R.trustGain(trust, 'You won side by side: your dragon trusts you a little more', `trust:fight:${f.id}`));
+    }
+    // Devoted works once an in-game day.
+    if (out.rescued) s = { ...s, rescueDay: R.dayOf(l.minute) };
     // Sparring pays XP only for the first few matches of an in-game day.
     if (!f.lethal) {
       if (s.spars.n >= R.SPARS_REWARDED_PER_DAY) events[0].xp = 0;
@@ -333,9 +352,12 @@ async function fightStart(db: any, userId: string, b: Req): Promise<Record<strin
   if (open && open.status === 'active') return { ok: true, fight: C.viewOf(C.advance(open, Date.now(), rand), Date.now()) };
   const sheet = b.sheet || {};
   const arena = b.arena ?? 'ground';
-  const body = l.state.dragon && l.state.dragon.name === (b.dragonName || '') ? l.state.dragon : null;
+  const owned = perksOf(l);
+  // Devoted (the dragon carries its fallen rider out) works once an in-game day.
+  const perks = owned.dRescue && l.state.rescueDay === R.dayOf(l.minute) ? { ...owned, dRescue: false } : owned;
+  const kept = R.syncDragon(l.state, perks.dHp).dragon;
+  const body = kept && kept.name === (b.dragonName || '') ? kept : null;
   if (l.bonded && arena !== 'mat' && body && body.hp <= 0) return { ok: false, error: 'Your dragon cannot fight.' };
-  const perks = W.webBonuses(l.web);
   return fightMutate(db, userId, b, (state, _fight, now) => {
     const fight = C.startFight({
       web: perks, shield: R.syncWard(state, perks.wardMax).ward,
@@ -655,7 +677,7 @@ Deno.serve(async (req) => {
           const canRun = b.live === true && !!l.envelope && !l.traveling && !C.cleanFight(l.state.fight);
           const live = canRun ? R.liveTick(ticked, Date.now()) : R.livePause(ticked);
           const after = l.minute + live.advance;
-          const need = R.chargeNeeds(live.advance ? R.tick(live.state, after) : live.state, after, l.bonded);
+          const need = R.chargeNeeds(live.advance ? R.tick(live.state, after) : live.state, after, l.bonded, careOf(perksOf(l)));
           return live.state !== ticked || need.events.length ? { state: need.state, events: need.events, advance: live.advance } : null;
         });
         break;
@@ -678,7 +700,8 @@ Deno.serve(async (req) => {
         break;
       case 'rest':
         result = await mutate(db, userId, b, l => {
-          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short', W.webBonuses(l.web).wardShortRest, W.webBonuses(l.web).restEase);
+          const perks = perksOf(l);
+          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short', perks.wardShortRest, perks.restEase, { ...careOf(perks), bonded: l.bonded });
           if (!r.ok) return { error: (r as { error: string }).error };
           const after = r.setMinute ?? l.minute + r.advance;
           const state = R.rollEvent(r.state, after, b.place?.kind, false, rand);
@@ -687,11 +710,11 @@ Deno.serve(async (req) => {
         break;
       case 'pass_time':
         result = await mutate(db, userId, b, l => {
-          const r = R.passTime(l.state, l.minute, b.hours ?? 1, b.activity ?? 'wait', l.bonded, R.sheetProdigyTier(sheet));
+          const r = R.passTime(l.state, l.minute, b.hours ?? 1, b.activity ?? 'wait', l.bonded, R.sheetProdigyTier(sheet), careOf(perksOf(l)));
           if (!r.ok) return { error: (r as { error: string }).error };
           const after = l.minute + r.advance;
           const state = R.rollEvent(R.tick(r.state, after), after, b.place?.kind, false, rand);
-          return withUpkeep(l, { state, advance: r.advance, xpDelta: r.xpDelta, extra: { summary: r.summary } }, after);
+          return withUpkeep(l, { state, events: r.events, advance: r.advance, xpDelta: r.xpDelta, extra: { summary: r.summary } }, after);
         });
         break;
       case 'check':
@@ -699,6 +722,8 @@ Deno.serve(async (req) => {
           const r = R.resolveCheck(l.state, l.minute, sheet, {
             d20: b.d20 ?? 1, modifier: b.modifier ?? 0, dc: b.dc ?? 15, risk: b.risk ?? 'mental', label: b.label ?? 'Check', masteryXp: R.attunedXp(l.masteryXp, W.webBonuses(l.web).masteryRankUp), bond: l.bond,
             strainOff: W.webBonuses(l.web).backlashOff, webSignet: W.webBonuses(l.web).signetCheck, steadySignet: W.webBonuses(l.web).steadySignet,
+            // Saddle: what the rider draws from a bonded dragon on a check.
+            help: perksOf(l).help, steady: perksOf(l).helpSteady, soften: perksOf(l).helpSoften, noCrit: perksOf(l).helpNoCrit, looks: perksOf(l).secondLook,
           }, rand);
           const strained = R.raiseStrain(r.state, r.strain, strainLimitFor(b, l.web), 'A signet backlash pushed strain to the limit');
           return { state: strained.state, events: [...r.events, ...strained.events], extra: { check: { outcome: r.outcome, dc: r.dc, total: r.total, line: r.line, hp: r.hp, strain: r.strain, condition: r.condition?.name ?? null, injury: r.injury?.name ?? null } } };
