@@ -13,7 +13,7 @@ import { NEUTRAL_TEMPERAMENT, type Temperament, type UrgeCategory, type UrgeInte
 export type Talkativeness = 'chatty' | 'normal' | 'spoken-to';
 
 /** Unprompted lines run on this cheap model; direct answers keep the DM's model (Justin, 2026-11-17). */
-export const URGE_LINE_MODEL = 'google/gemini-2.5-flash';
+export const URGE_LINE_MODEL = 'google/gemini-3.7-flash';
 
 /** Every tunable number in one place. */
 export const URGE_RULES = {

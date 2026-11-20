@@ -144,7 +144,7 @@ describe('what the AI is told', () => {
   });
 
   it('unprompted lines run on the cheap model', () => {
-    expect(URGE_LINE_MODEL).toBe('google/gemini-2.5-flash');
+    expect(URGE_LINE_MODEL).toBe('google/gemini-3.7-flash');
   });
 });
 

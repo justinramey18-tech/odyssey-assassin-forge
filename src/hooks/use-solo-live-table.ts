@@ -365,7 +365,7 @@ SOLO TABLE CONTROLS: Only when this beat genuinely calls for a rider roll, appen
       const reply = await voiceRef.current(e.name, said, social ? {
         skill: social.skill, opposingSkillLabel: social.opposingSkillLabel, playerTotal: social.playerRoll.total,
         npcTotal: social.npcRoll.total, outcome: social.outcome, rollBlockText: social.rollBlockText,
-      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true, controls, unprompted && !moment.keyLine ? URGE_LINE_MODEL : undefined,
+      } : undefined, `${mindFor(e)}\n\n${mindExtra}`, true, controls, URGE_LINE_MODEL,
       deliveryForRef.current(e, { whisper, insight: social?.skill === 'insight' && social.outcome === 'success', moment }));
       // The private note and any action are taken out here: they are never shown or sent to the DM as words.
       const turn = readTurn(reply || '', Date.now());

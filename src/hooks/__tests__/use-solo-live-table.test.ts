@@ -284,7 +284,7 @@ describe('urge meter: NPCs speak on their own', () => {
     await act(async () => { await h.result.current.postRiderLine('Jack, you are useless', true); });
     await waitFor(() => expect(h.asked.length).toBe(1));
     expect(h.asked[0].name).toBe('Jack Barlowe');
-    expect(h.asked[0].model).toBe('google/gemini-2.5-flash');
+    expect(h.asked[0].model).toBe('google/gemini-3.7-flash');
     // An unprompted line never carries the roll or join controls.
     expect(h.asked[0].controls).toBeUndefined();
     expect(h.asked[0].mind).toContain('WHY YOU SPEAK');
@@ -331,7 +331,7 @@ describe('urge meter: NPCs speak on their own', () => {
     act(() => h.result.current.inviteNpc('trina'));
     await waitFor(() => expect(h.asked.length).toBe(1));
     expect(h.asked[0].name).toBe('Trina');
-    expect(h.asked[0].model).toBe('google/gemini-2.5-flash');
+    expect(h.asked[0].model).toBe('google/gemini-3.7-flash');
   });
 
   it('an unprompted line can wake one reaction, and the reaction wakes nobody (no chains)', async () => {
@@ -356,7 +356,7 @@ describe('urge meter: NPCs speak on their own', () => {
     vi.setSystemTime(Date.now() + 60_000);
     await act(async () => { await h.result.current.onSendToNpcs('Jack, you are useless', ['jack-barlowe']); });
     await waitFor(() => expect(h.asked.length).toBe(1));
-    expect(h.asked[0].model).toBeUndefined();
+    expect(h.asked[0].model).toBe('google/gemini-3.7-flash');
     // A direct answer keeps Lovable's roll and join controls.
     expect(h.asked[0].controls).toContain('SOLO TABLE CONTROLS');
     await new Promise(r => setTimeout(r, 40));
@@ -700,7 +700,7 @@ describe('Tier 3 and huddles: memories, the judge, and NPCs talking among themse
     expect(h.asked[0].mind).toContain('## HUDDLE');
     expect(h.asked[0].mind).toContain('Start it');
     expect(h.asked[3].mind).toContain('Let it drop now');
-    expect(h.asked.every(a => a.model === 'google/gemini-2.5-flash' && a.controls === undefined)).toBe(true);
+    expect(h.asked.every(a => a.model === 'google/gemini-3.7-flash' && a.controls === undefined)).toBe(true);
     // The finished conversation can be sealed in one tap.
     expect(h.result.current.huddle).toMatchObject({ active: false, canSeal: true });
     act(() => h.result.current.huddleSeal());
@@ -1099,14 +1099,14 @@ describe('delivery: voice, the private note, sameness and actions', () => {
     vi.setSystemTime(Date.now() + 60_000);
     await act(async () => { await h.result.current.postRiderLine('Trina, remember the Gauntlet and those rations?', true); });
     await waitFor(() => expect(h.asked.length).toBe(1));
-    expect(h.asked[0].model).toBeUndefined();
+    expect(h.asked[0].model).toBe('google/gemini-3.7-flash');
     h.unmount();
     const small = setupDelivery({ story: `${jackE.name} smirks from the doorway.` });
     act(() => small.result.current.setTableOpen(true));
     vi.setSystemTime(Date.now() + 60_000);
     await act(async () => { await small.result.current.postRiderLine('Jack, you are useless', true); });
     await waitFor(() => expect(small.asked.length).toBe(1));
-    expect(small.asked[0].model).toBe('google/gemini-2.5-flash');
+    expect(small.asked[0].model).toBe('google/gemini-3.7-flash');
   });
 });
 
