@@ -171,6 +171,10 @@ export interface Pending {
 
   clash: M.Clash | null; warded?: boolean;
 
+  /** Wingwall (progression web): the shielded blow deals a quarter instead of half. */
+
+  wardedDeep?: boolean;
+
 }
 
 export interface Enemy {
@@ -217,27 +221,63 @@ export interface Fight {
 
   web?: FightPerks;
 
-}
+  /** Once-a-fight perks already used (see once()), and whether the dragon carried its fallen rider out (Loyalty, Devoted). */
 
+  used?: Record<string, boolean>;
 
-
-/** The progression web's fight perks (see web.ts). Every number is 0 and every flag false for a rider who owns none. */
-
-export interface FightPerks {
-
-  wardMax: number; wardFightRefill: boolean; regenTurn: number; regenWard: boolean;
-
-  adrDamage: number; adrHit: number; adrDouble: boolean; adrHasteMs: number;
-
-  bloodPrice: number; heartfire: boolean;
-
-  /** Channel, Power: flat damage and extra dice on a signet strike, and 1 strain back when it drops an enemy. */
-
-  sigDamage: number; sigDice: number; sigKillRefund: boolean;
+  rescued?: boolean;
 
 }
 
-/** Perks come from the server's own ledger, but a stored fight is still untrusted JSON: clamp everything. */
+/** The progression web's fight perks (see web.ts for what each one is): every number with the most a stored fight may hold.
+
+ *  Every number is 0 and every flag false for a rider who owns none. */
+
+const PERK_TOP = {
+
+  wardMax: 100, regenTurn: 10, adrDamage: 10, adrHit: 5, adrHasteMs: 4000, bloodPrice: 20, sigDamage: 20, sigDice: 6,
+
+  wpnDamage: 20, wpnHit: 10, wpnDice: 4, wpnFinish: 4, critFrom: 20, graze: 5,
+
+  tempoMs: 4000, foeDelayMs: 10000, fightAc: 5, flee: 10, missHasteMs: 3000,
+
+  mountHit: 5, mountAc: 5, mountDamage: 10, mountDice: 3, mountGuard: 5, mountHasteMs: 4000,
+
+  dHp: 300, dMendTurn: 20, dAtk: 10, dBite: 30, dBiteDice: 6, dCritFrom: 20, dFireDice: 8,
+
+  dTempoMs: 4000, dOpenMs: 6000, dHarryMs: 5000, dFoeDelayMs: 10000, dFlee: 10, dAirHit: 5, dAirBite: 10,
+
+  dAc: 10, dSoak: 10, dShieldChance: 45, dShieldBond: 100,
+
+} as const;
+
+const PERK_FLAGS = [
+
+  'wardFightRefill', 'regenWard', 'adrDouble', 'heartfire', 'sigKillRefund', 'openReady', 'firstCrit', 'blur', 'dodgeFirst',
+
+  'dSecondWind', 'dWinMend', 'dLastStand', 'dCleave', 'dFireEager', 'dFireFast', 'dFireOpen', 'dSureFlee',
+
+  'dBrace', 'dFirstHit', 'dShieldDeep', 'dShieldFree', 'dAvenge', 'dTakeBlow', 'dRescue',
+
+] as const;
+
+export type FightPerks = { [K in keyof typeof PERK_TOP]: number } & { [K in typeof PERK_FLAGS[number]]: boolean };
+
+function readPerks(r: Record<string, unknown>): FightPerks {
+
+  const p: Record<string, number | boolean> = {};
+
+  for (const key of Object.keys(PERK_TOP) as Array<keyof typeof PERK_TOP>) p[key] = clamp(int(r[key]), 0, PERK_TOP[key]);
+
+  for (const key of PERK_FLAGS) p[key] = r[key] === true;
+
+  return p as unknown as FightPerks;
+
+}
+
+export const NO_PERKS: FightPerks = readPerks({});
+
+/** Perks come from the server's own ledger, but a stored fight is still untrusted JSON: clamp everything. Null when the rider has none. */
 
 export function cleanPerks(raw: unknown): FightPerks | null {
 
@@ -245,21 +285,27 @@ export function cleanPerks(raw: unknown): FightPerks | null {
 
   if (!r) return null;
 
-  const p: FightPerks = {
+  const p = readPerks(r);
 
-    wardMax: clamp(int(r.wardMax), 0, 100), wardFightRefill: r.wardFightRefill === true,
+  const any = Object.values(p as unknown as Record<string, number | boolean>).some(v => v === true || (typeof v === 'number' && v > 0));
 
-    regenTurn: clamp(int(r.regenTurn), 0, 10), regenWard: r.regenWard === true,
+  return any ? p : null;
 
-    adrDamage: clamp(int(r.adrDamage), 0, 10), adrHit: clamp(int(r.adrHit), 0, 5), adrDouble: r.adrDouble === true, adrHasteMs: clamp(int(r.adrHasteMs), 0, 4000),
+}
 
-    bloodPrice: clamp(int(r.bloodPrice), 0, 20), heartfire: r.heartfire === true,
+/** The fight's perks, whole: a fight saved before a perk existed reads that perk as off. */
 
-    sigDamage: clamp(int(r.sigDamage), 0, 20), sigDice: clamp(int(r.sigDice), 0, 6), sigKillRefund: r.sigKillRefund === true,
+const perksOf = (f: Fight): FightPerks => (f.web ? { ...NO_PERKS, ...f.web } : NO_PERKS);
 
-  };
+/** A once-a-fight perk: true the first time it is asked for in a fight, false ever after. */
 
-  return p.wardMax || p.regenTurn || p.adrDamage || p.adrHit || p.adrHasteMs || p.bloodPrice || p.sigDamage || p.sigDice || p.sigKillRefund ? p : null;
+function once(f: Fight, key: string): boolean {
+
+  if (f.used?.[key]) return false;
+
+  f.used = { ...(f.used ?? {}), [key]: true };
+
+  return true;
 
 }
 
@@ -281,6 +327,10 @@ export function adrenaline(f: Fight): { level: 0 | 1 | 2; damage: number; hit: n
 
 export const RIDER_COOLDOWN_FLOOR_MS = 3000;
 
+/** Wing never shortens the wait between the dragon's turns below this. */
+
+export const DRAGON_INTERVAL_FLOOR_MS = 6000;
+
 function say(f: Fight, at: number, text: string, tone: Tone = 'info', flash?: { targetId: string; amount: number; kind: 'hit' | 'heal' }) {
 
   f.seq += 1;
@@ -292,12 +342,26 @@ function say(f: Fight, at: number, text: string, tone: Tone = 'info', flash?: { 
 }
 
 /** Tags the first log line written since `from` with who acted and how. It changes no number and no outcome. */
+
 function mark(f: Fight, from: number, by: FightActor, move: FightMove) {
+
   const line = f.log.find(l => l.n > from && !l.by);
+
   if (line) { line.by = by; line.move = move; }
+
 }
 
 const up = (e: { status: string; hp: number }) => e.status === 'up' && e.hp > 0;
+
+const dragonUp = (f: Fight) => !!f.dragon && up(f.dragon);
+
+/** The rider's AC right now: Evasion always, Wing Cover while the dragon is up. */
+
+const riderAc = (f: Fight) => { const k = perksOf(f); return f.rider.ac + k.fightAc + (dragonUp(f) ? k.mountAc : 0); };
+
+/** Sidestep (Tempo): an enemy's miss brings the rider's next move closer. */
+
+function sidestep(f: Fight, at: number) { const ms = perksOf(f).missHasteMs; if (ms > 0) f.rider.readyAt = Math.max(at, f.rider.readyAt - ms); }
 
 export const RIDER_ID = 'rider';
 
@@ -393,15 +457,19 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
 
   let dragon: DragonFighter | null = null;
 
+  // The dragon's half of the progression web: more health (Vigor), armor (Scale), a surer strike (Fang and Flame) and an earlier first move (Wing).
+
+  const k0 = cleanPerks(input.web) ?? NO_PERKS;
+
   if (input.dragon && arena !== 'mat') {
 
     const base = dragonBody(level, input.dragon.bond);
 
-    const body = { ...base, maxHp: Math.round(base.maxHp * P.prodigyDragonHpMultiplier(pt)) };
+    const body = { maxHp: Math.round(base.maxHp * P.prodigyDragonHpMultiplier(pt)) + k0.dHp, ac: base.ac + k0.dAc, atk: base.atk + k0.dAtk + (arena === 'air' ? k0.dAirHit : 0) };
 
     const dhp = input.dragon.hp == null ? body.maxHp : clamp(int(input.dragon.hp, body.maxHp), 0, body.maxHp);
 
-    if (dhp > 0) dragon = { name: str(input.dragon.name, 60, 'Your dragon'), hp: dhp, maxHp: body.maxHp, startHp: dhp, ac: body.ac, atk: body.atk, bond: input.dragon.bond, nextAt: now + 6000, turns: 0, status: 'up' };
+    if (dhp > 0) dragon = { name: str(input.dragon.name, 60, 'Your dragon'), hp: dhp, maxHp: body.maxHp, startHp: dhp, ac: body.ac, atk: body.atk, bond: input.dragon.bond, nextAt: now + Math.max(0, 6000 - k0.dOpenMs), turns: 0, status: 'up' };
 
   }
 
@@ -432,6 +500,14 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
     }
 
   }
+
+  // Tempo (Initiative) and Wing (Stormrider): the first seconds of the fight.
+
+  if (k0.openReady) f.rider.readyAt = now;
+
+  const late = k0.foeDelayMs + (dragon ? k0.dFoeDelayMs : 0);
+
+  if (late > 0) for (const e of f.enemies) e.nextAt += late;
 
   say(f, now, `${count > 1 ? `${count} ${baseName}s` : baseName} ${count > 1 ? 'want' : 'wants'} to fight!`, 'warn');
 
@@ -493,6 +569,20 @@ function checkEnd(f: Fight, at: number) {
 
   if (f.rider.hp <= 0) {
 
+    // Loyalty (Devoted): the dragon carries its fallen rider out of a real fight.
+
+    if (f.lethal && perksOf(f).dRescue && f.dragon && up(f.dragon)) {
+
+      f.rider.hp = 1; f.rescued = true;
+
+      say(f, at, `${f.dragon.name} snatches you up and carries you clear. You live.`, 'good');
+
+      finish(f, at, 'fled');
+
+      return;
+
+    }
+
     if (f.lethal) { f.riderDown = true; say(f, at, `${f.rider.name} goes down!`, 'warn'); }
 
     else { f.rider.hp = 1; say(f, at, `${f.rider.name} is beaten and the match is called.`, 'warn'); }
@@ -507,8 +597,6 @@ function checkEnd(f: Fight, at: number) {
 
 }
 
-
-
 function hurtEnemy(f: Fight, at: number, e: Enemy, amount: number) {
 
   const lost = Math.min(e.hp, Math.max(0, amount));
@@ -521,11 +609,13 @@ function hurtEnemy(f: Fight, at: number, e: Enemy, amount: number) {
 
 }
 
-/** Damage to the rider goes through the Ward first. Returns the HP lost. */
+/** Damage to the rider: Saddle takes some off while the dragon is up, then the Ward soaks, then HP. Returns the HP lost. */
 
 function hurtRider(f: Fight, amount: number, at?: number) {
 
-  let left = Math.max(0, amount);
+  const k = perksOf(f);
+
+  let left = Math.max(0, amount - (dragonUp(f) ? k.mountGuard : 0));
 
   const soaked = Math.min(f.rider.shield ?? 0, left);
 
@@ -539,13 +629,75 @@ function hurtRider(f: Fight, amount: number, at?: number) {
 
   }
 
-  const lost = Math.min(f.rider.hp, left); f.rider.hp -= lost; return lost;
+  // Loyalty (Take the Blow): once a fight, a hit that would drop the rider lands on the dragon instead.
+
+  if (left > 0 && left >= f.rider.hp && k.dTakeBlow && f.dragon && up(f.dragon) && once(f, 'blow')) {
+
+    const taken = hurtDragon(f, left, at);
+
+    if (at != null) say(f, at, `${f.dragon.name} takes the blow meant for you (${taken}).`, 'good', { targetId: DRAGON_ID, amount: taken, kind: 'hit' });
+
+    return 0;
+
+  }
+
+  const lost = Math.min(f.rider.hp, left); f.rider.hp -= lost;
+
+  // Loyalty (Vengeance): once a fight, the dragon strikes at once when its rider falls to half HP or less.
+
+  if (lost > 0 && at != null && k.dAvenge && f.dragon && up(f.dragon) && f.rider.hp > 0 && f.rider.hp * 2 <= f.rider.maxHp && once(f, 'avenge')) {
+
+    f.dragon.nextAt = at;
+
+    say(f, at, `${f.dragon.name} roars and turns on your attacker.`, 'good');
+
+  }
+
+  return lost;
 
 }
 
-function hurtDragon(f: Fight, amount: number) { if (!f.dragon) return 0; const lost = Math.min(f.dragon.hp, Math.max(0, amount)); f.dragon.hp -= lost; return lost; }
+/** Damage to the dragon, through its armor (Scale) and its last reserves (Vigor). big: a telegraphed move. Returns the HP lost. */
 
+function hurtDragon(f: Fight, amount: number, at?: number, big = false) {
 
+  const g = f.dragon;
+
+  if (!g) return 0;
+
+  const k = perksOf(f);
+
+  let left = Math.max(0, amount);
+
+  if (left > 0 && k.dFirstHit && once(f, 'firstHit')) { if (at != null) say(f, at, `Ironhide: the blow glances off ${g.name}.`, 'good'); return 0; }
+
+  if (big && k.dBrace) left = Math.ceil(left / 2);
+
+  left = Math.max(0, left - k.dSoak);
+
+  let lost = Math.min(g.hp, left);
+
+  if (g.hp > 0 && lost >= g.hp && k.dLastStand && once(f, 'stand')) { lost = g.hp - 1; if (at != null) say(f, at, `Unbroken: ${g.name} will not fall.`, 'good'); }
+
+  g.hp -= lost;
+
+  // Saddle (Shared Fury): a hit on the dragon brings the rider's next move closer.
+
+  if (lost > 0 && at != null && k.mountHasteMs > 0) f.rider.readyAt = Math.max(at, f.rider.readyAt - k.mountHasteMs);
+
+  if (g.hp > 0 && g.hp * 4 <= g.maxHp && k.dSecondWind && once(f, 'wind')) {
+
+    const back = Math.min(g.maxHp - g.hp, Math.ceil(g.maxHp / 3));
+
+    g.hp += back;
+
+    if (at != null) say(f, at, `Second Wind: ${g.name} recovers ${back}.`, 'good', { targetId: DRAGON_ID, amount: back, kind: 'heal' });
+
+  }
+
+  return lost;
+
+}
 
 function enemyTurn(f: Fight, e: Enemy, at: number, rand: Rand) {
 
@@ -587,7 +739,7 @@ function enemyTurn(f: Fight, e: Enemy, at: number, rand: Rand) {
 
     if (!a.hit) { say(f, at, `${e.name} strikes at ${f.dragon.name} and misses.`, 'muted'); return; }
 
-    const lost = hurtDragon(f, rollDice(e.dice, rand, a.crit));
+    const lost = hurtDragon(f, rollDice(e.dice, rand, a.crit), at);
 
     say(f, at, `${e.name} hits ${f.dragon.name} for ${lost}${a.crit ? ' (critical)' : ''}.`, 'warn', { targetId: DRAGON_ID, amount: lost, kind: 'hit' });
 
@@ -595,17 +747,19 @@ function enemyTurn(f: Fight, e: Enemy, at: number, rand: Rand) {
 
   }
 
-  const a = attackRoll(rand, e.atk, f.rider.ac);
+  const a = attackRoll(rand, e.atk, riderAc(f));
 
-  if (!a.hit) { say(f, at, `${e.name} attacks and misses.`, 'muted'); return; }
+  if (!a.hit) { say(f, at, `${e.name} attacks and misses.`, 'muted'); sidestep(f, at); return; }
+
+  // Untouchable (Tempo): the first hit of the fight that would land on the rider misses instead.
+
+  if (perksOf(f).dodgeFirst && once(f, 'dodge')) { say(f, at, `Untouchable: you slip ${e.name}'s blow.`, 'good'); return; }
 
   const lost = hurtRider(f, rollDice(e.dice, rand, a.crit), at);
 
   say(f, at, `${e.name} hits you for ${lost}${a.crit ? ' (critical)' : ''}.`, 'warn', { targetId: RIDER_ID, amount: lost, kind: 'hit' });
 
 }
-
-
 
 function landStrike(f: Fight, e: Enemy, at: number, rand: Rand) {
 
@@ -623,7 +777,7 @@ function landStrike(f: Fight, e: Enemy, at: number, rand: Rand) {
 
     const a = attackRoll(rand, e.atk, f.dragon.ac);
 
-    if (a.hit) { const lost = hurtDragon(f, base); say(f, at, `${p.label} hits ${f.dragon.name} for ${lost}.`, 'warn', { targetId: DRAGON_ID, amount: lost, kind: 'hit' }); }
+    if (a.hit) { const lost = hurtDragon(f, base, at, true); say(f, at, `${p.label} hits ${f.dragon.name} for ${lost}.`, 'warn', { targetId: DRAGON_ID, amount: lost, kind: 'hit' }); }
 
     else say(f, at, `${p.label} misses ${f.dragon.name}.`, 'muted');
 
@@ -647,9 +801,13 @@ function landStrike(f: Fight, e: Enemy, at: number, rand: Rand) {
 
   let amount = Math.round(base * scale);
 
-  if (p.warded) amount = Math.round(amount / 2);
+  if (p.warded) amount = Math.round(amount / (p.wardedDeep ? 4 : 2));
 
-  if (amount <= 0) { const before = f.seq; say(f, at, `PERFECT! You turn ${p.label} aside.`, 'good'); mark(f, before, 'rider', 'counter'); }
+  const slipped = amount > 0 && perksOf(f).dodgeFirst && once(f, 'dodge');
+
+  if (slipped) say(f, at, `Untouchable: you slip ${p.label}.`, 'good');
+
+  else if (amount <= 0) { const before = f.seq; say(f, at, `PERFECT! You turn ${p.label} aside.`, 'good'); mark(f, before, 'rider', 'counter'); }
 
   else {
 
@@ -687,7 +845,25 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   const pt = f.prodigy ?? 0;
 
-  g.nextAt = at + P.prodigyDragonIntervalMs(pt, DRAGON_INTERVAL_MS);
+  const k = perksOf(f);
+
+  // Wing: a shorter wait between its turns, never below the floor.
+
+  const interval = P.prodigyDragonIntervalMs(pt, DRAGON_INTERVAL_MS);
+
+  g.nextAt = at + (k.dTempoMs > 0 ? Math.max(Math.min(interval, DRAGON_INTERVAL_FLOOR_MS), interval - k.dTempoMs) : interval);
+
+  // Vigor (Mending): a little health back on each of its turns.
+
+  if (k.dMendTurn > 0 && g.hp < g.maxHp) {
+
+    const back = Math.min(g.maxHp - g.hp, k.dMendTurn);
+
+    g.hp += back;
+
+    say(f, at, `${g.name} mends ${back}.`, 'good', { targetId: DRAGON_ID, amount: back, kind: 'heal' });
+
+  }
 
   const foes = f.enemies.filter(up);
 
@@ -695,33 +871,47 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   const markFrom = f.seq;
 
-  // A deep bond: the dragon puts itself between its rider and a blow already on its way.
+  // A deep bond: the dragon puts itself between its rider and a blow already on its way. Scale (Guardian) makes it surer.
 
   const threat = f.enemies.find(e => up(e) && e.pending && e.pending.target === 'rider' && !e.pending.warded);
 
-  if (threat?.pending && g.bond >= P.prodigyShieldBond(pt) && rand() < 0.5) {
+  const shieldBond = Math.min(P.prodigyShieldBond(pt), k.dShieldBond > 0 ? k.dShieldBond : 999);
+
+  if (threat?.pending && g.bond >= shieldBond && rand() < 0.5 + k.dShieldChance / 100) {
 
     threat.pending.warded = true;
+
+    if (k.dShieldDeep) threat.pending.wardedDeep = true;
 
     say(f, at, `${g.name} throws a wing between you and ${threat.name}.`, 'good');
 
     mark(f, markFrom, 'dragon', 'guard');
 
-    return;
+    if (!k.dShieldFree) return;
 
   }
 
-  if (g.turns % P.prodigyFireEvery(pt) === 0 && (foes.length >= 2 || rand() < 0.5)) {
+  const every = k.dFireFast ? Math.min(2, P.prodigyFireEvery(pt)) : P.prodigyFireEvery(pt);
+
+  const fireDue = g.turns % every === 0 || (k.dFireOpen && g.turns === 1);
+
+  if (fireDue && (foes.length >= 2 || k.dFireEager || rand() < 0.5)) {
+
+    const fireFrom = f.seq;
 
     say(f, at, `${g.name} breathes fire!`, 'good');
 
-    mark(f, markFrom, 'dragon', 'fire');
+    mark(f, fireFrom, 'dragon', 'fire');
 
     for (const e of foes) {
 
-      const full = rollDice({ count: 3, sides: 8, bonus: 0 }, rand);
+      const full = rollDice({ count: 3 + k.dFireDice, sides: 8, bonus: 0 }, rand);
 
-      const lost = hurtEnemy(f, at, e, attackRoll(rand, g.atk, e.ac).hit ? full : Math.floor(full / 2));
+      // Inferno: no enemy half-avoids the fire.
+
+      const caught = attackRoll(rand, g.atk, e.ac).hit || k.dFireOpen;
+
+      const lost = hurtEnemy(f, at, e, caught ? full : Math.floor(full / 2));
 
       if (up(e)) say(f, at, `${e.name} is burned for ${lost}.`, 'good', { targetId: e.id, amount: lost, kind: 'hit' });
 
@@ -731,23 +921,49 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   }
 
+  /** One bite, tagged for the phone's animations (a miss or a critical is a bite, any other hit a claw). True when it dropped its target. */
+
+  const bite = (target: Enemy): boolean => {
+
+    const biteFrom = f.seq;
+
+    const a = attackRoll(rand, g.atk, target.ac);
+
+    if (!a.hit) { say(f, at, `${g.name} snaps at ${target.name} and misses.`, 'muted'); mark(f, biteFrom, 'dragon', 'bite'); return false; }
+
+    const crit = a.crit || (k.dCritFrom > 0 && a.d20 >= k.dCritFrom);
+
+    const lost = hurtEnemy(f, at, target, rollDice({ count: 2 + k.dBiteDice, sides: 8, bonus: 4 + k.dBite + (f.arena === 'air' ? k.dAirBite : 0) }, rand, crit));
+
+    if (up(target)) say(f, at, `${g.name} tears into ${target.name} for ${lost}${crit ? ' (critical)' : ''}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
+
+    mark(f, biteFrom, 'dragon', crit ? 'bite' : 'claw');
+
+    if (!up(target)) return true;
+
+    // Wing (Swoop): the bitten enemy's next move comes later (a move already winding up is not delayed).
+
+    if (k.dHarryMs > 0 && !target.pending) target.nextAt += k.dHarryMs;
+
+    return false;
+
+  };
+
   // Otherwise it goes for whoever is winding up at its rider, else the weakest.
 
   const target = threat ?? foes.slice().sort((a, b) => a.hp - b.hp)[0];
 
-  const a = attackRoll(rand, g.atk, target.ac);
+  if (bite(target) && k.dCleave) {
 
-  if (!a.hit) { say(f, at, `${g.name} snaps at ${target.name} and misses.`, 'muted'); mark(f, markFrom, 'dragon', 'bite'); return; }
+    // Savage (Fang): a kill frees it to bite again at once.
 
-  const lost = hurtEnemy(f, at, target, rollDice({ count: 2, sides: 8, bonus: 4 }, rand, a.crit));
+    const next = f.enemies.filter(up).sort((a, b) => a.hp - b.hp)[0];
 
-  if (up(target)) say(f, at, `${g.name} tears into ${target.name} for ${lost}${a.crit ? ' (critical)' : ''}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
+    if (next) { say(f, at, `Savage: ${g.name} turns on ${next.name}.`, 'good'); bite(next); }
 
-  mark(f, markFrom, 'dragon', a.crit ? 'bite' : 'claw');
+  }
 
 }
-
-
 
 /** The soonest moment anything is due; NaN when the fight is over. */
 
@@ -865,6 +1081,12 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
   const rush = adr.damage ? ` (adrenaline +${adr.damage})` : '';
 
+  const k = perksOf(f);
+
+  const mounted = dragonUp(f);
+
+  const ride = mounted && k.mountDamage ? ` (mounted +${k.mountDamage})` : '';
+
   if (a.type === 'attack') {
 
     if (!target) return { ok: false, error: 'Pick an enemy that is still standing.' };
@@ -873,15 +1095,35 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const w = f.rider.weapons.find(x => x.name.toLowerCase() === wanted) ?? f.rider.weapons[0] ?? { name: 'Unarmed strike', dice: { count: 1, sides: 4, bonus: 1 } };
 
-    const r = attackRoll(rand, f.rider.atk + adr.hit, target.ac);
+    const r = attackRoll(rand, f.rider.atk + adr.hit + k.wpnHit + (mounted ? k.mountHit : 0), target.ac);
 
-    if (!r.hit) say(f, now, `You swing ${w.name} at ${target.name} and miss (${r.total} vs AC ${target.ac}).`, 'muted');
+    // Blade: flat damage, extra dice (more against a wounded enemy), a wider critical range, and a near miss that still lands.
 
-    else {
+    const flat = adr.damage + k.wpnDamage + (mounted ? k.mountDamage : 0);
 
-      const lost = hurtEnemy(f, now, target, rollDice(w.dice, rand, r.crit) + adr.damage);
+    const dice: Dice = { ...w.dice, count: w.dice.count + k.wpnDice + (mounted ? k.mountDice : 0) + (target.hp * 2 <= target.maxHp ? k.wpnFinish : 0) };
 
-      if (up(target)) say(f, now, `${w.name} hits ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}${rush}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
+    const edge = k.wpnDamage ? ` (Blade +${k.wpnDamage})` : '';
+
+    if (!r.hit) {
+
+      if (k.graze > 0 && r.d20 !== 1 && r.total + k.graze >= target.ac) {
+
+        const lost = hurtEnemy(f, now, target, Math.max(1, Math.floor((rollDice(dice, rand) + flat) / 2)));
+
+        if (up(target)) say(f, now, `${w.name} glances off ${target.name} for ${lost} (${r.total} vs AC ${target.ac}).`, 'info', { targetId: target.id, amount: lost, kind: 'hit' });
+
+      } else say(f, now, `You swing ${w.name} at ${target.name} and miss (${r.total} vs AC ${target.ac}).`, 'muted');
+
+    } else {
+
+      // First Blood (Tempo): the first hit of the fight is critical.
+
+      const crit = r.crit || (k.critFrom > 0 && r.d20 >= k.critFrom) || (k.firstCrit && once(f, 'firstCrit'));
+
+      const lost = hurtEnemy(f, now, target, rollDice(dice, rand, crit) + flat);
+
+      if (up(target)) say(f, now, `${w.name} hits ${target.name} for ${lost}${crit ? ' (critical)' : ''}${rush}${edge}${ride}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
 
     }
 
@@ -919,13 +1161,15 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     markFrom = f.seq;
 
-    const bonus = proficiency(f.rider.level) + 3 + Math.min(f.rider.masteryRank, 3) + adr.hit;
+    const bonus = proficiency(f.rider.level) + 3 + Math.min(f.rider.masteryRank, 3) + adr.hit + (mounted ? k.mountHit : 0);
 
     const r = attackRoll(rand, bonus, target.ac);
 
+    const crit = r.crit || (r.hit && k.firstCrit && once(f, 'firstCrit'));
+
     const heart = blood > 0 && f.web?.heartfire ? 2 : 0;
 
-    const full = rollDice({ count: intensity + P.prodigySignetDice(f.prodigy ?? 0) + heart + (f.web?.sigDice ?? 0), sides: 6, bonus: f.rider.masteryRank }, rand, r.crit) + adr.damage + (f.web?.sigDamage ?? 0);
+    const full = rollDice({ count: intensity + P.prodigySignetDice(f.prodigy ?? 0) + heart + (f.web?.sigDice ?? 0) + (mounted ? k.mountDice : 0), sides: 6, bonus: f.rider.masteryRank }, rand, crit) + adr.damage + (f.web?.sigDamage ?? 0) + (mounted ? k.mountDamage : 0);
 
     f.strainSpent += strain; f.signetUses += 1;
 
@@ -937,7 +1181,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
       if (!up(target) && f.web?.sigKillRefund && strain > 0) { strain -= 1; say(f, now, 'Stormheart: the kill gives 1 Signet Strain back.', 'good'); }
 
-      if (up(target)) say(f, now, `Your signet strikes ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}${heart ? ' (heartfire)' : ''}${rush}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
+      if (up(target)) say(f, now, `Your signet strikes ${target.name} for ${lost}${crit ? ' (critical)' : ''}${heart ? ' (heartfire)' : ''}${rush}${ride}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
 
     } else if (intensity >= 5) {
 
@@ -965,11 +1209,11 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     if (!f.lethal) return { ok: false, error: 'This is a match on the mat. Yield instead.' };
 
-    const dragonUp = !!f.dragon && up(f.dragon);
+    // Tempo (Evasion) and Wing (Flight) add to the roll; Skyborne makes a dragon-borne escape certain.
 
-    const roll = d(20, rand) + proficiency(f.rider.level) + 2 + (dragonUp ? 4 : 0) + P.prodigyFleeBonus(f.prodigy ?? 0);
+    const roll = d(20, rand) + proficiency(f.rider.level) + 2 + (mounted ? 4 + k.dFlee : 0) + P.prodigyFleeBonus(f.prodigy ?? 0) + k.flee;
 
-    if (roll >= FLEE_DC[f.challenge]) { say(f, now, dragonUp ? `${f.dragon?.name ?? 'Your dragon'} hauls you clear. You get away.` : 'You break away and escape.', 'info'); finish(f, now, 'fled'); }
+    if (roll >= FLEE_DC[f.challenge] || (mounted && k.dSureFlee)) { say(f, now, mounted ? `${f.dragon?.name ?? 'Your dragon'} hauls you clear. You get away.` : 'You break away and escape.', 'info'); finish(f, now, 'fled'); }
 
     else say(f, now, `You try to break away and can't (${roll} vs ${FLEE_DC[f.challenge]}).`, 'warn');
 
@@ -997,11 +1241,19 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
   // Adrenaline is judged on the HP the rider has after the move (blood paid counts).
 
-  const cooldown = P.prodigyRiderCooldownMs(f.prodigy ?? 0, RIDER_COOLDOWN_MS);
+  // Tempo shortens the wait; neither it nor adrenaline takes it below the floor.
+
+  const base = P.prodigyRiderCooldownMs(f.prodigy ?? 0, RIDER_COOLDOWN_MS);
+
+  const cooldown = k.tempoMs > 0 ? Math.max(Math.min(base, RIDER_COOLDOWN_FLOOR_MS), base - k.tempoMs) : base;
 
   const haste = adrenaline(f).hasteMs;
 
   f.rider.readyAt = now + (haste > 0 ? Math.max(Math.min(cooldown, RIDER_COOLDOWN_FLOOR_MS), cooldown - haste) : cooldown);
+
+  // Blur (Tempo): no wait after the first move of the fight.
+
+  if (k.blur && f.status === 'active' && once(f, 'blur')) { f.rider.readyAt = now; say(f, now, 'Blur: you can act again at once.', 'good'); }
 
   checkEnd(f, now);
 
@@ -1045,11 +1297,15 @@ export function clashTap(f: Fight, now: number, enemyId: string, side: unknown, 
 
 
 
-/** shield: what is left of the rider's Ward when the fight ends (null: the rider has none). */
+/** shield: what is left of the rider's Ward when the fight ends (null: the rider has none).
+
+ *  together: a real fight won with the dragon still standing (it counts toward Kinship and, with Loyalty, trust).
+
+ *  rescued: the dragon carried its fallen rider out. dragonWeb: the Vigor health inside the dragon's max HP in this fight. */
 
 export interface Settlement {
 
-  shield: number | null;
+  shield: number | null; together: boolean; rescued: boolean; dragonWeb: number;
 
   events: RuleEvent[]; dragonHp: number | null; condition: { name: string; penalty: number; minutes: number } | null;
 
@@ -1093,13 +1349,19 @@ export function settle(f: Fight, rand: Rand): Settlement {
 
   const g = f.dragon;
 
+  // Vigor (Victor's Rest): a dragon that won mends a fifth of its health.
+
+  const mended = won && g && g.hp > 0 && perksOf(f).dWinMend ? Math.min(g.maxHp - g.hp, Math.ceil(g.maxHp / 5)) : 0;
+
   const bits = [
 
     `${word} against ${foes} (${f.lethal ? 'a real fight' : 'a match on the mat'}, ${secs} seconds)`,
 
     `${f.rider.name} ${net < 0 ? `took ${-net} damage` : net > 0 ? `ended ${net} HP up` : 'took no lasting damage'} and stands at ${Math.max(0, f.rider.hp)}/${f.rider.maxHp} HP`,
 
-    g ? `${g.name} ${g.hp < g.startHp ? `took ${g.startHp - g.hp} damage (${Math.max(0, g.hp)}/${g.maxHp})` : 'was not hurt'}` : '',
+    g ? `${g.name} ${g.hp < g.startHp ? `took ${g.startHp - g.hp} damage (${Math.max(0, g.hp)}/${g.maxHp})` : 'was not hurt'}${mended ? ` and mended ${mended} after the win` : ''}` : '',
+
+    f.rescued && g ? `${g.name} carried the fallen rider out of the fight` : '',
 
     f.signetUses ? `the signet was channeled ${f.signetUses} time${f.signetUses === 1 ? '' : 's'}` : '',
 
@@ -1129,11 +1391,15 @@ export function settle(f: Fight, rand: Rand): Settlement {
 
   const shield = (f.rider.shieldMax ?? 0) > 0 ? clamp(int(f.rider.shield, 0), 0, f.rider.shieldMax ?? 0) : null;
 
-  return { shield, events, dragonHp: g ? Math.max(0, g.hp) : null, condition, injury, line, xp, masteryXp: Math.min(3, f.signetUses) };
+  return {
+
+    shield, together: won && f.lethal && !!g && g.hp > 0, rescued: !!f.rescued, dragonWeb: g ? perksOf(f).dHp : 0,
+
+    events, dragonHp: g ? Math.max(0, g.hp) + mended : null, condition, injury, line, xp, masteryXp: Math.min(3, f.signetUses),
+
+  };
 
 }
-
-
 
 /** What the phone needs to draw the fight. */
 
