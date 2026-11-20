@@ -6,7 +6,7 @@ import { prodigyStrainDiscount, type ProdigyTier } from '@/lib/empyreanClasses/p
 
 export type RulesAction =
   | 'state' | 'ack' | 'rest' | 'pass_time' | 'check' | 'signet_used' | 'quest_payout' | 'story_reward'
-  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain' | 'story_time' | 'web_buy' | 'ward_soak';
+  | 'set_events' | 'event_done' | 'travel_launch' | 'travel_sync' | 'travel_cancel' | 'battle_brief' | 'strain' | 'story_time' | 'web_buy' | 'ward_soak' | 'set_calendar';
 /** Ways Signet Strain moves besides channels, checks, rests and fights (the server sets the amounts). */
 export type StrainReason = 'cool' | 'ground' | 'ground_roll' | 'quest' | 'raise' | 'revive' | 'fallen';
 export type FightAction = 'fight_start' | 'fight_tick' | 'fight_act' | 'fight_clash' | 'fight_close';
@@ -117,6 +117,8 @@ export interface RulesSnapshot {
   wardSoaked?: number;
   /** What a channel cost in blood (the answer to signet_used). */
   blood?: { points: number; hp: number };
+  /** Story calendar: the canon day today is (1 = Conscription Day), its date, and its name when it has one. Absent from an older server. */
+  calendar?: { day: number; label: string; name: string | null };
   facts: string;
   inbox: RulesInboxEvent[];
 }

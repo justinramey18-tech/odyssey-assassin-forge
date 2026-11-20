@@ -3,7 +3,7 @@
 // Everything here comes from the server snapshot (use-empyrean-rules); nothing is decided on the phone.
 
 import { useState } from 'react';
-import { BedDouble, Clock, Compass, Feather, Flame, Lock, Map as MapIcon, Minus, Plus, ShieldAlert, Sparkles, Swords, Tent, Unlock } from 'lucide-react';
+import { BedDouble, CalendarDays, Clock, Compass, Feather, Flame, Lock, Map as MapIcon, Minus, Plus, ShieldAlert, Sparkles, Swords, Tent, Unlock } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,8 @@ const ACTIVITIES: Array<{ id: PassActivity; label: string; hint: string; min: nu
   { id: 'fly', label: 'Fly together', hint: 'Meets its need to fly with you.', min: 1, needsDragon: true },
 ];
 const EVENT_LEVELS: Array<{ id: EventLevel; label: string }> = [{ id: 'off', label: 'Off' }, { id: 'rare', label: 'Rare' }, { id: 'normal', label: 'Normal' }];
+
+const CALENDAR_STEPS = [-7, -1, 1, 7];
 
 /** The two header buttons: the clock (opens Camp) and the map. Shown only while the rules engine is live. */
 export function EmpyreanEngineButtons({ rules, onCamp, onMap, mapReady }: { rules: EmpyreanRulesApi; onCamp: () => void; onMap: () => void; mapReady: boolean }) {
@@ -72,6 +74,8 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
   if (!snap) return null;
   const r = snap.rules;
   const busy = rules.busy;
+
+  const cal = snap.calendar ?? null;
   const flying = snap.traveling;
   const act = ACTIVITIES.find(a => a.id === activity) ?? ACTIVITIES[0];
   const dragon = dragonName || 'Your dragon';
@@ -91,6 +95,8 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
           <SheetTitle className="font-cinzel text-primary flex items-center gap-2"><img src={EMPYREAN_SCENE_ART.flameDagger} alt="" aria-hidden className="w-7 h-7" /> Camp</SheetTitle>
           <SheetDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-foreground/80">
             <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {snap.clock} ({snap.timeOfDay})</span>
+
+            {cal && <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> {cal.label}</span>}
             {placeName && <span className="flex items-center gap-1"><Compass className="w-3.5 h-3.5" /> {flying ? 'Traveling' : placeName}</span>}
           </SheetDescription>
         </SheetHeader>
@@ -225,6 +231,36 @@ export function EmpyreanCampSheet({ open, onOpenChange, rules, bonded, dragonNam
               ))}
             </ul>
           </Section>
+
+          {cal && (
+
+            <Section icon={<CalendarDays className="w-4 h-4 text-primary" />} title="Story calendar">
+
+              <p className="text-sm text-foreground">{cal.label}{cal.name ? ` (${cal.name})` : ''}</p>
+
+              <div className="grid grid-cols-4 gap-2">
+
+                {CALENDAR_STEPS.map(step => (
+
+                  <Button key={step} variant="outline" disabled={busy || cal.day + step < 1} onClick={() => void rules.setCalendar(cal.day + step)} style={TOUCH} className="min-h-[48px] px-1">
+
+                    {step > 0 ? '+' : ''}{step} {Math.abs(step) === 1 ? 'day' : 'days'}
+
+                  </Button>
+
+                ))}
+
+              </div>
+
+              <Button variant="outline" disabled={busy || cal.day === 1} onClick={() => void rules.setCalendar(1)} style={TOUCH} className="w-full min-h-[48px]">Set to Conscription Day</Button>
+
+              <p className="text-[11px] text-muted-foreground">Where your story sits in the first year at Basgiath. It tells the DM which canon events are going on around you. Changing it does not move the clock, and the date moves forward with the clock by itself.</p>
+
+            </Section>
+
+          )}
+
+
 
           <Section icon={<Compass className="w-4 h-4 text-primary" />} title="Random events">
             <div className="grid grid-cols-3 gap-2">

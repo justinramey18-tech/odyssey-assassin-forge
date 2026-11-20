@@ -233,6 +233,10 @@ export function useEmpyreanRules(opts: EmpyreanRulesOptions) {
     },
     storyReward: (kind: 'xp' | 'gold', amount: number, source: string) => { void run('story_reward', { kind, amount, source }, true); },
     setEvents: (level: EventLevel) => run('set_events', { level }),
+
+    /** Story calendar: tell the server which canon day (1 = Conscription Day) today is. The clock does not move. */
+
+    setCalendar: (canonDay: number) => run('set_calendar', { canonDay }),
     eventDone: () => { void run('event_done', {}, true); },
     /** The DM's reply covered more than the moment: the server moves the clock (4 hours at most, once per turn). True when time moved. */
     storyTime: async (minutes: number, turnId: string): Promise<boolean> => {
