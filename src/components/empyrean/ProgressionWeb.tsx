@@ -16,15 +16,25 @@
 
 
 
+// The look: the web is carved into a stone wall (a painted backdrop under the canvas) and every node
+
+// wears a painted medallion (src/lib/empyrean-web-art.ts). Each half has its own light, cold silver
+
+// for the rider and ember for the dragon. Sparks run outward along the paths the rider owns, a node
+
+// that can be afforded beckons, and a node that has just been unlocked ignites and sounds.
+
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
-import { Check, Crosshair, Lock, Minus, Plus, Sparkles, X } from 'lucide-react';
+import { Check, Crosshair, Lock, Minus, Plus, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
 import type { RulesWeb, RulesWebNode, RulesWebSpoke } from '@/lib/empyrean-rules-client';
 
+import { WEB_BACKDROP_ART, WEB_TOKEN_ART, webArtStyle, webNodeArt } from '@/lib/empyrean-web-art';
 
+import { playWebUnlock, setWebSound, webSoundOn } from '@/lib/empyrean-web-sounds';
 
 type Half = 'rider' | 'dragon';
 
@@ -38,7 +48,47 @@ const TIER_SIZE: Record<RulesWebNode['tier'], number> = { small: 52, big: 62, ca
 
 const TAP_SLOP_PX = 8;
 
+/** Each half's own light: cold silver on the rider's, ember on the dragon's. */
 
+const GLOW: Record<Half, { line: string; rgb: string }> = {
+
+  rider: { line: '#a9c8ff', rgb: '150, 190, 255' },
+
+  dragon: { line: '#ffa94d', rgb: '255, 150, 50' },
+
+};
+
+/** The hub's medallion, in pixels across. */
+
+const HUB_SIZE = 104;
+
+/** How long the burst on a freshly unlocked node lasts, and how many owned paths carry a running spark at once. */
+
+const IGNITE_MS = 1100;
+
+const SPARKS_MAX = 48;
+
+/** The moving parts, as plain CSS kept with the screen (no theme file changes). They move with transform and
+
+ *  opacity only, which a phone can do without repainting the canvas. A rider who asked for less motion gets none. */
+
+const WEB_CSS = `
+
+@keyframes web-spark { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+
+@keyframes web-beckon { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+@keyframes web-ignite { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.95; } 100% { transform: translate(-50%, -50%) scale(3.4); opacity: 0; } }
+
+.web-spark { animation: web-spark 1.6s linear infinite; will-change: transform, opacity; }
+
+.web-beckon { animation: web-beckon 1.8s ease-in-out infinite; }
+
+.web-ignite { animation: web-ignite 1.1s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) { .web-spark, .web-ignite { display: none; } .web-beckon { animation: none; opacity: 1; } }
+
+`;
 
 // ── layout (pure: the same web always draws the same way) ──
 
@@ -202,13 +252,61 @@ interface ProgressionWebProps {
 
   onBuy: (nodeId: string) => Promise<boolean>;
 
+  /** The half to show each time the screen opens (the hall's wall panel opens the half that was tapped). Absent: the half last looked at. */
+
+  startHalf?: Half;
+
 }
 
+export function ProgressionWeb({ open, onClose, web, busy = false, onBuy, startHalf }: ProgressionWebProps) {
 
+  const [half, setHalf] = useState<Half>(startHalf ?? 'rider');
 
-export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: ProgressionWebProps) {
+  const glow = GLOW[half];
 
-  const [half, setHalf] = useState<Half>('rider');
+  const [sound, setSound] = useState(() => webSoundOn());
+
+  const [burst, setBurst] = useState<{ id: string; key: number } | null>(null);
+
+  useEffect(() => { if (open && startHalf) { setHalf(startHalf); setSelectedId(null); } }, [open, startHalf]);
+
+  // A node that has just been unlocked ignites and sounds. Nodes already owned when the screen opens do not.
+
+  const ownedBefore = useRef<Set<string> | null>(null);
+
+  useEffect(() => {
+
+    const now = new Set(web?.owned ?? []);
+
+    const before = ownedBefore.current;
+
+    ownedBefore.current = open && web ? now : null;
+
+    if (!open || !before) return;
+
+    const fresh = [...now].filter(id => !before.has(id));
+
+    if (fresh.length !== 1) return;
+
+    const found = (web?.spokes ?? []).flatMap(sp => sp.nodes.map(node => ({ node, half: sp.half }))).find(x => x.node.id === fresh[0]);
+
+    if (!found) return;
+
+    setBurst(b => ({ id: found.node.id, key: (b?.key ?? 0) + 1 }));
+
+    playWebUnlock(found.node.tier, found.half);
+
+  }, [web, open]);
+
+  useEffect(() => {
+
+    if (!burst) return;
+
+    const timer = window.setTimeout(() => setBurst(null), IGNITE_MS);
+
+    return () => window.clearTimeout(timer);
+
+  }, [burst]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -476,15 +574,23 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
   const branchName = n && selected ? (selected.spoke.branches ?? []).find(b => b.id === n.branch)?.name ?? null : null;
 
+  const chosenArt = n && selected ? webNodeArt(n, selected.spoke.id) : null;
 
+  // The owned paths that carry a running spark: the outermost first, so the light reaches the tips.
+
+  const sparks = layout.nodes.filter(p => p.node.owned).slice(-SPARKS_MAX);
+
+  const ignited = burst ? layout.nodes.find(p => p.node.id === burst.id) ?? null : null;
 
   return (
 
     <div className="fixed inset-0 z-[72] flex flex-col bg-background" role="dialog" aria-label="Progression">
 
+      <style>{WEB_CSS}</style>
+
       <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-amber-500/20 bg-background/95">
 
-        <Sparkles className="w-5 h-5 shrink-0 text-amber-300" />
+        <span aria-hidden="true" data-testid="web-token" className="w-8 h-8 shrink-0 rounded-full" style={webArtStyle(half === 'dragon' ? WEB_TOKEN_ART.kin : WEB_TOKEN_ART.xp, 32)} />
 
         <div className="min-w-0 flex-1">
 
@@ -586,6 +692,12 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
             <div className="relative" style={{ width: WEB_CANVAS * zoom, height: WEB_CANVAS * zoom }} data-zoom={zoom}>
 
+              {/* The carved stone the web is cut into, with the half's own light spreading from the hub. */}
+
+              <img src={WEB_BACKDROP_ART} alt="" aria-hidden="true" draggable={false} data-testid="web-backdrop" className="absolute inset-0 w-full h-full select-none pointer-events-none" />
+
+              <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 50%, rgba(${glow.rgb}, 0.16) 0%, rgba(${glow.rgb}, 0.06) 26%, rgba(0, 0, 0, 0) 58%), rgba(0, 0, 0, 0.55)` }} />
+
               <svg width={WEB_CANVAS * zoom} height={WEB_CANVAS * zoom} className="absolute inset-0 pointer-events-none" aria-hidden="true">
 
                 {[240, 540, 760, 968, 1176, 1400].map(r => <circle key={r} cx={HUB * zoom} cy={HUB * zoom} r={r * zoom} fill="none" stroke="#27272a" strokeWidth={1} strokeDasharray="2 7" />)}
@@ -608,7 +720,7 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
                     key={p.node.id} x1={p.from.x * zoom} y1={p.from.y * zoom} x2={p.x * zoom} y2={p.y * zoom}
 
-                    stroke={p.node.owned ? '#fbbf24' : p.node.canBuy ? '#a16207' : '#3f3f46'}
+                    stroke={p.node.owned ? glow.line : p.node.canBuy ? '#a16207' : '#3f3f46'}
 
                     strokeWidth={p.node.owned ? 3 : 2}
 
@@ -618,17 +730,15 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
                 ))}
 
-                <circle cx={HUB * zoom} cy={HUB * zoom} r={30 * shrink} fill="#fbbf24" opacity={0.92} />
-
-                <circle cx={HUB * zoom} cy={HUB * zoom} r={42 * shrink} fill="none" stroke="#fbbf24" strokeWidth={1} opacity={0.4} />
+                <circle cx={HUB * zoom} cy={HUB * zoom} r={(HUB_SIZE / 2 + 9) * shrink} fill="none" stroke={glow.line} strokeWidth={1} opacity={0.45} />
 
                 {layout.labels.map(l => (
 
                   <g key={l.key} opacity={l.dim ? 0.55 : 1}>
 
-                    <text x={l.x * zoom} y={l.y * zoom} textAnchor={l.anchor ?? 'middle'} fontSize="15" fill="#fde68a" className="font-cinzel">{l.text}</text>
+                    <text x={l.x * zoom} y={l.y * zoom} textAnchor={l.anchor ?? 'middle'} fontSize="15" fill="#fde68a" stroke="rgba(0, 0, 0, 0.85)" strokeWidth={3} style={{ paintOrder: 'stroke' }} className="font-cinzel">{l.text}</text>
 
-                    {l.sub && <text x={l.x * zoom} y={l.y * zoom + 16} textAnchor={l.anchor ?? 'middle'} fontSize="11" fill="#a1a1aa">{l.sub}</text>}
+                    {l.sub && <text x={l.x * zoom} y={l.y * zoom + 16} textAnchor={l.anchor ?? 'middle'} fontSize="11" fill="#d4d4d8" stroke="rgba(0, 0, 0, 0.85)" strokeWidth={3} style={{ paintOrder: 'stroke' }}>{l.sub}</text>}
 
                   </g>
 
@@ -636,11 +746,115 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
               </svg>
 
+              {/* The hub: the half's own medallion. */}
+
+              <span
+
+                aria-hidden="true"
+
+                data-testid="web-hub"
+
+                className="absolute rounded-full pointer-events-none"
+
+                style={{
+
+                  left: HUB * zoom, top: HUB * zoom, width: HUB_SIZE, height: HUB_SIZE, transform: `translate(-50%, -50%) scale(${shrink})`,
+
+                  boxShadow: `0 0 28px 6px rgba(${glow.rgb}, 0.45)`, ...webArtStyle(half === 'dragon' ? WEB_TOKEN_ART.dragonHub : WEB_TOKEN_ART.riderHub, HUB_SIZE),
+
+                }}
+
+              />
+
+              {/* Light running outward along every path the rider owns. */}
+
+              {sparks.map(p => (
+
+                <span
+
+                  key={`spark:${p.node.id}`}
+
+                  aria-hidden="true"
+
+                  data-testid="web-spark"
+
+                  className="web-spark absolute rounded-full pointer-events-none"
+
+                  style={{
+
+                    left: p.from.x * zoom - 3, top: p.from.y * zoom - 3, width: 6, height: 6, background: '#ffffff',
+
+                    boxShadow: `0 0 8px 3px rgba(${glow.rgb}, 0.9)`,
+
+                    animationDelay: `${((Math.hypot(p.from.x - HUB, p.from.y - HUB) / 260) % 1.6).toFixed(2)}s`,
+
+                    ['--dx' as string]: `${(p.x - p.from.x) * zoom}px`, ['--dy' as string]: `${(p.y - p.from.y) * zoom}px`,
+
+                  }}
+
+                />
+
+              ))}
+
               {layout.nodes.map(p => {
 
                 const size = TIER_SIZE[p.node.tier];
 
                 const state = p.node.owned ? 'owned' : p.node.canBuy ? 'can unlock' : p.node.soon ? 'coming' : 'locked';
+
+                const art = webNodeArt(p.node, p.spoke.id);
+
+                const chosen = selectedId === p.node.id;
+
+                const where = { left: p.x * zoom, top: p.y * zoom, width: size, height: size, minWidth: 44, minHeight: 44, transform: `translate(-50%, -50%) scale(${shrink})`, touchAction: 'manipulation' } as const;
+
+                // No art painted for this node: the plain node, as before.
+
+                if (!art) {
+
+                  return (
+
+                    <button
+
+                      key={p.node.id}
+
+                      onClick={() => choose(p.node.id)}
+
+                      aria-label={`${p.node.name}, ${state}`}
+
+                      aria-pressed={chosen}
+
+                      className={cn(
+
+                        'absolute rounded-full border-2 flex items-center justify-center transition-shadow',
+
+                        p.node.owned && 'border-amber-400 bg-amber-400 text-background',
+
+                        !p.node.owned && p.node.canBuy && 'border-amber-300 bg-background text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.55)]',
+
+                        !p.node.owned && !p.node.canBuy && !p.node.soon && 'border-zinc-600 bg-background text-zinc-500',
+
+                        p.node.soon && 'border-dashed border-zinc-700 bg-background text-zinc-600',
+
+                        chosen && 'ring-2 ring-offset-2 ring-offset-background ring-amber-200',
+
+                      )}
+
+                      style={where}
+
+                    >
+
+                      {p.node.owned ? <Check className="w-6 h-6" /> : p.node.canBuy ? <Sparkles className="w-5 h-5" /> : <Lock className="w-4 h-4" />}
+
+                    </button>
+
+                  );
+
+                }
+
+                // A medallion. What it is worth to the rider right now is said three ways, never by colour alone:
+
+                // the painting (full colour, or greyed while locked), the ring around it, and the small badge.
 
                 return (
 
@@ -652,35 +866,73 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
                     aria-label={`${p.node.name}, ${state}`}
 
-                    aria-pressed={selectedId === p.node.id}
+                    aria-pressed={chosen}
 
-                    className={cn(
+                    data-art={`${art[0]}:${art[1]}`}
 
-                      'absolute rounded-full border-2 flex items-center justify-center transition-shadow',
+                    className={cn('absolute rounded-full bg-black', chosen && 'ring-2 ring-offset-2 ring-offset-background ring-amber-200')}
 
-                      p.node.owned && 'border-amber-400 bg-amber-400 text-background',
-
-                      !p.node.owned && p.node.canBuy && 'border-amber-300 bg-background text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.55)]',
-
-                      !p.node.owned && !p.node.canBuy && !p.node.soon && 'border-zinc-600 bg-background text-zinc-500',
-
-                      p.node.soon && 'border-dashed border-zinc-700 bg-background text-zinc-600',
-
-                      selectedId === p.node.id && 'ring-2 ring-offset-2 ring-offset-background ring-amber-200',
-
-                    )}
-
-                    style={{ left: p.x * zoom, top: p.y * zoom, width: size, height: size, minWidth: 44, minHeight: 44, transform: `translate(-50%, -50%) scale(${shrink})`, touchAction: 'manipulation' }}
+                    style={{ ...where, boxShadow: p.node.owned ? `0 0 0 2px ${glow.line}, 0 0 14px 3px rgba(${glow.rgb}, 0.55)` : p.node.canBuy ? undefined : '0 0 0 1px #3f3f46' }}
 
                   >
 
-                    {p.node.owned ? <Check className="w-6 h-6" /> : p.node.canBuy ? <Sparkles className="w-5 h-5" /> : <Lock className="w-4 h-4" />}
+                    <span aria-hidden="true" className="absolute inset-0 rounded-full" style={{ ...webArtStyle(art, size), filter: p.node.owned ? undefined : p.node.canBuy ? 'brightness(0.92)' : 'grayscale(1) brightness(0.42)' }} />
+
+                    {!p.node.owned && p.node.canBuy && (
+
+                      <span aria-hidden="true" className="web-beckon absolute -inset-[3px] rounded-full pointer-events-none" style={{ boxShadow: '0 0 0 2px rgba(253, 224, 71, 0.95), 0 0 18px 6px rgba(251, 191, 36, 0.65)' }} />
+
+                    )}
+
+                    <span
+
+                      aria-hidden="true"
+
+                      className={cn(
+
+                        'absolute -right-1 -bottom-1 w-5 h-5 rounded-full border flex items-center justify-center',
+
+                        p.node.owned ? 'bg-amber-400 border-amber-100 text-black' : p.node.canBuy ? 'bg-black border-amber-300 text-amber-200' : 'bg-black border-zinc-600 text-zinc-400',
+
+                      )}
+
+                    >
+
+                      {p.node.owned ? <Check className="w-3 h-3" /> : p.node.canBuy ? <Sparkles className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+
+                    </span>
 
                   </button>
 
                 );
 
               })}
+
+              {/* The burst on a node that has just been unlocked. */}
+
+              {ignited && burst && (
+
+                <span
+
+                  key={burst.key}
+
+                  aria-hidden="true"
+
+                  data-testid="web-ignite"
+
+                  className="web-ignite absolute rounded-full pointer-events-none"
+
+                  style={{
+
+                    left: ignited.x * zoom, top: ignited.y * zoom, width: 72, height: 72, border: `3px solid ${glow.line}`,
+
+                    boxShadow: `0 0 30px 12px rgba(${glow.rgb}, 0.8), inset 0 0 18px rgba(255, 255, 255, 0.7)`,
+
+                  }}
+
+                />
+
+              )}
 
               {/* Node names, once the web is spread wide enough for them not to run together. */}
 
@@ -694,13 +946,13 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
                   className={cn(
 
-                    'absolute -translate-x-1/2 pointer-events-none text-center text-[11px] leading-tight max-w-[96px] px-1 rounded bg-background/85',
+                    'absolute -translate-x-1/2 pointer-events-none text-center text-[11px] leading-tight max-w-[96px] px-1 rounded bg-black/70',
 
                     p.node.owned ? 'text-amber-200' : p.node.canBuy ? 'text-foreground' : 'text-muted-foreground/70',
 
                   )}
 
-                  style={{ left: p.x * zoom, top: p.y * zoom + TIER_SIZE[p.node.tier] / 2 + 3 }}
+                  style={{ left: p.x * zoom, top: p.y * zoom + TIER_SIZE[p.node.tier] / 2 + 6 }}
 
                 >
 
@@ -770,9 +1022,25 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
 
             </button>
 
+            <button
+
+              onClick={() => { const next = !sound; setSound(next); setWebSound(next); }}
+
+              aria-pressed={sound}
+
+              className="w-11 h-11 rounded-full border border-border/50 bg-background/90 flex items-center justify-center text-amber-200"
+
+              aria-label={sound ? 'Turn the unlock sounds off' : 'Turn the unlock sounds on'}
+
+              style={{ touchAction: 'manipulation' }}
+
+            >
+
+              {sound ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+
+            </button>
+
           </div>
-
-
 
           {/* The chosen node, or a hint. Sits over the bottom of the canvas. */}
 
@@ -795,6 +1063,8 @@ export function ProgressionWeb({ open, onClose, web, busy = false, onBuy }: Prog
                 <>
 
                   <div className="flex items-start gap-3">
+
+                    {chosenArt && <span aria-hidden="true" data-testid="web-chosen-art" className="w-14 h-14 shrink-0 rounded-full" style={webArtStyle(chosenArt, 56)} />}
 
                     <div className="min-w-0 flex-1">
 
