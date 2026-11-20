@@ -243,7 +243,8 @@ function withWeb(l: Loaded, b: Req, perks: W.WebBonuses, c: Change): Change {
   const soaked = R.soakEvents(R.syncWard(c.state, perks.wardMax), c.events || []);
   const minuteAfter = Math.max(l.minute + Math.max(0, c.advance ?? 0), c.setMinute ?? 0);
   const healed = R.regen(soaked.state, minuteAfter, perks.regenHour, hpRoom(b), perks.regenWard);
-  return { ...c, state: healed.state, events: [...soaked.events, ...healed.events] };
+  // Still Water (Channel, Recovery): strain eases as game hours pass.
+  return { ...c, state: R.easeStrain(healed.state, minuteAfter, perks.strainHour), events: [...soaked.events, ...healed.events] };
 }
 
 /** Rules that ride along with any change: the dragon's needs. */
@@ -305,7 +306,7 @@ async function settleFight(db: any, userId: string, b: Req): Promise<void> {
       else if (f.outcome === 'victory') s = { ...s, spars: { ...s.spars, n: s.spars.n + 1 } };
     }
     const pt = f.prodigy ?? 0;
-    const xpDelta = Math.max(0, Math.min(out.masteryXp * (pt ? 2 : 1), R.masteryDailyXp(pt) - s.signet.xpToday));
+    const xpDelta = Math.max(0, Math.min(out.masteryXp * (pt ? 2 : 1), R.masteryDailyXp(pt) + W.webBonuses(l.web).masteryCap - s.signet.xpToday));
     if (xpDelta) s = { ...s, signet: { ...s.signet, xpToday: s.signet.xpToday + xpDelta } };
     return { state: s, events, xpDelta, advance: clock ? 10 : 0 };
   };
@@ -343,7 +344,7 @@ async function fightStart(db: any, userId: string, b: Req): Promise<Record<strin
       attackBonus: sheet.attackBonus ?? null, weapons: sheet.weapons,
       foeKind: b.foeKind, foeName: b.foeName, count: b.count ?? 1, challenge: b.challenge, lethal: b.lethal !== false, arena,
       dragon: l.bonded && b.dragonName ? { name: b.dragonName, hp: body ? body.hp : null, bond: l.bond ?? 15 } : null,
-      masteryXp: l.masteryXp,
+      masteryXp: R.attunedXp(l.masteryXp, perks.masteryRankUp),
       prodigy: R.sheetProdigyTier(R.normalizeSheet(sheet)),
     }, now, rand);
     return { state: { ...state, fight }, reply: { ok: true, fight: C.viewOf(fight, now) } };
@@ -677,7 +678,7 @@ Deno.serve(async (req) => {
         break;
       case 'rest':
         result = await mutate(db, userId, b, l => {
-          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short', W.webBonuses(l.web).wardShortRest);
+          const r = R.rest(l.state, l.minute, b.kind === 'long' ? 'long' : 'short', W.webBonuses(l.web).wardShortRest, W.webBonuses(l.web).restEase);
           if (!r.ok) return { error: (r as { error: string }).error };
           const after = r.setMinute ?? l.minute + r.advance;
           const state = R.rollEvent(r.state, after, b.place?.kind, false, rand);
@@ -696,8 +697,8 @@ Deno.serve(async (req) => {
       case 'check':
         result = await mutate(db, userId, b, l => {
           const r = R.resolveCheck(l.state, l.minute, sheet, {
-            d20: b.d20 ?? 1, modifier: b.modifier ?? 0, dc: b.dc ?? 15, risk: b.risk ?? 'mental', label: b.label ?? 'Check', masteryXp: l.masteryXp, bond: l.bond,
-            strainOff: W.webBonuses(l.web).backlashOff,
+            d20: b.d20 ?? 1, modifier: b.modifier ?? 0, dc: b.dc ?? 15, risk: b.risk ?? 'mental', label: b.label ?? 'Check', masteryXp: R.attunedXp(l.masteryXp, W.webBonuses(l.web).masteryRankUp), bond: l.bond,
+            strainOff: W.webBonuses(l.web).backlashOff, webSignet: W.webBonuses(l.web).signetCheck, steadySignet: W.webBonuses(l.web).steadySignet,
           }, rand);
           const strained = R.raiseStrain(r.state, r.strain, strainLimitFor(b, l.web), 'A signet backlash pushed strain to the limit');
           return { state: strained.state, events: [...r.events, ...strained.events], extra: { check: { outcome: r.outcome, dc: r.dc, total: r.total, line: r.line, hp: r.hp, strain: r.strain, condition: r.condition?.name ?? null, injury: r.injury?.name ?? null } } };
@@ -706,15 +707,16 @@ Deno.serve(async (req) => {
       case 'signet_used':
         result = await mutate(db, userId, b, l => {
           const limit = strainLimitFor(b, l.web);
+          const perks = W.webBonuses(l.web);
+          const boost = { perChannel: perks.masteryXp, cap: perks.masteryCap };
           // A phone that sends no limit keeps its own strain: only mastery is recorded, as before.
           if (limit == null) {
-            const r = R.signetUse(l.state, l.minute, b.intensity ?? 1, R.sheetProdigyTier(sheet));
+            const r = R.signetUse(l.state, l.minute, b.intensity ?? 1, R.sheetProdigyTier(sheet), boost);
             return { state: r.state, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta } };
           }
-          const perks = W.webBonuses(l.web);
           const hpNow = typeof b.sheet?.hp === 'number' && Number.isFinite(b.sheet.hp) ? Math.trunc(b.sheet.hp) : null;
-          const r = R.channelSignet(l.state, l.minute, b.intensity ?? 1, R.masteryRank(l.masteryXp), R.sheetProdigyTier(sheet), limit, perks.freeChannel,
-            perks.bloodPrice > 0 ? { price: perks.bloodPrice, hp: hpNow, ease: perks.bloodEase } : null);
+          const r = R.channelSignet(l.state, l.minute, b.intensity ?? 1, R.masteryRank(R.attunedXp(l.masteryXp, perks.masteryRankUp)), R.sheetProdigyTier(sheet), limit, perks.freeChannel,
+            perks.bloodPrice > 0 ? { price: perks.bloodPrice, hp: hpNow, ease: perks.bloodEase } : null, boost);
           return { state: r.state, events: r.events, xpDelta: r.xpDelta, extra: { masteryGained: r.xpDelta, strainCost: r.cost - r.bloodPoints, ...(r.free ? { freeChannel: true } : {}), ...(r.bloodPoints ? { blood: { points: r.bloodPoints, hp: r.bloodHp } } : {}) } };
         });
         break;
@@ -733,7 +735,7 @@ Deno.serve(async (req) => {
         if (!b.reason) return json(400, { ok: false, error: 'Invalid request.' });
         const strainReason = b.reason;
         result = await mutate(db, userId, b, l => {
-          const r = R.changeStrain(l.state, strainReason, strainLimitFor(b, l.web), { messageId: b.messageId, channeled: b.channeled, amount: b.amount });
+          const r = R.changeStrain(l.state, strainReason, strainLimitFor(b, l.web), { messageId: b.messageId, channeled: b.channeled, amount: b.amount, coolEase: W.webBonuses(l.web).coolEase, groundEase: W.webBonuses(l.web).groundEase });
           return r.state === l.state ? null : { state: r.state, events: r.events };
         });
         break;

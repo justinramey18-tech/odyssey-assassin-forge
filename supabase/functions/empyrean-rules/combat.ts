@@ -228,6 +228,10 @@ export interface FightPerks {
 
   bloodPrice: number; heartfire: boolean;
 
+  /** Channel, Power: flat damage and extra dice on a signet strike, and 1 strain back when it drops an enemy. */
+
+  sigDamage: number; sigDice: number; sigKillRefund: boolean;
+
 }
 
 /** Perks come from the server's own ledger, but a stored fight is still untrusted JSON: clamp everything. */
@@ -248,9 +252,11 @@ export function cleanPerks(raw: unknown): FightPerks | null {
 
     bloodPrice: clamp(int(r.bloodPrice), 0, 20), heartfire: r.heartfire === true,
 
+    sigDamage: clamp(int(r.sigDamage), 0, 20), sigDice: clamp(int(r.sigDice), 0, 6), sigKillRefund: r.sigKillRefund === true,
+
   };
 
-  return p.wardMax || p.regenTurn || p.adrDamage || p.adrHit || p.adrHasteMs || p.bloodPrice ? p : null;
+  return p.wardMax || p.regenTurn || p.adrDamage || p.adrHit || p.adrHasteMs || p.bloodPrice || p.sigDamage || p.sigDice || p.sigKillRefund ? p : null;
 
 }
 
@@ -896,7 +902,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const heart = blood > 0 && f.web?.heartfire ? 2 : 0;
 
-    const full = rollDice({ count: intensity + P.prodigySignetDice(f.prodigy ?? 0) + heart, sides: 6, bonus: f.rider.masteryRank }, rand, r.crit) + adr.damage;
+    const full = rollDice({ count: intensity + P.prodigySignetDice(f.prodigy ?? 0) + heart + (f.web?.sigDice ?? 0), sides: 6, bonus: f.rider.masteryRank }, rand, r.crit) + adr.damage + (f.web?.sigDamage ?? 0);
 
     f.strainSpent += strain; f.signetUses += 1;
 
@@ -905,6 +911,8 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
     if (r.hit) {
 
       const lost = hurtEnemy(f, now, target, full);
+
+      if (!up(target) && f.web?.sigKillRefund && strain > 0) { strain -= 1; say(f, now, 'Stormheart: the kill gives 1 Signet Strain back.', 'good'); }
 
       if (up(target)) say(f, now, `Your signet strikes ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}${heart ? ' (heartfire)' : ''}${rush}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
 
