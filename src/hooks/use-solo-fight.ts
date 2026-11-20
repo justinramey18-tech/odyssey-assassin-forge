@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { resolveOddsForContext } from '@/lib/diceOdds';
 import {
   callFight, type ClashQuality, type ClashSide, type FightAction, type FightArena, type FightChallenge, type FightLogLine,
   type FightReply, type FightView, type FoeKind, type RulesContext, type RulesInboxEvent,
@@ -82,7 +83,7 @@ export function useSoloFight(opts: SoloFightOptions) {
   const send = useCallback(async (action: FightAction, extra: Record<string, unknown> = {}): Promise<FightReply | null> => {
     const ctx = optsRef.current.getContext();
     if (!ctx) return null;
-    return take(await callFight(action, { ...ctx, sheet: optsRef.current.getSheet() }, { label: optsRef.current.riderName, ...extra }));
+    return take(await callFight(action, { ...ctx, sheet: optsRef.current.getSheet() }, { label: optsRef.current.riderName, odds: resolveOddsForContext('attack'), ...extra }));
   }, [take]);
 
   // The text feed: one line at a time; when lines pile up it moves faster.

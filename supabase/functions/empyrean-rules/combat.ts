@@ -64,9 +64,109 @@ export interface Attack { d20: number; total: number; hit: boolean; crit: boolea
 
 /** d20 + bonus against AC. A natural 20 always hits and is critical; a natural 1 always misses. */
 
-export function attackRoll(rand: Rand, bonus: number, ac: number): Attack {
+export type OddsMode = 'fair' | 'heroic' | 'dramatic' | 'chaotic' | 'cursed' | 'godmode' | 'doomed';
 
-  const d20 = d(20, rand);
+
+
+/** The phone's dice-odds brackets (src/lib/diceOdds.ts), copied here so the rider's own d20 in a fight matches the player's setting. A test keeps the two equal. */
+
+
+
+export const ODDS_BRACKETS: Record<OddsMode, Array<{ chance: number; min: number; max: number }>> = {
+
+
+
+  fair: [],
+
+
+
+  heroic: [{ chance: 0.15, min: 20, max: 20 }, { chance: 0.65, min: 15, max: 19 }, { chance: 0.15, min: 10, max: 14 }, { chance: 0.05, min: 1, max: 9 }],
+
+
+
+  dramatic: [{ chance: 0.50, min: 18, max: 20 }, { chance: 0.50, min: 1, max: 7 }],
+
+
+
+  chaotic: [{ chance: 0.50, min: 15, max: 20 }, { chance: 0.25, min: 8, max: 14 }, { chance: 0.25, min: 1, max: 3 }],
+
+
+
+  cursed: [{ chance: 0.15, min: 1, max: 1 }, { chance: 0.65, min: 2, max: 7 }, { chance: 0.15, min: 8, max: 14 }, { chance: 0.05, min: 15, max: 20 }],
+
+
+
+  godmode: [{ chance: 1.0, min: 20, max: 20 }],
+
+
+
+  doomed: [{ chance: 1.0, min: 1, max: 1 }],
+
+
+
+};
+
+
+
+export const cleanOdds = (v: unknown): OddsMode => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(ODDS_BRACKETS, v) ? (v as OddsMode) : 'fair');
+
+
+
+/** A d20 under the player's odds. Fair, or no mode at all, is a plain d20. Only the rider's own rolls use this; enemies and the dragon always roll fair. */
+
+
+
+export function oddsD20(rand: Rand, mode?: OddsMode): number {
+
+
+
+  const brackets = mode ? ODDS_BRACKETS[mode] : undefined;
+
+
+
+  if (!brackets || !brackets.length) return d(20, rand);
+
+
+
+  const pick = rand();
+
+
+
+  let sum = 0;
+
+
+
+  for (const b of brackets) {
+
+
+
+    sum += b.chance;
+
+
+
+    if (pick < sum) return b.min + Math.floor(rand() * (b.max - b.min + 1));
+
+
+
+  }
+
+
+
+  const last = brackets[brackets.length - 1];
+
+
+
+  return last.min + Math.floor(rand() * (last.max - last.min + 1));
+
+
+
+}
+
+
+
+export function attackRoll(rand: Rand, bonus: number, ac: number, odds?: OddsMode): Attack {
+
+  const d20 = oddsD20(rand, odds);
 
   const total = d20 + bonus;
 
@@ -192,6 +292,14 @@ export interface RiderFighter {
   weapons: Array<{ name: string; dice: Dice }>; readyAt: number; masteryRank: number;
 
   clash: { id: string; r: Array<M.ClashQ | null> } | null; streak: number;
+
+
+
+  /** The player's dice odds for this rider's own d20s, and the penalty from wounds and conditions carried into the fight (absent: fair dice, no penalty). */
+
+
+
+  odds?: OddsMode; penalty?: number;
 
   /** The progression web's Ward in this fight: what is left of it, and its size (absent: no Ward). */
 
@@ -399,6 +507,14 @@ export interface StartInput {
 
   web?: unknown; shield?: number | null;
 
+
+
+  /** The player's dice-odds mode for combat, and the wound and condition penalty (0 to 4) the rider walks in with. */
+
+
+
+  odds?: unknown; penalty?: number;
+
 }
 
 export function startFight(input: StartInput, now: number, rand: Rand): Fight {
@@ -480,7 +596,7 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
 
     startedAt: now, seenAt: now, endedAt: null, seq: 0, settled: false,
 
-    rider: { name: str(input.riderName, 60, 'The rider'), hp, maxHp, startHp: hp, ac: clamp(int(input.ac, 12), 5, 30), level, atk, weapons, readyAt: now + 1500, masteryRank: masteryInfo(input.masteryXp).rank, clash: null, streak: 0 },
+    rider: { name: str(input.riderName, 60, 'The rider'), hp, maxHp, startHp: hp, ac: clamp(int(input.ac, 12), 5, 30), level, atk, weapons, readyAt: now + 1500, masteryRank: masteryInfo(input.masteryXp).rank, clash: null, streak: 0, odds: cleanOdds(input.odds), penalty: clamp(int(input.penalty, 0), 0, 4) },
 
     dragon, enemies, log: [], strainSpent: 0, signetUses: 0, dragonDied: false, riderDown: false, prodigy: pt,
 
@@ -511,6 +627,10 @@ export function startFight(input: StartInput, now: number, rand: Rand): Fight {
   if (late > 0) for (const e of f.enemies) e.nextAt += late;
 
   say(f, now, `${count > 1 ? `${count} ${baseName}s` : baseName} ${count > 1 ? 'want' : 'wants'} to fight!`, 'warn');
+
+
+
+  if ((f.rider.penalty ?? 0) > 0) say(f, now, `Your wounds slow you: -${f.rider.penalty} to hit and to break away.`, 'warn');
 
   if (dragon) say(f, now, `${dragon.name} lands beside you.`, 'good');
 
@@ -1096,7 +1216,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const w = f.rider.weapons.find(x => x.name.toLowerCase() === wanted) ?? f.rider.weapons[0] ?? { name: 'Unarmed strike', dice: { count: 1, sides: 4, bonus: 1 } };
 
-    const r = attackRoll(rand, f.rider.atk + adr.hit + k.wpnHit + (mounted ? k.mountHit : 0), target.ac);
+    const r = attackRoll(rand, f.rider.atk + adr.hit + k.wpnHit + (mounted ? k.mountHit : 0) - (f.rider.penalty ?? 0), target.ac, f.rider.odds);
 
     // Blade: flat damage, extra dice (more against a wounded enemy), a wider critical range, and a near miss that still lands.
 
@@ -1164,7 +1284,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     const bonus = proficiency(f.rider.level) + 3 + Math.min(f.rider.masteryRank, 3) + adr.hit + (mounted ? k.mountHit : 0);
 
-    const r = attackRoll(rand, bonus, target.ac);
+    const r = attackRoll(rand, bonus - (f.rider.penalty ?? 0), target.ac, f.rider.odds);
 
     const crit = r.crit || (r.hit && k.firstCrit && once(f, 'firstCrit'));
 
@@ -1212,7 +1332,7 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     // Tempo (Evasion) and Wing (Flight) add to the roll; Skyborne makes a dragon-borne escape certain.
 
-    const roll = d(20, rand) + proficiency(f.rider.level) + 2 + (mounted ? 4 + k.dFlee : 0) + P.prodigyFleeBonus(f.prodigy ?? 0) + k.flee;
+    const roll = oddsD20(rand, f.rider.odds) - (f.rider.penalty ?? 0) + proficiency(f.rider.level) + 2 + (mounted ? 4 + k.dFlee : 0) + P.prodigyFleeBonus(f.prodigy ?? 0) + k.flee;
 
     if (roll >= FLEE_DC[f.challenge] || (mounted && k.dSureFlee)) { say(f, now, mounted ? `${f.dragon?.name ?? 'Your dragon'} hauls you clear. You get away.` : 'You break away and escape.', 'info'); finish(f, now, 'fled'); }
 

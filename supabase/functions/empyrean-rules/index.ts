@@ -86,6 +86,8 @@ const Body = z.object({
   minutes: z.number().optional(),
   // Story calendar: the canon day (1 = Conscription Day) the player says today is.
   canonDay: z.number().optional(),
+  // The player's dice-odds mode for combat (the phone's own setting), used for the rider's d20s in a fight.
+  odds: z.string().max(20).optional(),
 });
 type Req = z.infer<typeof Body>;
 
@@ -371,6 +373,7 @@ async function fightStart(db: any, userId: string, b: Req): Promise<Record<strin
       dragon: l.bonded && b.dragonName ? { name: b.dragonName, hp: body ? body.hp : null, bond: l.bond ?? 15 } : null,
       masteryXp: R.attunedXp(l.masteryXp, perks.masteryRankUp),
       prodigy: R.sheetProdigyTier(R.normalizeSheet(sheet)),
+      odds: b.odds, penalty: R.checkPenalty(R.tick(state, l.minute)),
     }, now, rand);
     return { state: { ...state, fight }, reply: { ok: true, fight: C.viewOf(fight, now) } };
   });
