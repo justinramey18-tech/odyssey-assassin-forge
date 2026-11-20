@@ -69,6 +69,15 @@ export interface CampaignState {
   regenAt: number;
   /** The progression web's Still Water: the campaign minute up to which hourly strain easing has been counted (0: not started). */
   easeAt: number;
+  /** Kinship (what the dragon's half of the progression web is paid with) earned in this campaign: the running total, today's count,
+   *  and the in-game days a hunt, a flight and a long rest last counted. */
+  kin: { total: number; day: number; today: number; huntDay: number; flyDay: number; restDay: number };
+  /** Saddle's Second Look: failed checks rolled again today. */
+  look: { day: number; n: number };
+  /** Loyalty's Devoted: the in-game day the dragon last carried its rider out of a fight (0: never). */
+  rescueDay: number;
+  /** Vigor: the max HP the rider's nodes add that is already inside dragon.maxHp. */
+  dragonWeb: number;
   /** Live clock: the server time (ms) of the last live check-in; 0 while the clock is not live. */
   liveAt: number;
   /** Turns whose story-time push was already applied (newest last), so a turn never adds time twice. */
@@ -76,6 +85,8 @@ export interface CampaignState {
 }
 /** No web gives a Ward larger than this; anything larger is damaged data. */
 export const WARD_TOP = 100;
+/** No web adds more dragon HP than this. */
+export const DRAGON_WEB_TOP = 300;
 export function freshState(): CampaignState {
   return {
     v: 1, seq: 0, restDay: 1, shortRests: 0, lastLongRestEnd: -100000, conditions: [], injuries: [],
@@ -84,7 +95,9 @@ export function freshState(): CampaignState {
     signet: { xpDay: 1, xpToday: 0, freeDay: 0 }, rewards: { day: 1, xp: 0, gold: 0 }, lastCheck: null,
     travel: { dest: null, encounterDone: false },
     fight: null, dragon: null, spars: { day: 1, n: 0 }, briefs: { day: 1, n: 0 },
-    strain: 0, strainCooled: null, ward: 0, wardCap: 0, regenAt: 0, easeAt: 0, liveAt: 0, timeTurns: [],
+    strain: 0, strainCooled: null, ward: 0, wardCap: 0, regenAt: 0, easeAt: 0,
+    kin: { total: 0, day: 1, today: 0, huntDay: 0, flyDay: 0, restDay: 0 }, look: { day: 1, n: 0 }, rescueDay: 0, dragonWeb: 0,
+    liveAt: 0, timeTurns: [],
   };
 }
 export function normalizeState(raw: unknown): CampaignState {
@@ -126,6 +139,13 @@ export function normalizeState(raw: unknown): CampaignState {
     wardCap: clamp(int(r.wardCap), 0, WARD_TOP),
     regenAt: Math.max(0, Number.isFinite(Number(r.regenAt)) ? Number(r.regenAt) : 0),
     easeAt: Math.max(0, Number.isFinite(Number(r.easeAt)) ? Number(r.easeAt) : 0),
+    kin: {
+      total: clamp(int(r.kin?.total), 0, 1_000_000), day: Math.max(1, int(r.kin?.day, 1)), today: clamp(int(r.kin?.today), 0, 99),
+      huntDay: Math.max(0, int(r.kin?.huntDay)), flyDay: Math.max(0, int(r.kin?.flyDay)), restDay: Math.max(0, int(r.kin?.restDay)),
+    },
+    look: { day: Math.max(1, int(r.look?.day, 1)), n: clamp(int(r.look?.n), 0, 9) },
+    rescueDay: Math.max(0, int(r.rescueDay)),
+    dragonWeb: clamp(int(r.dragonWeb), 0, DRAGON_WEB_TOP),
     liveAt: Math.max(0, int(r.liveAt)),
     timeTurns: (Array.isArray(r.timeTurns) ? r.timeTurns : []).filter((x: unknown) => typeof x === 'string' && x).map((x: string) => x.slice(0, 100)).slice(-8),
   };
@@ -399,14 +419,19 @@ export function checkPenalty(state: CampaignState): number {
 }
 /** strainOff (the progression web's Channel spoke): strain taken off a failed signet check.
  *  webSignet: its bonus on signet checks. steadySignet: a signet check never fails critically. */
-export interface CheckInput { d20: number; modifier: number; dc: unknown; risk: Risk; label: string; masteryXp: number; bond: number | null; strainOff?: number; webSignet?: number; steadySignet?: boolean }
+export interface CheckInput {
+  d20: number; modifier: number; dc: unknown; risk: Risk; label: string; masteryXp: number; bond: number | null; strainOff?: number; webSignet?: number; steadySignet?: boolean;
+  /** The progression web's Saddle spoke (all need a bonded dragon): extra dragon's help, how much less wounds and conditions take off,
+   *  HP saved on a failed physical check, no critical failures, and how many failed checks a day are rolled again. */
+  help?: number; steady?: number; soften?: number; noCrit?: boolean; looks?: number;
+}
 export interface CheckResult {
   dc: number; total: number; outcome: Outcome; parts: string[]; hp: number; strain: number;
   condition: Condition | null; injury: Injury | null; line: string; state: CampaignState; events: RuleEvent[];
 }
 export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet, input: CheckInput, rand: Rand): CheckResult {
   let s = tick(state, minute);
-  const d20 = clamp(int(input.d20, 1), 1, 20);
+  let d20 = clamp(int(input.d20, 1), 1, 20);
   const dc = snapDc(input.dc);
   const tier = DC_LADDER.indexOf(dc) + 1;
   const parts: string[] = [];
@@ -416,16 +441,35 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
   if (input.risk === 'signet' && P.prodigyCheckBonus(pt)) { bonus += P.prodigyCheckBonus(pt); parts.push(`+${P.prodigyCheckBonus(pt)} Prodigy`); }
   const trained = input.risk === 'signet' ? clamp(int(input.webSignet), 0, 5) : 0;
   if (trained) { bonus += trained; parts.push(`+${trained} Control`); }
-  const assist = dragonAssist(input.bond) + (input.bond != null ? P.prodigyDragonAssistBonus(pt) : 0);
+  const bonded = input.bond != null;
+  const assist = dragonAssist(input.bond) + (bonded ? P.prodigyDragonAssistBonus(pt) + clamp(int(input.help), 0, 6) : 0);
   if (assist) { bonus += assist; parts.push(`+${assist} dragon's help`); }
-  const pen = checkPenalty(s);
+  const rawPen = checkPenalty(s);
+  const steadied = bonded ? Math.min(rawPen, clamp(int(input.steady), 0, 4)) : 0;
+  const pen = rawPen - steadied;
   if (pen) { bonus -= pen; parts.push(`-${pen} wounds and conditions`); }
-  const total = d20 + clamp(int(input.modifier), -10, 30) + bonus;
-  let outcome: Outcome = total >= dc + 10 ? 'critical_success' : total >= dc ? 'success' : total <= dc - 10 ? 'critical_failure' : 'failure';
-  if (d20 === 20) outcome = total >= dc ? 'critical_success' : 'success';
-  if (d20 === 1) outcome = 'critical_failure';
+  if (steadied) parts.push(`your dragon steadies you (${steadied} less from wounds and conditions)`);
+  const judge = (roll: number): { total: number; outcome: Outcome } => {
+    const sum = roll + clamp(int(input.modifier), -10, 30) + bonus;
+    let o: Outcome = sum >= dc + 10 ? 'critical_success' : sum >= dc ? 'success' : sum <= dc - 10 ? 'critical_failure' : 'failure';
+    if (roll === 20) o = sum >= dc ? 'critical_success' : 'success';
+    if (roll === 1) o = 'critical_failure';
+    return { total: sum, outcome: o };
+  };
+  let { total, outcome } = judge(d20);
+  // Second Look (progression web, Saddle): a failed check is rolled again by the server, a set number of times a day. The better roll stands.
+  const lookDay = dayOf(minute);
+  const looked = s.look.day === lookDay ? s.look.n : 0;
+  if (bonded && clamp(int(input.looks), 0, 5) > looked && (outcome === 'failure' || outcome === 'critical_failure')) {
+    const again = d(20, rand);
+    s = { ...s, look: { day: lookDay, n: looked + 1 } };
+    if (again > d20) { parts.push(`Second Look: rolled again (${d20} became ${again})`); d20 = again; ({ total, outcome } = judge(again)); }
+    else parts.push(`Second Look: rolled again (${again}), the first roll stands`);
+  }
   // Perfect Control (progression web): a signet check can fail, but never critically.
   if (input.risk === 'signet' && input.steadySignet && outcome === 'critical_failure') { outcome = 'failure'; parts.push('Perfect Control: no critical failure'); }
+  // Mind-speak (Saddle): with a bonded dragon no check fails critically.
+  if (bonded && input.noCrit && outcome === 'critical_failure') { outcome = 'failure'; parts.push('Mind-speak: no critical failure'); }
 
   let hp = 0, strain = 0;
   let condition: Condition | null = null, injury: Injury | null = null;
@@ -449,6 +493,9 @@ export function resolveCheck(state: CampaignState, minute: number, sheet: Sheet,
     if (input.risk === 'signet') strain = 1;
   }
   hp = Math.max(hp, -Math.max(1, Math.floor(sheet.maxHp / 2)));
+  // Warning Growl (Saddle): the dragon's warning takes some of a failed physical check's damage away.
+  const growl = bonded && input.risk === 'physical' ? Math.min(-hp, clamp(int(input.soften), 0, 10)) : 0;
+  if (growl > 0) { hp += growl; parts.push(`your dragon's warning saved ${growl} HP`); }
   const absorbed = Math.min(strain, clamp(int(input.strainOff), 0, 5));
   strain -= absorbed;
   // The progression web's Ward takes the damage first.
@@ -485,6 +532,35 @@ export function battleBrief(state: CampaignState, minute: number, sheet: Sheet):
 }
 
 /** A wounded dragon mends by a share of its full health (a long rest: half; a hunt: a quarter). */
+export interface DragonCare {
+  /** What the progression web changes about living with a dragon (see web.ts). Everything left out means today's rules. */
+  huntMend?: boolean; restMend?: boolean; huntDays?: number; flyDays?: number; grace?: number; trustHunt?: number; trustFly?: number;
+}
+/** Kinship: what each kind of time with the dragon is worth, and the most that counts in one in-game day. */
+export const KIN_FOR = { hunt: 1, fly: 1, rest: 1, fight: 2 } as const;
+export const KIN_DAILY = 5;
+/** Count Kinship for time spent with the dragon. A hunt, a flight and a long rest each count once an in-game day. `first` says
+ *  whether this was the first of its kind today (a won fight always is). */
+export function earnKin(state: CampaignState, minute: number, why: keyof typeof KIN_FOR): { state: CampaignState; gained: number; first: boolean } {
+  const day = dayOf(minute);
+  const k = state.kin.day === day ? state.kin : { ...state.kin, day, today: 0 };
+  const first = why === 'hunt' ? k.huntDay !== day : why === 'fly' ? k.flyDay !== day : why === 'rest' ? k.restDay !== day : true;
+  const gained = first ? Math.min(KIN_FOR[why], Math.max(0, KIN_DAILY - k.today)) : 0;
+  const mark = why === 'hunt' ? { huntDay: day } : why === 'fly' ? { flyDay: day } : why === 'rest' ? { restDay: day } : {};
+  return { state: { ...state, kin: { ...k, ...mark, total: k.total + gained, today: k.today + gained } }, gained, first };
+}
+/** Trust the dragon gains. It travels as a dragon_need result (the phone already applies that kind's trust number to the dragon's record). */
+export const trustGain = (amount: number, reason: string, key: string): RuleEvent =>
+  ({ kind: 'dragon_need', reason, idem_key: key, payload: { trust: clamp(int(amount), 1, 5), gain: true } });
+/** Vigor: keep the dragon's stored body in step with the max HP the rider's nodes add. New health arrives filled, so the bar grows. */
+export function syncDragon(state: CampaignState, bonus: number): CampaignState {
+  const want = clamp(int(bonus), 0, DRAGON_WEB_TOP);
+  if (!state.dragon || state.dragonWeb === want) return state;
+  const delta = want - state.dragonWeb;
+  const maxHp = Math.max(1, state.dragon.maxHp + delta);
+  const hp = state.dragon.hp <= 0 ? 0 : clamp(state.dragon.hp + Math.max(0, delta), 1, maxHp);
+  return { ...state, dragonWeb: want, dragon: { ...state.dragon, maxHp, hp } };
+}
 export function mendDragon(body: CampaignState['dragon'], share: number): CampaignState['dragon'] {
   if (!body || body.hp <= 0) return body;
   return { ...body, hp: Math.min(body.maxHp, body.hp + Math.ceil(body.maxHp * share)) };
@@ -499,7 +575,7 @@ export type RestResult =
   | { ok: true; state: CampaignState; events: RuleEvent[]; advance: number; setMinute: number | null; strainDelta: number; strainReset: boolean; summary: string };
 /** quickWard (the progression web's Quick Ward): a short rest refills the Ward to half. A long rest always refills it.
  *  restEase (its Recovery branch): extra Signet Strain a short rest eases. */
-export function rest(state: CampaignState, minute: number, kind: 'short' | 'long', quickWard = false, restEase = 0): RestResult {
+export function rest(state: CampaignState, minute: number, kind: 'short' | 'long', quickWard = false, restEase = 0, care: DragonCare & { bonded?: boolean } = {}): RestResult {
   let s = tick(state, minute);
   const seq = s.seq + 1;
   if (kind === 'short') {
@@ -522,22 +598,24 @@ export function rest(state: CampaignState, minute: number, kind: 'short' | 'long
   }
   const wake = nextDawn(minute);
   const healed = s.injuries.filter(i => i.severity <= 1).map(i => i.name);
+  // A night beside a bonded dragon is time together: it counts toward Kinship once a day.
+  const kin = care.bonded ? earnKin(s, minute, 'rest') : { state: s, gained: 0 };
   s = {
-    ...s, seq, lastLongRestEnd: wake, dragon: mendDragon(s.dragon, 0.5), strain: 0, ward: s.wardCap, regenAt: s.regenAt > 0 ? wake : 0,
+    ...kin.state, seq, lastLongRestEnd: wake, dragon: mendDragon(s.dragon, care.restMend ? 1 : 0.5), strain: 0, ward: s.wardCap, regenAt: s.regenAt > 0 ? wake : 0,
     injuries: s.injuries.map(i => ({ ...i, severity: i.severity - 1 })).filter(i => i.severity >= 1),
     conditions: s.conditions.filter(c => c.untilMinute > wake),
   };
   return {
     ok: true, state: tick(s, wake), advance: 0, setMinute: wake, strainDelta: 0, strainReset: true,
-    summary: `Long rest: you wake at ${formatTime(wake)}, fully rested, Signet Strain cleared${healed.length ? `, healed: ${healed.join(', ')}` : ''}.`,
+    summary: `Long rest: you wake at ${formatTime(wake)}, fully rested, Signet Strain cleared${healed.length ? `, healed: ${healed.join(', ')}` : ''}.${kin.gained ? ` A night beside your dragon: +${kin.gained} Kinship.` : ''}`,
     events: [{ kind: 'rest', reason: 'Long rest', idem_key: `rest:${seq}`, payload: { rest: 'long', strainReset: true, healed } }],
   };
 }
 
 export type Activity = 'wait' | 'hunt' | 'fly' | 'train';
 export const ACTIVITY_MIN_HOURS: Record<Activity, number> = { wait: 1, hunt: 3, fly: 1, train: 2 };
-export type PassResult = { ok: false; error: string } | { ok: true; state: CampaignState; advance: number; summary: string; xpDelta: number };
-export function passTime(state: CampaignState, minute: number, hours: number, activity: Activity, bonded: boolean, prodigy = 0): PassResult {
+export type PassResult = { ok: false; error: string } | { ok: true; state: CampaignState; advance: number; summary: string; xpDelta: number; events: RuleEvent[] };
+export function passTime(state: CampaignState, minute: number, hours: number, activity: Activity, bonded: boolean, prodigy = 0, care: DragonCare = {}): PassResult {
   const h = clamp(int(hours, 1), 1, 12);
   if ((activity === 'hunt' || activity === 'fly') && !bonded) return { ok: false, error: 'You have no bonded dragon yet.' };
   if (h < ACTIVITY_MIN_HOURS[activity]) return { ok: false, error: `That takes at least ${ACTIVITY_MIN_HOURS[activity]} hours.` };
@@ -546,26 +624,45 @@ export function passTime(state: CampaignState, minute: number, hours: number, ac
   const endDay = dayOf(end);
   let xpDelta = 0;
   let what = `${h} hour${h === 1 ? '' : 's'} pass`;
-  if (activity === 'hunt') { s = { ...s, dragon: mendDragon(s.dragon, 0.25), needs: { ...s.needs, huntMetDay: endDay } }; what = `Your dragon hunts for ${h} hours and comes back fed`; }
-  if (activity === 'fly') { s = { ...s, needs: { ...s.needs, flyMetDay: endDay } }; what = `You fly together for ${h} hour${h === 1 ? '' : 's'}`; }
+  const events: RuleEvent[] = [];
+  let kinship = '';
+  // A hunt and a flight are time with the dragon: each counts toward Kinship once a day, and (Loyalty) can earn trust.
+  const together = (why: 'hunt' | 'fly', trust: unknown, reason: string) => {
+    const k = earnKin(s, end, why);
+    s = k.state;
+    if (k.gained) kinship = ` (+${k.gained} Kinship)`;
+    if (k.first && clamp(int(trust), 0, 5) > 0) events.push(trustGain(int(trust), reason, `trust:${why}:${endDay}`));
+  };
+  if (activity === 'hunt') {
+    s = { ...s, dragon: mendDragon(s.dragon, care.huntMend ? 0.5 : 0.25), needs: { ...s.needs, huntMetDay: endDay } };
+    together('hunt', care.trustHunt, 'You hunted together: your dragon trusts you a little more');
+    what = `Your dragon hunts for ${h} hours and comes back fed${kinship}`;
+  }
+  if (activity === 'fly') {
+    s = { ...s, needs: { ...s.needs, flyMetDay: endDay } };
+    together('fly', care.trustFly, 'You flew together: your dragon trusts you a little more');
+    what = `You fly together for ${h} hour${h === 1 ? '' : 's'}${kinship}`;
+  }
   if (activity === 'train') { const u = signetUse(s, minute, 3, prodigy); s = u.state; xpDelta = u.xpDelta; what = `You drill your signet for ${h} hours${xpDelta ? ` (+${xpDelta} Signet Mastery)` : ' (no more to learn today)'}`; }
-  return { ok: true, state: { ...s, seq: s.seq + 1 }, advance: h * 60, xpDelta, summary: `${what}. It is now ${formatTime(end)}.` };
+  return { ok: true, state: { ...s, seq: s.seq + 1 }, advance: h * 60, xpDelta, events, summary: `${what}. It is now ${formatTime(end)}.` };
 }
 
 // ── the dragon's needs ──
 export const HUNT_EVERY_DAYS = 3;
 export const FLY_EVERY_DAYS = 2;
-export function unmetNeeds(state: CampaignState, minute: number): Array<'hunt' | 'fly'> {
+export function unmetNeeds(state: CampaignState, minute: number, care: DragonCare = {}): Array<'hunt' | 'fly'> {
   const day = dayOf(minute);
   const out: Array<'hunt' | 'fly'> = [];
-  if (day - state.needs.huntMetDay > HUNT_EVERY_DAYS) out.push('hunt');
-  if (day - state.needs.flyMetDay > FLY_EVERY_DAYS) out.push('fly');
+  if (day - state.needs.huntMetDay > HUNT_EVERY_DAYS + clamp(int(care.huntDays), 0, 7)) out.push('hunt');
+  if (day - state.needs.flyMetDay > FLY_EVERY_DAYS + clamp(int(care.flyDays), 0, 7)) out.push('fly');
   return out;
 }
 /** Once per in-game day, an ignored need costs 1 trust (applied on the phone through the dragon record). */
-export function chargeNeeds(state: CampaignState, minute: number, bonded: boolean): { state: CampaignState; events: RuleEvent[] } {
+export function chargeNeeds(state: CampaignState, minute: number, bonded: boolean, care: DragonCare = {}): { state: CampaignState; events: RuleEvent[] } {
   const day = dayOf(minute);
-  const unmet = bonded ? unmetNeeds(state, minute) : [];
+  // Forgiving (Loyalty): a need has to go unmet for a day longer before it costs trust.
+  const grace = clamp(int(care.grace), 0, 3);
+  const unmet = bonded ? unmetNeeds(state, minute, { huntDays: int(care.huntDays) + grace, flyDays: int(care.flyDays) + grace }) : [];
   if (!unmet.length || state.needs.chargedDay >= day) return { state, events: [] };
   return {
     state: { ...state, needs: { ...state.needs, chargedDay: day } },
@@ -574,7 +671,7 @@ export function chargeNeeds(state: CampaignState, minute: number, bonded: boolea
 }
 /** A journey on dragonback counts as flying together. */
 export const flightMeetsNeed = (state: CampaignState, minute: number): CampaignState =>
-  ({ ...state, needs: { ...state.needs, flyMetDay: dayOf(minute) } });
+  earnKin({ ...state, needs: { ...state.needs, flyMetDay: dayOf(minute) } }, minute, 'fly').state;
 
 // ── rewards ──
 export type Challenge = 'easy' | 'moderate' | 'hard' | 'deadly';
@@ -694,7 +791,7 @@ export function unlockList(masteryXp: number, bond: number | null): Unlock[] {
   ];
 }
 
-export interface FactsInput { minute: number; masteryXp: number; bond: number | null; bonded: boolean; traveling: boolean; sheet?: Sheet }
+export interface FactsInput { minute: number; masteryXp: number; bond: number | null; bonded: boolean; traveling: boolean; sheet?: Sheet; care?: DragonCare }
 /** The rule half of the one GAME FACTS block. The phone adds the map half (place, journey) at send time. */
 export function buildRuleFacts(state: CampaignState, f: FactsInput): string {
   const s = tick(state, f.minute);
@@ -710,7 +807,7 @@ export function buildRuleFacts(state: CampaignState, f: FactsInput): string {
   const m = masteryInfo(f.masteryXp);
   if (f.bonded) lines.push(`Signet Mastery: ${m.name} (rank ${m.rank} of 4). Describe the signet's control and finesse at that level; raw power still follows the channeled intensity.`);
   if (f.bonded) {
-    const unmet = unmetNeeds(s, f.minute);
+    const unmet = unmetNeeds(s, f.minute, f.care);
     if (unmet.length) lines.push(`The dragon's needs are overdue: ${unmet.map(n => (n === 'hunt' ? 'it has not hunted in days and is hungry and short-tempered' : 'it has not flown with its rider in days and is restless')).join('; ')}. Let it show.`);
   }
   if (f.bonded && s.dragon && s.dragon.hp < s.dragon.maxHp) lines.push(`The dragon is wounded from a fight (${s.dragon.hp}/${s.dragon.maxHp}). It mends with long rests and hunting. Let it show.`);
