@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  SoloHallScene, hallRingCopy, hallRingLeftFor, hallRingSeamLeft, hallRingSeamShown, hallRingSpotAt, hallRingStoryLeft, hallRingTarget, hallRingWrap,
+  SoloHallScene, hallRingAsideLeft, hallRingCopy, hallRingLeftFor, hallRingSeamLeft, hallRingSeamShown, hallRingSpotAt, hallRingStoryLeft, hallRingTarget, hallRingWrap,
 } from '@/components/empyrean/SoloHallScene';
 
 const walls = { left: <span>left wall</span>, right: <span>right wall</span>, leftLabel: 'The College', rightLabel: 'Rider and Dragon' };
@@ -174,5 +174,72 @@ describe('solo hall ring: the scene', () => {
     render(<SoloHallScene enabled={false} {...walls} spots={{}} seam={<p>dragon chat</p>}><p>the story</p></SoloHallScene>);
     expect(screen.getByText('left wall')).toBeTruthy();
     expect(screen.queryByText('dragon chat')).toBeNull();
+  });
+});
+
+describe('solo hall ring: a second panel beside the first', () => {
+  afterEach(() => cleanup());
+  // A 400 px view, a hall 2240 px wide, and a gap two screens wide for the two panels.
+  const two = { view: 400, scene: 2240, lap: 2240 + 800 };
+
+  it('sits straight after the seam panel in every copy', () => {
+    for (const k of [0, 1, 2]) expect(hallRingAsideLeft(k, two) - hallRingSeamLeft(k, two)).toBe(400);
+    expect(hallRingAsideLeft(1, two)).toBe(two.lap + 2240 + 400);
+    // The next hall starts where the second panel ends.
+    expect(hallRingAsideLeft(1, two) + two.view).toBe(2 * two.lap);
+  });
+
+  it('leaves the seam panel exactly where and what it was', () => {
+    expect(hallRingSeamLeft(1, two)).toBe(two.lap + 2240);
+    expect(hallRingSeamShown(hallRingSeamLeft(1, two), two)).toBe(1);
+    expect(hallRingSeamShown(hallRingSeamLeft(1, two) - 200, two)).toBe(0.5);
+    // Facing the second panel is not facing the seam panel.
+    expect(hallRingSeamShown(hallRingAsideLeft(1, two), two)).toBe(0);
+    expect(hallRingSeamShown(hallRingAsideLeft(1, two) - 100, two)).toBe(0.25);
+    expect(hallRingSeamShown(hallRingStoryLeft(1, two), two)).toBe(0);
+  });
+
+  it('turns to it the short way round: left from the story, right from the seam panel', () => {
+    const atStory = hallRingStoryLeft(1, two);
+    expect(hallRingTarget('aside', atStory, two)).toBe(hallRingAsideLeft(0, two));
+    expect(hallRingTarget('aside', hallRingSeamLeft(1, two), two)).toBe(hallRingAsideLeft(1, two));
+    // With two panels the seam panel is nearer going right, past the dragon, as before.
+    expect(hallRingTarget('seam', atStory, two)).toBe(hallRingSeamLeft(1, two));
+    expect(hallRingTarget('story', hallRingAsideLeft(0, two), two)).toBe(atStory);
+  });
+
+  it('remembers a view of the second panel through a resize, and wraps it into the middle copy', () => {
+    const spot = hallRingSpotAt(hallRingAsideLeft(1, two), two);
+    expect(spot).toEqual({ zone: 'seam', t: 1.5 });
+    const wider = { view: 800, scene: 2240, lap: 2240 + 1600 };
+    expect(hallRingLeftFor(spot, wider)).toBe(hallRingAsideLeft(1, wider));
+    expect(hallRingWrap(hallRingAsideLeft(0, two), two.lap)).toBe(hallRingAsideLeft(1, two));
+    expect(hallRingWrap(hallRingAsideLeft(2, two), two.lap)).toBe(hallRingAsideLeft(1, two));
+    expect(hallRingCopy(hallRingAsideLeft(2, two) + 200, two.scene + two.view * 1.5, two.lap)).toBe(2);
+  });
+
+  it('is drawn once, after the seam panel, and the gap is two screens wide', () => {
+    const r = render(
+      <SoloHallScene enabled {...walls} spots={{}} seam={<p>dragon chat</p>} aside={<p>the web wall</p>}>
+        <p>the story</p>
+      </SoloHallScene>,
+    );
+    expect(screen.getAllByText('the web wall').length).toBe(1);
+    expect(r.container.querySelector('[data-hall-aside]')?.textContent).toContain('the web wall');
+    expect(r.container.querySelector('[data-hall-seam]')?.textContent).toContain('dragon chat');
+    expect(r.container.querySelector('[data-hall-seam]')?.textContent).not.toContain('the web wall');
+    expect(r.container.querySelectorAll('[data-hall-gap="2"]').length).toBe(3);
+    expect(r.container.querySelectorAll('[data-hall-gap="1"]').length).toBe(0);
+  });
+
+  it('without it nothing changes: one panel and a gap one screen wide; and it needs a seam panel', () => {
+    const one = render(<SoloHallScene enabled {...walls} spots={{}} seam={<p>dragon chat</p>}><p>the story</p></SoloHallScene>);
+    expect(one.container.querySelector('[data-hall-aside]')).toBeNull();
+    expect(one.container.querySelectorAll('[data-hall-gap="1"]').length).toBe(3);
+    expect(one.container.querySelectorAll('[data-hall-gap="2"]').length).toBe(0);
+    cleanup();
+    const none = render(<SoloHallScene enabled {...walls} spots={{}} aside={<p>the web wall</p>}><p>the story</p></SoloHallScene>);
+    expect(none.container.querySelector('[data-hall-ring]')).toBeNull();
+    expect(screen.queryByText('the web wall')).toBeNull();
   });
 });

@@ -3,6 +3,7 @@
 // the buttons: tap the satchel for the bag, the dragon for the dragon, and so on.
 // The scene is sized by its height and every tap area is a percentage of the scene, so the areas
 // stay on their objects on any phone. Native sideways scrolling: nothing here uses a transform.
+// A second panel (the progression web's wall) can follow the seam panel; the gap is then two screens wide.
 // With a seam panel (the dragon's chat) the hall is a ring: the panel joins the far right to the far
 // left and the view goes round without an end.
 import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
@@ -43,8 +44,10 @@ interface SoloHallSceneProps {
   seam?: ReactNode;
   /** Told true once the view has stopped mostly on the seam panel, false once it has stopped mostly off it. */
   onSeamFacing?: (facing: boolean) => void;
-  /** Turns the view to the story or the seam panel whenever tick changes. */
-  lookAt?: { where: 'story' | 'seam'; tick: number };
+  /** A second panel one screen wide, straight after the seam panel (between it and the far left of the next hall). It needs a seam panel. */
+  aside?: ReactNode;
+  /** Turns the view to the story, the seam panel or the second panel whenever tick changes. */
+  lookAt?: { where: 'story' | 'seam' | 'aside'; tick: number };
   // The older round room's own props (used only while enabled is false).
   left: ReactNode;
   right: ReactNode;
@@ -53,7 +56,7 @@ interface SoloHallSceneProps {
   wallpaper?: string;
 }
 
-export function SoloHallScene({ enabled, children, spots, homeKey, seam, onSeamFacing, lookAt, left, right, leftLabel, rightLabel, wallpaper }: SoloHallSceneProps) {
+export function SoloHallScene({ enabled, children, spots, homeKey, seam, aside, onSeamFacing, lookAt, left, right, leftLabel, rightLabel, wallpaper }: SoloHallSceneProps) {
   if (!enabled) {
     return (
       <SoloRoom left={left} right={right} leftLabel={leftLabel} rightLabel={rightLabel} wallpaper={wallpaper} homeKey={homeKey}>
@@ -62,7 +65,7 @@ export function SoloHallScene({ enabled, children, spots, homeKey, seam, onSeamF
     );
   }
   if (seam != null && seam !== false) {
-    return <HallRing spots={spots} homeKey={homeKey} seam={seam} onSeamFacing={onSeamFacing} lookAt={lookAt}>{children}</HallRing>;
+    return <HallRing spots={spots} homeKey={homeKey} seam={seam} aside={aside} onSeamFacing={onSeamFacing} lookAt={lookAt}>{children}</HallRing>;
   }
   return <HallScene spots={spots} homeKey={homeKey}>{children}</HallScene>;
 }
@@ -152,7 +155,7 @@ function HallScene({ children, spots, homeKey }: Pick<SoloHallSceneProps, 'child
 const HALL_COPIES = 3;
 const HALL_REST_MS = 140;
 
-/** Sizes of the ring in screen pixels: the view, one painted hall, and one lap (hall + seam panel). */
+/** Sizes of the ring in screen pixels: the view, one painted hall, and one lap (hall + seam panel, + the second panel when there is one). */
 export interface HallRingSize { view: number; scene: number; lap: number }
 /** Where the view is, in a way that survives a resize: the middle of the view on the painted hall or on the seam panel. */
 export interface HallRingSpot { zone: 'scene' | 'seam'; t: number }
@@ -176,6 +179,8 @@ export function hallRingWrap(x: number, lap: number): number {
 export const hallRingStoryLeft = (k: number, s: HallRingSize) => k * s.lap + s.scene / 2 - s.view / 2;
 /** Left edge of the seam panel (straight after the painted hall) in copy k. */
 export const hallRingSeamLeft = (k: number, s: HallRingSize) => k * s.lap + s.scene;
+/** Left edge of the second panel (straight after the seam panel) in copy k. */
+export const hallRingAsideLeft = (k: number, s: HallRingSize) => k * s.lap + s.scene + s.view;
 
 export function hallRingSpotAt(x: number, s: HallRingSize): HallRingSpot {
   if (!(s.lap > 0) || !(s.scene > 0)) return { zone: 'scene', t: 0.5 };
@@ -189,13 +194,14 @@ export function hallRingLeftFor(spot: HallRingSpot, s: HallRingSize): number {
   return Math.max(0, s.lap + c - s.view / 2);
 }
 
-/** The nearest scroll position that faces the story or the seam panel. From the story the panel is equally far both ways: go right, past the dragon. */
-export function hallRingTarget(where: 'story' | 'seam', x: number, s: HallRingSize): number {
+/** The nearest scroll position that faces the story, the seam panel or the second panel. From the story the seam panel is equally far both ways when it is the only panel: go right, past the dragon. */
+export function hallRingTarget(where: 'story' | 'seam' | 'aside', x: number, s: HallRingSize): number {
   const max = HALL_COPIES * s.lap - s.view;
-  let best = where === 'story' ? hallRingStoryLeft(1, s) : hallRingSeamLeft(1, s);
+  const leftOf = (k: number) => (where === 'story' ? hallRingStoryLeft(k, s) : where === 'seam' ? hallRingSeamLeft(k, s) : hallRingAsideLeft(k, s));
+  let best = leftOf(1);
   let gap = Infinity;
   for (let k = 0; k < HALL_COPIES; k++) {
-    const at = where === 'story' ? hallRingStoryLeft(k, s) : hallRingSeamLeft(k, s);
+    const at = leftOf(k);
     if (at < 0 || at > max + 0.5) continue;
     const d = Math.abs(at - x);
     if (where === 'seam' ? d <= gap + 1 : d < gap - 1) { gap = d; best = at; }
@@ -210,15 +216,17 @@ export function hallRingSeamShown(x: number, s: HallRingSize): number {
   return Math.max(0, Math.min(x + s.view, left + s.view) - Math.max(x, left)) / s.view;
 }
 
-function HallRing({ children, spots, homeKey, seam, onSeamFacing, lookAt }: Pick<SoloHallSceneProps, 'children' | 'spots' | 'homeKey' | 'seam' | 'onSeamFacing' | 'lookAt'>) {
+function HallRing({ children, spots, homeKey, seam, aside, onSeamFacing, lookAt }: Pick<SoloHallSceneProps, 'children' | 'spots' | 'homeKey' | 'seam' | 'aside' | 'onSeamFacing' | 'lookAt'>) {
+  const hasAside = aside != null && aside !== false;
   const scroller = useRef<HTMLDivElement>(null);
   const firstLap = useRef<HTMLDivElement>(null);
   const firstScene = useRef<HTMLDivElement>(null);
   const story = useRef<HTMLElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const second = useRef<HTMLDivElement>(null);
   const size = useRef<HallRingSize>({ view: 0, scene: 0, lap: 0 });
   const spot = useRef<HallRingSpot>({ zone: 'scene', t: 0.5 });
-  const placed = useRef({ story: -1, seam: -1 });
+  const placed = useRef({ story: -1, seam: -1, aside: -1 });
   const facing = useRef(false);
   const touching = useRef(false);
   const rest = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -235,7 +243,7 @@ function HallRing({ children, spots, homeKey, seam, onSeamFacing, lookAt }: Pick
     const scene = sceneEl.getBoundingClientRect().width;
     if (!(view > 0) || !(lap > 0) || !(scene > 0)) return false;
     size.current = { view, scene, lap };
-    placed.current = { story: -1, seam: -1 };
+    placed.current = { story: -1, seam: -1, aside: -1 };
     return true;
   }, []);
 
@@ -254,6 +262,11 @@ function HallRing({ children, spots, homeKey, seam, onSeamFacing, lookAt }: Pick
     if (kp !== placed.current.seam && panel.current) {
       panel.current.style.left = `${hallRingSeamLeft(kp, s)}px`;
       placed.current.seam = kp;
+    }
+    const ka = hallRingCopy(center, s.scene + s.view * 1.5, s.lap);
+    if (ka !== placed.current.aside && second.current) {
+      second.current.style.left = `${hallRingAsideLeft(ka, s)}px`;
+      placed.current.aside = ka;
     }
   }, []);
 
@@ -293,11 +306,11 @@ function HallRing({ children, spots, homeKey, seam, onSeamFacing, lookAt }: Pick
     whenStill();
   }, [place, whenStill]);
 
-  // Face the story before the first paint.
+  // Face the story before the first paint. A second panel arriving or leaving changes the lap: measure again and keep the same thing in view.
   useLayoutEffect(() => {
     if (!measure()) return;
     show(hallRingLeftFor(spot.current, size.current), false);
-  }, [measure, show]);
+  }, [measure, show, hasAside]);
 
   // A resize (the keyboard, a rotation, a late first layout) keeps the same thing in view.
   useEffect(() => {
@@ -368,8 +381,8 @@ function HallRing({ children, spots, homeKey, seam, onSeamFacing, lookAt }: Pick
             <div ref={k === 0 ? firstScene : undefined} className="relative h-full shrink-0" style={{ aspectRatio: `${HALL_SCENE_WIDTH} / ${HALL_SCENE_HEIGHT}` }}>
               <HallScenery spots={spots} quiet={k !== 1} />
             </div>
-            {/* The gap the seam panel sits in. Dark, so the hall reads as closed even before the panel is placed. */}
-            <div className="h-full shrink-0 bg-[#0a0a1a]" style={{ width: '100cqw' }} />
+            {/* The gap the seam panel sits in (two screens wide when a second panel follows it). Dark, so the hall reads as closed even before a panel is placed. */}
+            <div data-hall-gap={hasAside ? '2' : '1'} className="h-full shrink-0 bg-[#0a0a1a]" style={{ width: hasAside ? '200cqw' : '100cqw' }} />
           </div>
         ))}
 
@@ -384,6 +397,14 @@ function HallRing({ children, spots, homeKey, seam, onSeamFacing, lookAt }: Pick
           <div aria-hidden="true" className="absolute inset-y-0 left-0 w-3 pointer-events-none bg-gradient-to-r from-black/70 to-transparent" />
           <div aria-hidden="true" className="absolute inset-y-0 right-0 w-3 pointer-events-none bg-gradient-to-l from-black/70 to-transparent" />
         </div>
+        {/* The second panel: one screen wide, straight after the seam panel. */}
+        {hasAside && (
+          <div ref={second} data-hall-aside="" className="absolute top-0 h-full flex flex-col min-h-0 overflow-hidden bg-[#0a0a1a]" style={{ width: '100cqw' }}>
+            {aside}
+            <div aria-hidden="true" className="absolute inset-y-0 left-0 w-3 pointer-events-none bg-gradient-to-r from-black/70 to-transparent" />
+            <div aria-hidden="true" className="absolute inset-y-0 right-0 w-3 pointer-events-none bg-gradient-to-l from-black/70 to-transparent" />
+          </div>
+        )}
       </div>
     </div>
   );
