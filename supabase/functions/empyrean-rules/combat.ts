@@ -158,7 +158,10 @@ const MOVE_MULT: Record<M.ClashMove, number> = { heavy: 1.5, signature: 2, sweep
 
 export type Tone = 'info' | 'good' | 'warn' | 'muted';
 
-export interface FightEvent { n: number; at: number; text: string; tone: Tone; targetId?: string; amount?: number; flash?: 'hit' | 'heal' }
+/** Who acted and how, on the log line where it shows: for the phone's fight animations only. The rules never read it. */
+export type FightActor = 'rider' | 'dragon';
+export type FightMove = 'attack' | 'signet' | 'potion' | 'counter' | 'claw' | 'bite' | 'fire' | 'guard';
+export interface FightEvent { n: number; at: number; text: string; tone: Tone; targetId?: string; amount?: number; flash?: 'hit' | 'heal'; by?: FightActor; move?: FightMove }
 
 export interface Pending {
 
@@ -286,6 +289,12 @@ function say(f: Fight, at: number, text: string, tone: Tone = 'info', flash?: { 
 
   if (f.log.length > 60) f.log = f.log.slice(-60);
 
+}
+
+/** Tags the first log line written since `from` with who acted and how. It changes no number and no outcome. */
+function mark(f: Fight, from: number, by: FightActor, move: FightMove) {
+  const line = f.log.find(l => l.n > from && !l.by);
+  if (line) { line.by = by; line.move = move; }
 }
 
 const up = (e: { status: string; hp: number }) => e.status === 'up' && e.hp > 0;
@@ -640,7 +649,7 @@ function landStrike(f: Fight, e: Enemy, at: number, rand: Rand) {
 
   if (p.warded) amount = Math.round(amount / 2);
 
-  if (amount <= 0) say(f, at, `PERFECT! You turn ${p.label} aside.`, 'good');
+  if (amount <= 0) { const before = f.seq; say(f, at, `PERFECT! You turn ${p.label} aside.`, 'good'); mark(f, before, 'rider', 'counter'); }
 
   else {
 
@@ -684,6 +693,8 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   if (!foes.length) return;
 
+  const markFrom = f.seq;
+
   // A deep bond: the dragon puts itself between its rider and a blow already on its way.
 
   const threat = f.enemies.find(e => up(e) && e.pending && e.pending.target === 'rider' && !e.pending.warded);
@@ -694,6 +705,8 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
     say(f, at, `${g.name} throws a wing between you and ${threat.name}.`, 'good');
 
+    mark(f, markFrom, 'dragon', 'guard');
+
     return;
 
   }
@@ -701,6 +714,8 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
   if (g.turns % P.prodigyFireEvery(pt) === 0 && (foes.length >= 2 || rand() < 0.5)) {
 
     say(f, at, `${g.name} breathes fire!`, 'good');
+
+    mark(f, markFrom, 'dragon', 'fire');
 
     for (const e of foes) {
 
@@ -722,11 +737,13 @@ function dragonTurn(f: Fight, at: number, rand: Rand) {
 
   const a = attackRoll(rand, g.atk, target.ac);
 
-  if (!a.hit) { say(f, at, `${g.name} snaps at ${target.name} and misses.`, 'muted'); return; }
+  if (!a.hit) { say(f, at, `${g.name} snaps at ${target.name} and misses.`, 'muted'); mark(f, markFrom, 'dragon', 'bite'); return; }
 
   const lost = hurtEnemy(f, at, target, rollDice({ count: 2, sides: 8, bonus: 4 }, rand, a.crit));
 
   if (up(target)) say(f, at, `${g.name} tears into ${target.name} for ${lost}${a.crit ? ' (critical)' : ''}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
+
+  mark(f, markFrom, 'dragon', a.crit ? 'bite' : 'claw');
 
 }
 
@@ -842,6 +859,8 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
   let strain = 0, usedPotion = false, blood = 0;
 
+  let markFrom = f.seq;
+
   const adr = adrenaline(f);
 
   const rush = adr.damage ? ` (adrenaline +${adr.damage})` : '';
@@ -865,6 +884,8 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
       if (up(target)) say(f, now, `${w.name} hits ${target.name} for ${lost}${r.crit ? ' (critical)' : ''}${rush}.`, 'good', { targetId: target.id, amount: lost, kind: 'hit' });
 
     }
+
+    mark(f, markFrom, 'rider', 'attack');
 
   } else if (a.type === 'signet') {
 
@@ -896,6 +917,8 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     }
 
+    markFrom = f.seq;
+
     const bonus = proficiency(f.rider.level) + 3 + Math.min(f.rider.masteryRank, 3) + adr.hit;
 
     const r = attackRoll(rand, bonus, target.ac);
@@ -924,6 +947,8 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
 
     } else say(f, now, `Your signet goes wide of ${target.name}.`, 'muted');
 
+    mark(f, markFrom, 'rider', 'signet');
+
   } else if (a.type === 'potion') {
 
     const dice = parseDice(a.dice) ?? { count: 2, sides: 4, bonus: 2 };
@@ -933,6 +958,8 @@ export function act(f: Fight, now: number, a: ActInput, rand: Rand): ActResult {
     f.rider.hp += gained; usedPotion = true;
 
     say(f, now, `You drink ${str(a.name, 40, 'a potion')} and recover ${gained}.`, 'good', { targetId: RIDER_ID, amount: gained, kind: 'heal' });
+
+    mark(f, markFrom, 'rider', 'potion');
 
   } else if (a.type === 'flee') {
 
