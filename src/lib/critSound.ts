@@ -50,6 +50,7 @@ function playNat20Fanfare(): void {
  * response to the roll, so the music lands with the reveal rather than the roll.
  */
 export function firePendingNat20Fanfare(): void {
+  return; // muted by request
   if (!nat20Pending) return;
   nat20Pending = false;
   if (pendingSafety) { clearTimeout(pendingSafety); pendingSafety = 0; }
@@ -58,6 +59,7 @@ export function firePendingNat20Fanfare(): void {
 
 /** Plays the high-roll sound if the raw d20 roll is greater than 17. */
 export function maybePlayCritSound(rawRoll: number, sides: number = 20): void {
+  return; // high-roll chime and nat-20 fanfare muted by request
   if (sides !== 20 || rawRoll <= 17) return;
 
   // Guard against double-fires from the same roll being reported twice.
